@@ -16,6 +16,8 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
 
 The real `config/config.php` must remain private and untracked. Room uploads and Gemini-generated drafts are also ignored by git; the checked-in demo SVG is only an editor placeholder.
 
+Region overlay generation requires PHP's GD extension. The web-server user must be able to write both `assets/graphics/rooms/generated` and `assets/graphics/rooms/uploads`.
+
 ## First-pass room format
 
 Each room is stored as a graph node with a lifecycle status (`development`, `staging`, or `production`), a background asset, its optional Gemini prompt, and versioned JSON room data. Click regions contain normalized image coordinates and declarative behavior:

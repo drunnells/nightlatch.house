@@ -18,5 +18,19 @@ if ($generationConfig['imageConfig']['imageSize'] !== '2K') {
     exit(1);
 }
 
-fwrite(STDOUT, "gemini-request tests passed\n");
+$editRequest = nightlatch_gemini_image_edit_request('Turn on the lamp.', 'png-bytes', 'image/png');
+$editParts = $editRequest['contents'][0]['parts'];
+if ($editParts[0]['text'] !== 'Turn on the lamp.') {
+    fwrite(STDERR, "Unexpected Gemini edit prompt.\n");
+    exit(1);
+}
+if ($editParts[1]['inlineData']['mimeType'] !== 'image/png' || base64_decode($editParts[1]['inlineData']['data']) !== 'png-bytes') {
+    fwrite(STDERR, "Gemini edit request did not include the reference image.\n");
+    exit(1);
+}
+if ($editRequest['generationConfig']['imageConfig']['aspectRatio'] !== '1:1' || $editRequest['generationConfig']['imageConfig']['imageSize'] !== '1K') {
+    fwrite(STDERR, "Unexpected Gemini edit output dimensions.\n");
+    exit(1);
+}
 
+fwrite(STDOUT, "gemini-request tests passed\n");

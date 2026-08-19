@@ -106,6 +106,16 @@ require __DIR__ . '/_header.php';
             <label for="success-message">Player message</label><textarea id="success-message" rows="3" placeholder="The brass key turns with a heavy click."></textarea>
             <label for="overlay-asset">Graphic overlay URL</label><input id="overlay-asset" placeholder="../assets/graphics/rooms/door-open.png">
             <label class="mini-upload" for="overlay-upload"><i class="fa-solid fa-upload"></i> Upload overlay graphic<input id="overlay-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>
+            <button type="button" class="overlay-generator-toggle" id="toggle-overlay-generator" aria-expanded="false"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate overlay with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>
+            <div class="overlay-generator" id="overlay-generator">
+                <p class="hint">Gemini receives the exact room crop inside a fixed template. Describe only what should change.</p>
+                <label for="overlay-prompt">Overlay edit prompt</label>
+                <textarea id="overlay-prompt" rows="4" maxlength="2000" placeholder="Make the lamp turned on, casting a warm amber glow."></textarea>
+                <div class="prompt-meta"><span><i class="fa-solid fa-crop-simple"></i> Uses selected region</span><span id="overlay-prompt-count">0 / 2000</span></div>
+                <button type="button" class="btn-forge btn-block" id="generate-overlay"><i class="fa-solid fa-sparkles"></i> Generate region overlay</button>
+                <div class="generation-status" id="overlay-generation-status"></div>
+                <img class="overlay-preview" id="overlay-preview" alt="Generated region overlay preview">
+            </div>
             <label for="set-flag-key">Set flag</label><div class="two-cols"><input id="set-flag-key" placeholder="library_door"><input id="set-flag-value" placeholder="open"></div>
             <label for="grant-item">Grant item</label><input id="grant-item" placeholder="silver_coin">
             <label class="check-row" id="unlock-door-row"><input id="unlock-door" type="checkbox"><span>Unlock this door when the rule succeeds</span></label>

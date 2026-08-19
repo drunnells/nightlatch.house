@@ -26,7 +26,7 @@
             kind: 'interaction',
             bounds: bounds,
             condition: { source: 'always', key: '', operator: 'equals', value: '' },
-            success: { message: '', overlay: '', setFlag: { key: '', value: '' }, grantItem: '', unlockDoor: false },
+            success: { message: '', overlay: '', overlayPrompt: '', setFlag: { key: '', value: '' }, grantItem: '', unlockDoor: false },
             failure: { message: '' },
             door: { targetRoom: '', unlocked: false }
         };
@@ -106,6 +106,9 @@
         $('#condition-value').val(region.condition.value);
         $('#success-message').val(region.success.message);
         $('#overlay-asset').val(region.success.overlay);
+        $('#overlay-prompt').val(region.success.overlayPrompt || '');
+        updateOverlayPromptCount();
+        updateOverlayPreview(region.success.overlay);
         $('#set-flag-key').val(region.success.setFlag.key);
         $('#set-flag-value').val(region.success.setFlag.value);
         $('#grant-item').val(region.success.grantItem);
@@ -130,6 +133,7 @@
         region.success = {
             message: $('#success-message').val(),
             overlay: $('#overlay-asset').val().trim(),
+            overlayPrompt: $('#overlay-prompt').val(),
             setFlag: { key: $('#set-flag-key').val().trim(), value: $('#set-flag-value').val() },
             grantItem: $('#grant-item').val().trim(),
             unlockDoor: $('#unlock-door').prop('checked')
@@ -292,6 +296,73 @@
             $('#overlay-asset').val(url).trigger('input');
             toast('Overlay uploaded');
         }, $('.mini-upload'));
+    });
+
+    $('#toggle-overlay-generator').on('click', function () {
+        var expanded = !$('#overlay-generator').hasClass('visible');
+        $('#overlay-generator').toggleClass('visible', expanded);
+        $(this).attr('aria-expanded', expanded ? 'true' : 'false');
+    });
+
+    function updateOverlayPromptCount() {
+        $('#overlay-prompt-count').text($('#overlay-prompt').val().length + ' / 2000');
+    }
+
+    function updateOverlayPreview(url) {
+        var preview = $('#overlay-preview');
+        if (url) {
+            preview.attr('src', url).addClass('visible');
+        } else {
+            preview.removeAttr('src').removeClass('visible');
+        }
+    }
+
+    $('#overlay-prompt').on('input', updateOverlayPromptCount);
+    $('#overlay-asset').on('input', function () { updateOverlayPreview($(this).val().trim()); });
+    $('#generate-overlay').on('click', function () {
+        updateSelected();
+        var region = selected();
+        var prompt = $('#overlay-prompt').val().trim();
+        if (!region) {
+            toast('Select a region first.', true);
+            return;
+        }
+        if (prompt.length < 3) {
+            toast('Describe the overlay change first.', true);
+            return;
+        }
+
+        var button = $(this);
+        button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Editing region…');
+        $('#overlay-generation-status').text('Preparing the selected crop and sending it to Gemini. This may take a minute.').addClass('visible');
+        fetch('api/gemini-generate-overlay.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
+            body: JSON.stringify({
+                prompt: prompt,
+                backgroundAsset: image.getAttribute('src'),
+                canvas: canvas,
+                bounds: region.bounds
+            })
+        }).then(function (response) { return response.json(); }).then(function (result) {
+            if (!result.ok) throw new Error(result.error || 'The overlay could not be generated.');
+            region.success.overlay = result.url;
+            region.success.overlayPrompt = prompt;
+            if (selectedId === region.id) {
+                fieldLock = true;
+                $('#overlay-asset').val(result.url);
+                updateOverlayPreview(result.url);
+                fieldLock = false;
+            }
+            markDirty();
+            $('#overlay-generation-status').text('Overlay ready at ' + result.width + ' × ' + result.height + ' pixels. Save the room to keep it.');
+            toast('Gemini region overlay created');
+        }).catch(function (error) {
+            $('#overlay-generation-status').text(error.message);
+            toast(error.message, true);
+        }).finally(function () {
+            button.prop('disabled', false).html('<i class="fa-solid fa-sparkles"></i> Generate region overlay');
+        });
     });
 
     function uploadAsset(file, onSuccess, loadingElement) {

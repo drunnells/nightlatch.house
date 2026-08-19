@@ -18,6 +18,8 @@ The real `config/config.php` must remain private and untracked. Room uploads and
 
 Region overlay generation requires PHP's GD extension. The web-server user must be able to write both `assets/graphics/rooms/generated` and `assets/graphics/rooms/uploads`.
 
+Gemini-generated backgrounds and overlays are stored as progressive JPEGs at quality 80 with a maximum width of 1024 pixels. Uploaded assets retain their original format so transparent PNG overlays remain supported.
+
 ## First-pass room format
 
 Each room is stored as a graph node with a lifecycle status (`development`, `staging`, or `production`), a background asset, its optional Gemini prompt, and versioned JSON room data. Click regions contain normalized image coordinates and declarative behavior:

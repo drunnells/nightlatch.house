@@ -13,7 +13,7 @@ if ($generationConfig['imageConfig']['aspectRatio'] !== '16:9') {
     fwrite(STDERR, "Unexpected Gemini aspect ratio.\n");
     exit(1);
 }
-if ($generationConfig['imageConfig']['imageSize'] !== '2K') {
+if ($generationConfig['imageConfig']['imageSize'] !== '1K') {
     fwrite(STDERR, "Unexpected Gemini image size.\n");
     exit(1);
 }

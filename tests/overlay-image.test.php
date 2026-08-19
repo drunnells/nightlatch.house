@@ -19,6 +19,12 @@ if ($tall['width'] !== 224 || $tall['height'] !== 896 || $tall['x'] !== 400 || $
     exit(1);
 }
 
+$large = nightlatch_overlay_template_spec(1600, 400);
+if ($large['outputWidth'] !== 1024 || $large['outputHeight'] !== 256) {
+    fwrite(STDERR, "Large overlay output was not capped at 1024 pixels wide.\n");
+    exit(1);
+}
+
 $box = nightlatch_region_source_box(
     array('x' => 100, 'y' => 50, 'width' => 200, 'height' => 100),
     array('width' => 1000, 'height' => 500),
@@ -66,8 +72,8 @@ if (extension_loaded('gd')) {
     }
     $overlayBytes = nightlatch_extract_overlay_image($templateBytes, $wide);
     $overlayInfo = getimagesizefromstring($overlayBytes);
-    if (!$overlayInfo || $overlayInfo[0] !== 400 || $overlayInfo[1] !== 100) {
-        fwrite(STDERR, "Extracted overlay PNG dimensions are incorrect.\n");
+    if (!$overlayInfo || $overlayInfo[0] !== 400 || $overlayInfo[1] !== 100 || $overlayInfo[2] !== IMAGETYPE_JPEG) {
+        fwrite(STDERR, "Extracted overlay JPEG dimensions are incorrect.\n");
         exit(1);
     }
 }

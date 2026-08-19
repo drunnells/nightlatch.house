@@ -55,6 +55,12 @@
         return $('<div>').text(value || '').html();
     }
 
+    function formatFileSize(bytes) {
+        if (!bytes || bytes < 1024) return (bytes || 0) + ' B';
+        if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
     function renderRegions() {
         while (svg.firstChild) svg.removeChild(svg.firstChild);
         regions.forEach(function (region, index) {
@@ -355,7 +361,7 @@
                 fieldLock = false;
             }
             markDirty();
-            $('#overlay-generation-status').text('Overlay ready at ' + result.width + ' × ' + result.height + ' pixels. Save the room to keep it.');
+            $('#overlay-generation-status').text('Overlay ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the room to keep it.');
             toast('Gemini region overlay created');
         }).catch(function (error) {
             $('#overlay-generation-status').text(error.message);
@@ -413,7 +419,7 @@
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error);
             setBackground(result.url, true);
-            $('#generation-status').text('New background ready. Save the room to keep this selection.');
+            $('#generation-status').text('New background ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the room to keep this selection.');
             toast('Gemini background created');
         }).catch(function (error) {
             $('#generation-status').text(error.message);

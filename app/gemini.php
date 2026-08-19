@@ -11,7 +11,7 @@ function nightlatch_gemini_image_request($prompt)
             'responseModalities' => array('IMAGE'),
             'imageConfig' => array(
                 'aspectRatio' => '16:9',
-                'imageSize' => '2K',
+                'imageSize' => '1K',
             ),
         ),
     );

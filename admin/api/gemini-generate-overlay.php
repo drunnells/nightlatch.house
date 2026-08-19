@@ -104,7 +104,7 @@ try {
     if (!is_writable($directory)) {
         throw new RuntimeException('The generated asset directory is not writable by the web server.');
     }
-    $name = 'overlay-' . date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.png';
+    $name = 'overlay-' . date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.jpg';
     if (file_put_contents($directory . '/' . $name, $overlayBytes, LOCK_EX) === false) {
         throw new RuntimeException('The generated overlay could not be stored.');
     }
@@ -114,6 +114,7 @@ try {
         'url' => '../assets/graphics/rooms/generated/' . $name,
         'width' => $spec['outputWidth'],
         'height' => $spec['outputHeight'],
+        'bytes' => strlen($overlayBytes),
     ));
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);

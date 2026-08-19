@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/image.php';
+
 /**
  * Image-template helpers for Gemini-generated region overlays.
  *
@@ -8,13 +10,6 @@
  * from the same coordinates after generation.
  */
 
-function nightlatch_destroy_image($image)
-{
-    if (PHP_VERSION_ID < 80000 && is_resource($image)) {
-        imagedestroy($image);
-    }
-}
-
 function nightlatch_overlay_template_spec($sourceWidth, $sourceHeight)
 {
     if ($sourceWidth < 1 || $sourceHeight < 1) {
@@ -22,6 +17,8 @@ function nightlatch_overlay_template_spec($sourceWidth, $sourceHeight)
     }
     $templateSize = 1024;
     $maximumInnerSize = 896;
+    $imageOptions = nightlatch_generated_image_options();
+    $outputWidth = min($imageOptions['maximumWidth'], (int) $sourceWidth);
     $scale = min($maximumInnerSize / $sourceWidth, $maximumInnerSize / $sourceHeight);
     $innerWidth = max(1, (int) round($sourceWidth * $scale));
     $innerHeight = max(1, (int) round($sourceHeight * $scale));
@@ -33,8 +30,8 @@ function nightlatch_overlay_template_spec($sourceWidth, $sourceHeight)
         'y' => (int) floor(($templateSize - $innerHeight) / 2),
         'width' => $innerWidth,
         'height' => $innerHeight,
-        'outputWidth' => (int) $sourceWidth,
-        'outputHeight' => (int) $sourceHeight,
+        'outputWidth' => $outputWidth,
+        'outputHeight' => max(1, (int) round($sourceHeight * ($outputWidth / $sourceWidth))),
     );
 }
 
@@ -202,13 +199,12 @@ function nightlatch_extract_overlay_image($generatedBytes, $spec)
         $spec['height']
     );
 
-    ob_start();
-    imagepng($overlay, null, 6);
-    $bytes = ob_get_clean();
-    nightlatch_destroy_image($overlay);
-    nightlatch_destroy_image($generated);
-    if ($bytes === false || $bytes === '') {
-        throw new RuntimeException('The generated overlay could not be encoded.');
+    try {
+        $imageOptions = nightlatch_generated_image_options();
+        $bytes = nightlatch_encode_jpeg_image($overlay, $imageOptions['jpegQuality']);
+    } finally {
+        nightlatch_destroy_image($overlay);
+        nightlatch_destroy_image($generated);
     }
     return $bytes;
 }

@@ -1,6 +1,7 @@
 <?php
 require dirname(dirname(__DIR__)) . '/app/bootstrap.php';
 require dirname(dirname(__DIR__)) . '/app/gemini.php';
+require dirname(dirname(__DIR__)) . '/app/image.php';
 nightlatch_require_admin(true);
 
 try {
@@ -54,21 +55,27 @@ try {
         throw new RuntimeException('Gemini returned no image. Try a more visual prompt or a configured image model.');
     }
 
-    $mime = isset($imagePart['mimeType']) ? $imagePart['mimeType'] : 'image/png';
-    $extension = $mime === 'image/jpeg' ? 'jpg' : ($mime === 'image/webp' ? 'webp' : 'png');
     $binary = base64_decode($imagePart['data'], true);
     if ($binary === false) {
         throw new RuntimeException('Gemini returned invalid image data.');
     }
+    $imageOptions = nightlatch_generated_image_options();
+    $optimized = nightlatch_mobile_jpeg($binary, $imageOptions['maximumWidth'], $imageOptions['jpegQuality']);
     $directory = NIGHTLATCH_ROOT . '/assets/graphics/rooms/generated';
     if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
         throw new RuntimeException('The generated asset directory could not be created.');
     }
-    $name = date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
-    if (file_put_contents($directory . '/' . $name, $binary, LOCK_EX) === false) {
+    $name = date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.jpg';
+    if (file_put_contents($directory . '/' . $name, $optimized['bytes'], LOCK_EX) === false) {
         throw new RuntimeException('The generated image could not be stored.');
     }
-    nightlatch_json(array('ok' => true, 'url' => '../assets/graphics/rooms/generated/' . $name));
+    nightlatch_json(array(
+        'ok' => true,
+        'url' => '../assets/graphics/rooms/generated/' . $name,
+        'width' => $optimized['width'],
+        'height' => $optimized['height'],
+        'bytes' => strlen($optimized['bytes']),
+    ));
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);
 }

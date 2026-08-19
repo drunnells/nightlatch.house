@@ -13,6 +13,7 @@
     var svg = document.getElementById('region-layer');
     var image = document.getElementById('room-image');
     var roomCanvas = document.getElementById('room-canvas');
+    var canvasStage = document.getElementById('canvas-stage');
 
     function uid() {
         return 'region-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -320,6 +321,7 @@
                 roomCanvas.style.aspectRatio = canvas.width + ' / ' + canvas.height;
                 renderRegions();
                 fillInspector();
+                applyZoom();
             }
             markDirty();
         };
@@ -361,7 +363,14 @@
     });
 
     function applyZoom() {
-        roomCanvas.style.width = (zoom * 100) + '%';
+        var stageStyle = window.getComputedStyle(canvasStage);
+        var availableWidth = canvasStage.clientWidth - parseFloat(stageStyle.paddingLeft) - parseFloat(stageStyle.paddingRight);
+        var availableHeight = canvasStage.clientHeight - parseFloat(stageStyle.paddingTop) - parseFloat(stageStyle.paddingBottom);
+        if (availableWidth <= 0 || availableHeight <= 0) return;
+
+        var fitScale = Math.min(availableWidth / canvas.width, availableHeight / canvas.height, 1);
+        roomCanvas.style.width = Math.floor(canvas.width * fitScale * zoom) + 'px';
+        roomCanvas.style.height = Math.floor(canvas.height * fitScale * zoom) + 'px';
         $('#zoom-label').text(zoom === 1 ? 'Fit' : Math.round(zoom * 100) + '%');
     }
     $('#zoom-in').on('click', function () { zoom = Math.min(2, zoom + 0.15); applyZoom(); });
@@ -376,4 +385,10 @@
     roomCanvas.style.aspectRatio = canvas.width + ' / ' + canvas.height;
     renderRegions();
     fillInspector();
+    applyZoom();
+    if (window.ResizeObserver) {
+        new ResizeObserver(applyZoom).observe(canvasStage);
+    } else {
+        window.addEventListener('resize', applyZoom);
+    }
 })(jQuery);

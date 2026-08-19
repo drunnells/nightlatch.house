@@ -4,6 +4,21 @@
     var regions = room.data.regions || [];
     var state;
     var svg = document.getElementById('play-regions');
+    var playStage = document.querySelector('.play-stage');
+    var playCanvas = document.querySelector('.play-canvas');
+
+    function fitRoomToStage() {
+        var stageStyle = window.getComputedStyle(playStage);
+        var availableWidth = playStage.clientWidth - parseFloat(stageStyle.paddingLeft) - parseFloat(stageStyle.paddingRight);
+        var availableHeight = playStage.clientHeight - parseFloat(stageStyle.paddingTop) - parseFloat(stageStyle.paddingBottom);
+        if (availableWidth <= 0 || availableHeight <= 0) return;
+
+        var roomWidth = room.data.canvas.width;
+        var roomHeight = room.data.canvas.height;
+        var fitScale = Math.min(availableWidth / roomWidth, availableHeight / roomHeight, 1);
+        playCanvas.style.width = Math.floor(roomWidth * fitScale) + 'px';
+        playCanvas.style.height = Math.floor(roomHeight * fitScale) + 'px';
+    }
 
     function reset() {
         state = { flags: {}, items: {}, unlockedDoors: {}, overlays: {} };
@@ -95,5 +110,11 @@
     });
 
     regions.filter(function (region) { return region.kind === 'door'; }).forEach(function (region) { $('#entry-region').append('<option value="' + esc(region.id) + '">' + esc(region.name) + '</option>'); });
+    fitRoomToStage();
+    if (window.ResizeObserver) {
+        new ResizeObserver(fitRoomToStage).observe(playStage);
+    } else {
+        window.addEventListener('resize', fitRoomToStage);
+    }
     reset();
 })(jQuery);

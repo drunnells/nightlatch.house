@@ -1,5 +1,6 @@
 <?php
 require dirname(dirname(__DIR__)) . '/app/bootstrap.php';
+require dirname(dirname(__DIR__)) . '/app/gemini.php';
 nightlatch_require_admin(true);
 
 try {
@@ -18,13 +19,7 @@ try {
         throw new RuntimeException('Add a Gemini API key and image-capable model to the private local config first.');
     }
 
-    $request = array(
-        'contents' => array(array('parts' => array(array('text' => $prompt)))),
-        'generationConfig' => array(
-            'responseModalities' => array('IMAGE'),
-            'responseFormat' => array('image' => array('aspectRatio' => '16:9', 'imageSize' => '2K')),
-        ),
-    );
+    $request = nightlatch_gemini_image_request($prompt);
     $url = 'https://generativelanguage.googleapis.com/v1/models/' . rawurlencode($model) . ':generateContent';
     $curl = curl_init($url);
     curl_setopt_array($curl, array(
@@ -77,4 +72,3 @@ try {
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);
 }
-

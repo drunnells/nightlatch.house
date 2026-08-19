@@ -42,7 +42,7 @@ require __DIR__ . '/_header.php';
     </aside>
 </div>
 <script>window.NL_DEBUG_ROOM = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
-<script src="../assets/js/room-rules.js"></script>
-<script src="../assets/js/play-debug.js"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/play-debug.js')); ?>"></script>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>

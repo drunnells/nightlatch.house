@@ -13,8 +13,8 @@ $admin = nightlatch_admin();
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/admin.css">
-    <script src="../assets/js/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="<?php echo nightlatch_h(nightlatch_asset('css/admin.css')); ?>">
+    <script src="<?php echo nightlatch_h(nightlatch_asset('js/jquery-3.7.1.min.js')); ?>"></script>
 </head>
 <body>
 <header class="admin-header">

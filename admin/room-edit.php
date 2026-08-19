@@ -117,5 +117,5 @@ require __DIR__ . '/_header.php';
     </aside>
 </div>
 <script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
-<script src="../assets/js/room-editor.js"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

@@ -6,6 +6,11 @@
 
 define('NIGHTLATCH_ROOT', dirname(__DIR__));
 
+if (PHP_SAPI !== 'cli' && !headers_sent()) {
+    header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+}
+
 if (session_status() !== PHP_SESSION_ACTIVE) {
     $secureCookie = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
     if (PHP_VERSION_ID >= 70300) {
@@ -131,6 +136,14 @@ function nightlatch_slug($value)
 function nightlatch_h($value)
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
+
+function nightlatch_asset($relativePath)
+{
+    $relativePath = ltrim($relativePath, '/');
+    $filesystemPath = NIGHTLATCH_ROOT . '/assets/' . $relativePath;
+    $version = is_file($filesystemPath) ? filemtime($filesystemPath) : 1;
+    return '../assets/' . $relativePath . '?v=' . $version;
 }
 
 function nightlatch_room_payload($row)

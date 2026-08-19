@@ -237,8 +237,8 @@ input:disabled, select:disabled { opacity: .45; }
 .debug-topbar code { font-size: 8px; }
 .debug-badge { color: #d4b76f; border: 1px solid #5a4b2e; background: #1c1a13; padding: 5px 8px; font-size: 9px; letter-spacing: .1em; }
 .play-stage { min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 30px; background: #07090a; }
-.play-canvas { position: relative; flex: 0 0 auto; box-shadow: 0 25px 80px #000; }
-.play-canvas > img { width: 100%; height: 100%; object-fit: fill; display: block; }
+.play-canvas { position: relative; width: 100%; height: 100%; flex: 0 0 auto; background: #050707; box-shadow: 0 25px 80px #000; }
+.play-canvas > img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .play-region { vector-effect: non-scaling-stroke; cursor: pointer; stroke-width: 2; }
 .play-region.interaction { fill: rgba(76,145,136,.18); stroke: #64aa9f; }
 .play-region.door { fill: rgba(197,166,100,.18); stroke: #d0af63; }

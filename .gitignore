@@ -1,2 +1,5 @@
 config/config.php
-
+assets/graphics/rooms/uploads/*
+assets/graphics/rooms/generated/*
+!assets/graphics/rooms/uploads/.gitkeep
+!assets/graphics/rooms/generated/.gitkeep

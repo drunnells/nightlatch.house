@@ -58,6 +58,23 @@ if (count($normalized['clusters']) !== 3 || count($normalized['connections']) !=
     exit(1);
 }
 
+$savedTopology = $topology;
+$savedClusterIds = array('cluster-main' => 1, 'cluster-glass' => 2, 'cluster-cellar' => 3);
+foreach ($savedTopology['clusters'] as &$cluster) {
+    $cluster['id'] = $savedClusterIds[$cluster['id']];
+}
+unset($cluster);
+foreach ($savedTopology['nodes'] as &$node) {
+    $node['clusterId'] = $savedClusterIds[$node['clusterId']];
+}
+unset($node);
+$savedTopology['gateways'][0]['candidateClusterIds'] = array(2, 3);
+$savedNormalized = nightlatch_validate_topology($savedTopology, $rooms);
+if ($savedNormalized['clusters'][0]['id'] !== '1' || $savedNormalized['nodes'][0]['clusterId'] !== '1') {
+    fwrite(STDERR, "Saved numeric cluster identifiers were not normalized correctly.\n");
+    exit(1);
+}
+
 $invalid = $topology;
 $invalid['clusters'][1]['entryRoomId'] = 2;
 topology_rejects($invalid, $rooms, 'A cluster accepted an entry room from another cluster.');

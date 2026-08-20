@@ -157,7 +157,8 @@ function nightlatch_validate_topology($topology, $rooms)
     }
 
     $gatewayReturnEndpoints = array();
-    foreach ($clusterIndex as $clusterId => $cluster) {
+    foreach ($clusterIndex as $cluster) {
+        $clusterId = $cluster['id'];
         $entryRoomId = $cluster['entryRoomId'];
         if ($entryRoomId === '' || !isset($roomIndex[$entryRoomId])) {
             throw new RuntimeException('Cluster “' . $cluster['name'] . '” needs an entry room.');

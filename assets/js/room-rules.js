@@ -243,6 +243,40 @@
         return region.id === entryRegionId || !!state.unlockedDoors[region.id];
     }
 
+    function shuffledValues(values, random) {
+        var result = (values || []).slice();
+        random = typeof random === 'function' ? random : Math.random;
+        for (var index = result.length - 1; index > 0; index -= 1) {
+            var swapIndex = Math.floor(random() * (index + 1));
+            var temporary = result[index];
+            result[index] = result[swapIndex];
+            result[swapIndex] = temporary;
+        }
+        return result;
+    }
+
+    function assignGatewayDestinations(gateway, clusterById, random) {
+        gateway = gateway || {};
+        clusterById = clusterById || {};
+        var candidates = shuffledValues((gateway.candidateClusterIds || []).map(String).filter(function (clusterId) {
+            return !!clusterById[clusterId] && !!clusterById[clusterId].entryRoomId;
+        }), random);
+        var exits = shuffledValues((gateway.exitRegionIds || []).map(String), random);
+        var count = Math.min(Number(gateway.destinationCount || 0), candidates.length, exits.length);
+        var assignments = {};
+        for (var index = 0; index < count; index += 1) {
+            var cluster = clusterById[candidates[index]];
+            assignments[exits[index]] = {
+                gatewayRegionId: exits[index],
+                clusterId: String(cluster.id),
+                entryRoomId: String(cluster.entryRoomId),
+                returnMode: cluster.gatewayReturnMode || 'behind',
+                returnRegionId: cluster.gatewayReturnRegionId || ''
+            };
+        }
+        return assignments;
+    }
+
     function ownedObjects(objects, state) {
         return (objects || []).filter(function (object) {
             return object.portable && object.inventoryKey && Object.prototype.hasOwnProperty.call(state.items, object.inventoryKey);
@@ -263,6 +297,7 @@
         runRegion: runRegion,
         applySuccess: applySuccess,
         canExit: canExit,
+        assignGatewayDestinations: assignGatewayDestinations,
         ownedObjects: ownedObjects
     };
 }));

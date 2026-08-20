@@ -5,6 +5,12 @@
     var editor = window.NL_EDITOR_CONTEXT || { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' };
     var isObject = editor.kind === 'object';
     var contentLabel = isObject ? 'object' : 'room';
+    var editorRooms = Array.isArray(window.NL_EDITOR_ROOMS) ? window.NL_EDITOR_ROOMS : [];
+    var editorClusters = Array.isArray(window.NL_EDITOR_CLUSTERS) ? window.NL_EDITOR_CLUSTERS : [];
+    var roomClusterId = String(window.NL_EDITOR_ROOM_CLUSTER_ID || '');
+    var gateway = $.extend(true, { enabled: false, roomId: 0, destinationCount: 1, exitRegionIds: [], candidateClusterIds: [] }, window.NL_EDITOR_GATEWAY || {});
+    gateway.exitRegionIds = Array.isArray(gateway.exitRegionIds) ? gateway.exitRegionIds.map(String) : [];
+    gateway.candidateClusterIds = Array.isArray(gateway.candidateClusterIds) ? gateway.candidateClusterIds.map(String) : [];
     var regions = room.data && Array.isArray(room.data.regions) ? room.data.regions : [];
     var canvas = room.data && room.data.canvas ? room.data.canvas : { width: 1600, height: 900 };
     var selectedId = null;
@@ -32,7 +38,7 @@
             bounds: bounds,
             logic: window.NLRoomRules.defaultLogic(),
             overlayLibrary: [],
-            door: { targetRoom: '', unlocked: false }
+            door: { targetRoom: '', unlocked: false, connectionMode: 'static', returnMode: 'behind', targetRegionId: '' }
         };
     }
 
@@ -55,6 +61,81 @@
 
     function esc(value) {
         return $('<div>').text(value || '').html();
+    }
+
+    function roomOption(value) {
+        value = String(value || '');
+        return editorRooms.find(function (candidate) { return String(candidate.id) === value || candidate.slug === value; }) || null;
+    }
+
+    function renderTargetRoomPicker(value) {
+        if (isObject || !document.getElementById('target-room-picker')) return;
+        value = String(value || '');
+        var selectedRoom = roomOption(value);
+        var label = selectedRoom ? selectedRoom.title : (value || 'Choose a room');
+        var detail = selectedRoom ? (selectedRoom.clusterName + ' · ' + selectedRoom.slug) : (value ? 'Unavailable saved target' : 'Search by room name, slug, or cluster');
+        var html = '<button type="button" class="logic-picker-toggle" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
+            '<div class="logic-picker-menu"><div class="logic-picker-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search rooms or clusters" aria-label="Search rooms or clusters"></div><div class="logic-picker-options" role="listbox">' +
+            '<button type="button" class="logic-picker-option room-target-option" data-value="" data-search="clear target"><span><strong>No static target</strong><small>Leave this exit unconnected</small></span>' + (!value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+        editorRooms.forEach(function (candidate) {
+            if (room.id && String(candidate.id) === String(room.id)) return;
+            var outsideCluster = roomClusterId && String(candidate.clusterId || '') !== roomClusterId;
+            var unassigned = !candidate.clusterId;
+            var disabled = !roomClusterId || outsideCluster || unassigned;
+            var disabledDetail = unassigned ? 'Unassigned · add from Map first' : (outsideCluster ? candidate.clusterName + ' · use a Gateway across clusters' : candidate.clusterName + ' · ' + candidate.slug);
+            html += '<button type="button" class="logic-picker-option room-target-option" data-value="' + esc(candidate.id) + '" data-search="' + esc((candidate.title + ' ' + candidate.slug + ' ' + candidate.clusterName).toLowerCase()) + '"' + (disabled ? ' disabled' : '') + '><span><strong>' + esc(candidate.title) + '</strong><small>' + esc(disabledDetail) + '</small></span>' + (String(candidate.id) === value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+        });
+        html += '</div></div>';
+        $('#target-room-picker').attr('data-value', value).html(html);
+    }
+
+    function gatewayExitSelected(regionId) {
+        return gateway.enabled && gateway.exitRegionIds.some(function (candidate) { return String(candidate) === String(regionId); });
+    }
+
+    function gatewayReturnDoor(regionId) {
+        var cluster = editorClusters.find(function (candidate) { return String(candidate.id) === roomClusterId; });
+        return !!cluster && cluster.gatewayReturnMode === 'door' && String(cluster.entryRoomId) === String(room.id) && String(cluster.gatewayReturnRegionId) === String(regionId);
+    }
+
+    function gatewayStatus() {
+        if (!gateway.enabled) return;
+        var count = Math.max(1, parseInt(gateway.destinationCount, 10) || 1);
+        var valid = gateway.exitRegionIds.length >= count && gateway.candidateClusterIds.length >= count;
+        var html = valid
+            ? '<i class="fa-solid fa-circle-check"></i><span>Ready: ' + count + ' distinct clusters will be paired with ' + count + ' shuffled Gateway exits.</span>'
+            : '<i class="fa-solid fa-triangle-exclamation"></i><span>Cannot save: select at least ' + count + ' Door / exit regions and ' + count + ' eligible clusters. Currently ' + gateway.exitRegionIds.length + ' exits and ' + gateway.candidateClusterIds.length + ' clusters are selected.</span>';
+        $('#room-gateway-status').toggleClass('valid', valid).html(html);
+    }
+
+    function renderGatewaySettings() {
+        if (isObject || !document.getElementById('room-gateway-enabled')) return;
+        $('#room-gateway-enabled').prop('checked', !!gateway.enabled);
+        $('#room-gateway-fields').prop('hidden', !gateway.enabled);
+        $('#room-gateway-count').val(gateway.destinationCount || 1);
+        var exitHtml = '';
+        regions.filter(function (region) { return region.kind === 'door'; }).forEach(function (region) {
+            var checked = gatewayExitSelected(region.id);
+            var reserved = gatewayReturnDoor(region.id);
+            exitHtml += '<label><input type="checkbox" class="room-gateway-exit-option" value="' + esc(region.id) + '"' + (checked ? ' checked' : '') + (reserved ? ' disabled' : '') + '><span><strong>' + esc(region.name) + '</strong><small>' + (reserved ? 'Reserved cluster Gateway return' : (region.door && region.door.targetRoom && !checked ? 'Selecting this removes its static destination' : 'Available Door / exit region')) + '</small></span></label>';
+        });
+        $('#room-gateway-exits').html(exitHtml || '<p class="empty-mini">Create at least one Door / exit region first.</p>');
+        var candidateHtml = '';
+        editorClusters.forEach(function (cluster) {
+            if (String(cluster.id) === roomClusterId) return;
+            var checked = gateway.candidateClusterIds.some(function (candidate) { return String(candidate) === String(cluster.id); });
+            candidateHtml += '<label><input type="checkbox" class="room-gateway-candidate-option" value="' + esc(cluster.id) + '"' + (checked ? ' checked' : '') + '><span><strong>' + esc(cluster.name) + '</strong><small>' + esc(cluster.slug) + ' · ' + esc(cluster.gatewayReturnMode === 'door' ? 'return door' : 'behind-you return') + '</small></span></label>';
+        });
+        $('#room-gateway-candidates').html(candidateHtml || '<p class="empty-mini">Create at least one other cluster in Map.</p>');
+        gatewayStatus();
+        var region = selected();
+        var reservedReturn = !!region && gatewayReturnDoor(region.id);
+        $('#door-gateway-row').toggle(!!region && region.kind === 'door' && !!gateway.enabled && !reservedReturn);
+        $('#door-reserved-return').prop('hidden', !reservedReturn);
+        if (region) {
+            $('#door-gateway-exit').prop('checked', gatewayExitSelected(region.id));
+            $('#static-door-fields').toggle(!gatewayExitSelected(region.id) && !reservedReturn);
+        }
     }
 
     function formatFileSize(bytes) {
@@ -109,8 +190,14 @@
         $('#region-name').val(region.name);
         $('#region-kind').val(region.kind);
         $('#target-room').val(region.door.targetRoom);
+        renderTargetRoomPicker(region.door.targetRoom);
         $('#door-unlocked').prop('checked', !!region.door.unlocked);
         $('#door-fields').toggle(region.kind === 'door');
+        var reservedReturn = region.kind === 'door' && gatewayReturnDoor(region.id);
+        $('#door-gateway-row').toggle(region.kind === 'door' && !!gateway.enabled && !reservedReturn);
+        $('#door-reserved-return').prop('hidden', !reservedReturn);
+        $('#door-gateway-exit').prop('checked', gatewayExitSelected(region.id));
+        $('#static-door-fields').toggle(!gatewayExitSelected(region.id) && !reservedReturn);
         if (logicEditor) logicEditor.setRegion(region);
         $('#region-bounds').text('x ' + Math.round(region.bounds.x) + ' · y ' + Math.round(region.bounds.y) + ' · w ' + Math.round(region.bounds.width) + ' · h ' + Math.round(region.bounds.height));
         fieldLock = false;
@@ -128,13 +215,26 @@
                 branch.actions = branch.actions.filter(function (action) { return action.type !== 'unlock_door'; });
             });
             region.logic.elseActions = region.logic.elseActions.filter(function (action) { return action.type !== 'unlock_door'; });
+            gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== String(region.id); });
         }
-        region.door = isObject ? { targetRoom: '', unlocked: false } : { targetRoom: $('#target-room').val().trim(), unlocked: $('#door-unlocked').prop('checked') };
+        var reservedReturn = !isObject && region.kind === 'door' && gatewayReturnDoor(region.id);
+        var gatewayExit = !reservedReturn && !isObject && region.kind === 'door' && gatewayExitSelected(region.id);
+        region.door = isObject ? { targetRoom: '', unlocked: false, connectionMode: 'static', returnMode: 'behind', targetRegionId: '' } : {
+            targetRoom: gatewayExit || reservedReturn ? '' : $('#target-room').val().trim(),
+            unlocked: $('#door-unlocked').prop('checked'),
+            connectionMode: gatewayExit ? 'gateway' : 'static',
+            returnMode: region.door && region.door.returnMode ? region.door.returnMode : 'behind',
+            targetRegionId: region.door && region.door.targetRegionId ? region.door.targetRegionId : ''
+        };
         $('#inspector-title').text(region.name);
         $('#door-fields').toggle(region.kind === 'door');
+        $('#door-gateway-row').toggle(region.kind === 'door' && !!gateway.enabled && !reservedReturn);
+        $('#door-reserved-return').prop('hidden', !reservedReturn);
+        $('#static-door-fields').toggle(!gatewayExit && !reservedReturn);
         if (previousKind !== region.kind && logicEditor) logicEditor.refresh();
         markDirty();
         renderRegions();
+        if (previousKind !== region.kind) renderGatewaySettings();
     }
 
     function canvasPoint(event) {
@@ -211,11 +311,39 @@
 
     $('#region-list').on('click', '.region-item', function () { selectRegion($(this).data('id')); });
     $('#region-name, #region-kind, #target-room, #door-unlocked').on('input change', updateSelected);
+    $('#target-room-picker').on('click', '.logic-picker-toggle', function () {
+        var picker = $(this).closest('.room-target-picker');
+        var opening = !picker.hasClass('open');
+        picker.toggleClass('open', opening);
+        $(this).attr('aria-expanded', opening ? 'true' : 'false');
+        if (opening) picker.find('.logic-picker-search input').val('').trigger('input').focus();
+    }).on('input', '.logic-picker-search input', function () {
+        var query = $(this).val().trim().toLowerCase();
+        $(this).closest('.room-target-picker').find('.room-target-option[data-search]').each(function () {
+            $(this).toggle(!query || String($(this).data('search')).indexOf(query) !== -1);
+        });
+    }).on('click', '.room-target-option:not(:disabled)', function () {
+        var value = String($(this).data('value') || '');
+        $('#target-room').val(value);
+        renderTargetRoomPicker(value);
+        updateSelected();
+    }).on('click', function (event) { event.stopPropagation(); });
+    $(document).on('click', function () { $('.room-target-picker.open').removeClass('open').find('.logic-picker-toggle').attr('aria-expanded', 'false'); });
+    $('#door-gateway-exit').on('change', function () {
+        var region = selected();
+        if (!region || region.kind !== 'door' || !gateway.enabled) return;
+        var regionId = String(region.id);
+        gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== regionId; });
+        if (this.checked) gateway.exitRegionIds.push(regionId);
+        if (this.checked) $('#target-room').val('');
+        updateSelected(); renderGatewaySettings();
+    });
     $('#delete-region').on('click', function () {
         if (!selectedId || !window.confirm('Delete this clickable region?')) return;
+        gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== String(selectedId); });
         regions = regions.filter(function (region) { return region.id !== selectedId; });
         selectedId = null;
-        renderRegions(); fillInspector(); markDirty();
+        renderRegions(); fillInspector(); renderGatewaySettings(); markDirty();
     });
 
     $('.rail-tool[data-panel]').on('click', function () {
@@ -230,6 +358,36 @@
         $('#save-indicator').html('<i class="fa-solid fa-circle"></i> Unsaved changes').addClass('dirty');
     }
     $('#room-title, #room-slug, #room-description, #room-status, #gemini-prompt, #object-portable, #inventory-key').on('input change', markDirty);
+
+    $('#room-gateway-enabled').on('change', function () {
+        if (!roomClusterId && this.checked) {
+            $(this).prop('checked', false);
+            toast('Assign this room to a cluster from Map before enabling Gateway behavior.', true);
+            return;
+        }
+        gateway.enabled = this.checked;
+        if (!gateway.enabled) gateway.exitRegionIds = [];
+        renderGatewaySettings(); fillInspector(); markDirty();
+    });
+    $('#room-gateway-count').on('input change', function () {
+        gateway.destinationCount = Math.max(1, parseInt($(this).val(), 10) || 1);
+        gatewayStatus(); markDirty();
+    });
+    $('#room-gateway-exits').on('change', '.room-gateway-exit-option', function () {
+        var regionId = String($(this).val());
+        gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== regionId; });
+        if (this.checked) gateway.exitRegionIds.push(regionId);
+        var region = regions.find(function (candidate) { return String(candidate.id) === regionId; });
+        if (region && this.checked) { region.door.targetRoom = ''; region.door.connectionMode = 'gateway'; }
+        if (region && !this.checked) region.door.connectionMode = 'static';
+        renderGatewaySettings(); fillInspector(); markDirty();
+    });
+    $('#room-gateway-candidates').on('change', '.room-gateway-candidate-option', function () {
+        var clusterId = String($(this).val());
+        gateway.candidateClusterIds = gateway.candidateClusterIds.filter(function (candidate) { return String(candidate) !== clusterId; });
+        if (this.checked) gateway.candidateClusterIds.push(clusterId);
+        gatewayStatus(); markDirty();
+    });
 
     function updatePortableFields() {
         $('#inventory-key-fields').toggle($('#object-portable').prop('checked'));
@@ -251,11 +409,26 @@
         if (isObject) {
             payload.portable = $('#object-portable').prop('checked');
             payload.inventoryKey = $('#inventory-key').val().trim();
+        } else {
+            payload.gateway = {
+                enabled: !!gateway.enabled,
+                destinationCount: Math.max(1, parseInt(gateway.destinationCount, 10) || 1),
+                exitRegionIds: gateway.exitRegionIds.slice(),
+                candidateClusterIds: gateway.candidateClusterIds.slice()
+            };
         }
         return payload;
     }
 
     function saveRoom() {
+        if (!isObject && gateway.enabled) {
+            var required = Math.max(1, parseInt(gateway.destinationCount, 10) || 1);
+            if (gateway.exitRegionIds.length < required || gateway.candidateClusterIds.length < required) {
+                var validationError = new Error('This Gateway needs at least ' + required + ' selected Door / exit regions and ' + required + ' eligible clusters before it can be saved.');
+                toast(validationError.message, true);
+                return Promise.reject(validationError);
+            }
+        }
         $('#save-room').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Saving');
         return fetch(editor.apiUrl, {
             method: 'POST',
@@ -281,7 +454,7 @@
             $('#save-room').prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save ' + contentLabel);
         });
     }
-    $('#save-room').on('click', saveRoom);
+    $('#save-room').on('click', function () { saveRoom().catch(function () {}); });
     $('#preview-room').on('click', function () {
         saveRoom().then(function (result) { if (editor.debugUrl) window.location.href = editor.debugUrl + '?id=' + result.id; }).catch(function () {});
     });
@@ -482,6 +655,7 @@
     roomCanvas.style.aspectRatio = canvas.width + ' / ' + canvas.height;
     renderRegions();
     fillInspector();
+    renderGatewaySettings();
     applyZoom();
     image.addEventListener('load', scheduleZoom);
     window.addEventListener('load', scheduleZoom);

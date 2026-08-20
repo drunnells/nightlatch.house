@@ -1,6 +1,7 @@
 <?php
 require dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/content-variables.php';
+require_once dirname(__DIR__) . '/app/map-topology.php';
 nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -22,6 +23,10 @@ $room = array(
 $error = '';
 $objectOptions = array();
 $flagOptions = array();
+$roomOptions = array();
+$clusterOptions = array();
+$roomClusterId = 0;
+$roomGateway = array('enabled' => false, 'roomId' => $id, 'destinationCount' => 1, 'exitRegionIds' => array(), 'candidateClusterIds' => array());
 if ($id) {
     try {
         $stmt = nightlatch_db()->prepare('SELECT * FROM rooms WHERE id = ?');
@@ -44,6 +49,45 @@ try {
     $flagOptions = nightlatch_flag_catalog();
 } catch (Throwable $exception) {
     $flagOptions = array();
+}
+try {
+    $topology = nightlatch_load_topology(nightlatch_db(), true);
+    nightlatch_apply_topology_to_rooms($topology['rooms'], $topology['connections'], $topology['gateways']);
+    $clusterById = array();
+    foreach ($topology['clusters'] as $cluster) {
+        $clusterById[(string) $cluster['id']] = $cluster;
+        $clusterOptions[] = $cluster;
+    }
+    $clusterByRoom = array();
+    foreach ($topology['nodes'] as $node) {
+        $clusterByRoom[(string) $node['roomId']] = (int) $node['clusterId'];
+    }
+    foreach ($topology['rooms'] as $topologyRoom) {
+        $clusterId = isset($clusterByRoom[(string) $topologyRoom['id']]) ? $clusterByRoom[(string) $topologyRoom['id']] : 0;
+        $roomOptions[] = array(
+            'id' => $topologyRoom['id'],
+            'title' => $topologyRoom['title'],
+            'slug' => $topologyRoom['slug'],
+            'clusterId' => $clusterId,
+            'clusterName' => $clusterId && isset($clusterById[(string) $clusterId]) ? $clusterById[(string) $clusterId]['name'] : 'Unassigned',
+        );
+        if ($id && (int) $topologyRoom['id'] === $id) {
+            $room['data'] = $topologyRoom['data'];
+        }
+    }
+    if ($id && isset($clusterByRoom[(string) $id])) {
+        $roomClusterId = $clusterByRoom[(string) $id];
+    }
+    foreach ($topology['gateways'] as $gateway) {
+        if ($id && (int) $gateway['roomId'] === $id) {
+            $roomGateway = $gateway;
+            $roomGateway['enabled'] = true;
+            break;
+        }
+    }
+} catch (Throwable $exception) {
+    $roomOptions = array();
+    $clusterOptions = array();
 }
 
 $pageTitle = ($id ? 'Edit room' : 'Create room') . ' · Nightlatch Room Forge';
@@ -86,7 +130,17 @@ require __DIR__ . '/_header.php';
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="6"><?php echo nightlatch_h($room['description']); ?></textarea>
             <label for="room-status">Lifecycle</label><select id="room-status"><option value="development"<?php echo $room['status'] === 'development' ? ' selected' : ''; ?>>Development · local draft</option><option value="staging" disabled<?php echo $room['status'] === 'staging' ? ' selected' : ''; ?>>Staging · S3 publishing required</option><option value="production" disabled<?php echo $room['status'] === 'production' ? ' selected' : ''; ?>>Production · S3 publishing required</option></select>
             <p class="hint">This first pass authors local development rooms. Staging and production will be enabled with the S3 publishing workflow.</p>
-            <div class="node-note"><i class="fa-solid fa-circle-nodes"></i><p><strong>Rooms are graph nodes.</strong> Door regions can point to another node. A play session will persist its assigned map separately.</p></div>
+            <div class="node-note"><i class="fa-solid fa-circle-nodes"></i><p><strong>Cluster membership and connections live in the Map tab.</strong> This room is <?php echo $roomClusterId ? 'assigned to a cluster' : 'currently unassigned'; ?>.</p></div>
+            <div class="gateway-room-settings" id="gateway-room-settings">
+                <label class="check-row map-check"><input type="checkbox" id="room-gateway-enabled"<?php echo !$roomClusterId ? ' disabled' : ''; ?>><span><strong>Gateway room</strong><small>Assign selected door regions to random cluster entry rooms for each play session.</small></span></label>
+                <div id="room-gateway-fields" hidden>
+                    <label for="room-gateway-count">Destination clusters selected</label><input type="number" id="room-gateway-count" min="1" max="100" value="1">
+                    <h3>Gateway exits</h3><div id="room-gateway-exits" class="map-check-list"></div>
+                    <h3>Eligible clusters</h3><div id="room-gateway-candidates" class="map-check-list"></div>
+                    <div id="room-gateway-status" class="gateway-status"></div>
+                </div>
+                <?php if (!$roomClusterId): ?><p class="hint">Save the room, then assign it to a cluster from <a href="map.php">Map</a> before enabling Gateway behavior.</p><?php endif; ?>
+            </div>
             <?php if ($id): ?><button class="danger-button" id="delete-room"><i class="fa-solid fa-trash"></i> Delete room</button><?php endif; ?>
         </div>
     </section>
@@ -113,13 +167,18 @@ require __DIR__ . '/_header.php';
             <label for="region-name">Name</label><input id="region-name" placeholder="Locked cabinet">
             <label for="region-kind">Region type</label><select id="region-kind"><option value="interaction">Interaction</option><option value="door">Door / exit</option></select>
             <div class="region-logic-editor" id="region-logic-editor"></div>
-            <div id="door-fields"><label for="target-room">Target room ID or slug</label><input id="target-room" placeholder="east-hall"><label class="check-row"><input id="door-unlocked" type="checkbox"><span>Door starts unlocked</span></label><p class="hint">Players can only return through their entry door until another door is unlocked by room logic.</p></div>
+            <div id="door-fields">
+                <label class="check-row map-check" id="door-gateway-row"><input id="door-gateway-exit" type="checkbox"><span><strong>Gateway exit</strong><small>This door receives a random eligible cluster instead of a static room.</small></span></label>
+                <div id="door-reserved-return" class="node-note" hidden><i class="fa-solid fa-rotate-left"></i><p><strong>Reserved Gateway return.</strong> This door returns the player from this cluster to its assigned Gateway and cannot have another destination.</p></div>
+                <div id="static-door-fields"><label>Target room</label><input id="target-room" type="hidden"><div id="target-room-picker" class="logic-inventory-picker room-target-picker"></div></div>
+                <label class="check-row"><input id="door-unlocked" type="checkbox"><span>Door starts unlocked</span></label><p class="hint">A behind-you return, paired door, or one-way behavior can be configured from the Map tab.</p>
+            </div>
             <div class="bounds-readout"><span>Position</span><code id="region-bounds">x 0 · y 0 · w 0 · h 0</code></div>
         </div>
     </aside>
 </div>
 <?php require __DIR__ . '/_image-area-editor.php'; ?>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOMS = <?php echo json_encode($roomOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CLUSTERS = <?php echo json_encode($clusterOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_GATEWAY = <?php echo json_encode($roomGateway, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOM_CLUSTER_ID = <?php echo json_encode($roomClusterId); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>

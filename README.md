@@ -5,7 +5,7 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
 ## Local setup
 
 1. Copy `config/config.example.php` to the private `config/config.php` and fill in local MySQL and Gemini values.
-2. Apply `database/updates/001_admin_room_creator.sql`, followed by `database/updates/002_interactive_objects.sql`, to the configured database.
+2. Apply `database/updates/001_admin_room_creator.sql`, `database/updates/002_interactive_objects.sql`, and `database/updates/003_room_clusters_and_gateways.sql` in order to the configured database.
 3. Create the first admin account:
 
    ```bash
@@ -27,11 +27,19 @@ Each room is stored as a graph node with a lifecycle status (`development`, `sta
 - ordered `IF` / `ELSE IF` branches, with a final `ELSE` branch;
 - nested condition groups that match `ALL` (AND) or `ANY` (OR) flag and inventory checks;
 - ordered results for messages, overlays, flags, inventory, door unlocking, and object examination;
-- optional door metadata pointing at a target room node.
+- compatibility door metadata mirrored from the canonical cluster map.
 
 The first matching branch runs. An empty condition group is an unconditional branch. Overlay results may show or replace an overlay, upload or generate branch-specific artwork, reuse a visual from that region's overlay library, or explicitly remove the region's existing overlay. Inventory checks, flag keys, and object-examination targets use searchable pickers while continuing to save stable keys/slugs. New flag names can be created from the picker, and the top-level **Flags** catalog shows every saved room/object region that reads, sets, or clears each flag. Legacy single-condition `condition` / `success` / `failure` data is normalized into the branch format when opened and is written as version 2 room or object data on the next save.
 
-The debug player lets a designer change flags and items, choose the room's entry door, traverse valid target-room exits, return with a named “Back to …” control, click hit regions, and inspect the event log. It preserves the same runtime state while moving between rooms and enforces the initial navigation rule: the entry door is always a valid exit, while other doors must be unlocked before traversal.
+## Clusters, connections, and Gateways
+
+The top-level **Map** tab is the source of truth for authored room topology. Rooms are arranged into clusters and connected by dragging saved Door / exit regions onto destination room nodes. Static connections remain inside one cluster and specify one of three return behaviors: a paired destination door, a contextual behind-you control, or an explicit one-way passage. Every cluster identifies an entry room and the return behavior used when a Gateway enters that cluster.
+
+A room may be marked as a **Gateway room**. Its selected Gateway exit regions do not have static room targets. Instead, the author chooses an eligible pool of destination clusters and the number of distinct destinations to select. The runtime shuffles both the chosen clusters and available exits on first entry to the Gateway room, then keeps those assignments stable for that play session. The editor refuses to save a Gateway with fewer eligible clusters or Gateway Door / exit regions than its configured destination count.
+
+The Room editor uses the same topology through a searchable target picker labeled by room and cluster. Direct room targets remain available for static exits in the same cluster; cross-cluster exits must be configured as Gateways.
+
+The debug player lets a designer change flags and items, choose the room's arrival door, traverse canonical connections, use named behind-you and Gateway returns, and inspect the event log. It displays randomized Gateway assignments in the runtime inspector and preserves them until **Reset state**, which starts a fresh debug session and rerolls the assignments.
 
 ## Interactive objects and inventory
 

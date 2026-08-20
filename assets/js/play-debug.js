@@ -5,9 +5,14 @@
     var room = initialRoom;
     var rooms = Array.isArray(window.NL_DEBUG_ROOMS) && window.NL_DEBUG_ROOMS.length ? window.NL_DEBUG_ROOMS : [initialRoom];
     var objects = Array.isArray(window.NL_DEBUG_OBJECTS) ? window.NL_DEBUG_OBJECTS : [];
+    var topology = window.NL_DEBUG_TOPOLOGY || { clusters: [], nodes: [], connections: [], gateways: [] };
     var objectBySlug = {};
     var roomById = {};
     var roomBySlug = {};
+    var clusterById = {};
+    var clusterByRoomId = {};
+    var connectionByExit = {};
+    var gatewayByRoomId = {};
     var regions = room.data.regions || [];
     var state;
     var activeObject = null;
@@ -25,6 +30,34 @@
         roomById[String(candidate.id)] = candidate;
         roomBySlug[candidate.slug] = candidate;
     });
+    (topology.clusters || []).forEach(function (cluster) { clusterById[String(cluster.id)] = cluster; });
+    (topology.nodes || []).forEach(function (node) { clusterByRoomId[String(node.roomId)] = String(node.clusterId); });
+    (topology.connections || []).forEach(function (connection) { connectionByExit[String(connection.sourceRoomId) + ':' + connection.sourceRegionId] = connection; });
+    (topology.gateways || []).forEach(function (gateway) { gatewayByRoomId[String(gateway.roomId)] = gateway; });
+
+    function ensureGatewayAssignments(candidateRoom) {
+        var gateway = gatewayByRoomId[String(candidateRoom.id)];
+        if (!gateway || state.gatewayAssignments[String(candidateRoom.id)]) return;
+        var assignments = window.NLRoomRules.assignGatewayDestinations(gateway, clusterById);
+        Object.keys(assignments).forEach(function (regionId) { assignments[regionId].gatewayRoomId = String(candidateRoom.id); });
+        state.gatewayAssignments[String(candidateRoom.id)] = assignments;
+    }
+
+    function gatewayAssignmentForExit(candidateRoom, regionId) {
+        ensureGatewayAssignments(candidateRoom);
+        var assignments = state.gatewayAssignments[String(candidateRoom.id)] || {};
+        return assignments[String(regionId)] || null;
+    }
+
+    function activeGatewayReturnForRoom(candidateRoom, regionId) {
+        var clusterId = clusterByRoomId[String(candidateRoom.id)];
+        var cluster = clusterById[clusterId];
+        if (!cluster || String(cluster.entryRoomId) !== String(candidateRoom.id)) return null;
+        var assignment = state.clusterGatewayReturns[clusterId] || null;
+        if (!assignment) return null;
+        if (assignment.returnMode === 'door' && String(assignment.returnRegionId) === String(regionId)) return assignment;
+        return null;
+    }
 
     function fitRoomToStage() {
         var stageStyle = window.getComputedStyle(playStage);
@@ -52,7 +85,7 @@
     }
 
     function reset() {
-        state = { flags: {}, items: {}, unlockedDoors: {}, overlays: {} };
+        state = { flags: {}, items: {}, unlockedDoors: {}, overlays: {}, gatewayAssignments: {}, clusterGatewayReturns: {} };
         rooms.forEach(function (candidate) {
             (candidate.data.regions || []).forEach(function (region) {
                 if (region.kind === 'door' && region.door && region.door.unlocked) state.unlockedDoors[region.id] = true;
@@ -93,15 +126,30 @@
     }
 
     function updateBackButton() {
-        var previous = navigationStack.length ? navigationStack[navigationStack.length - 1].room : null;
-        $('#back-room').prop('hidden', !previous);
-        $('#back-room-label').text(previous ? 'Back to ' + previous.title : 'Back');
+        var previousVisit = navigationStack.length ? navigationStack[navigationStack.length - 1] : null;
+        var previous = previousVisit ? previousVisit.room : null;
+        var showBehind = !!previous && previousVisit.returnMode === 'behind';
+        $('#back-room').prop('hidden', !showBehind);
+        $('#back-room-label').text(showBehind ? 'Behind you: ' + previous.title : 'Behind you');
+    }
+
+    function renderGatewayReturnActions() {
+        var clusterId = clusterByRoomId[String(room.id)];
+        var cluster = clusterById[clusterId];
+        var assignment = cluster ? state.clusterGatewayReturns[clusterId] : null;
+        if (!cluster || String(cluster.entryRoomId) !== String(room.id) || !assignment || assignment.returnMode !== 'behind') {
+            $('#gateway-return-actions').empty();
+            return;
+        }
+        var gatewayRoom = roomById[String(assignment.gatewayRoomId)];
+        $('#gateway-return-actions').html('<button type="button" class="btn-ghost gateway-return-button"><i class="fa-solid fa-shuffle"></i> Gateway: ' + esc(gatewayRoom ? gatewayRoom.title : 'Return') + '</button>');
     }
 
     function setActiveRoom(nextRoom, entryRegionId) {
         if (!nextRoom) return;
         room = nextRoom;
         regions = room.data.regions || [];
+        ensureGatewayAssignments(room);
         closeObject(false);
         closeInventory();
         $('#debug-room-title').text(room.title);
@@ -113,14 +161,19 @@
         playCanvas.style.aspectRatio = room.data.canvas.width + ' / ' + room.data.canvas.height;
         populateEntryDoors(entryRegionId);
         updateBackButton();
+        renderGatewayReturnActions();
         renderAll();
         fitRoomToStage();
     }
 
-    function navigateToRoom(nextRoom, message) {
+    function navigateToRoom(nextRoom, message, navigation) {
+        navigation = navigation || {};
         var previousRoom = room;
-        navigationStack.push({ room: previousRoom, entryRegionId: $('#entry-region').val() || '' });
-        setActiveRoom(nextRoom, returnDoorId(nextRoom, previousRoom));
+        navigationStack.push({ room: previousRoom, entryRegionId: $('#entry-region').val() || '', returnMode: navigation.returnMode || 'behind' });
+        if (navigation.gatewayAssignment) {
+            state.clusterGatewayReturns[String(navigation.gatewayAssignment.clusterId)] = navigation.gatewayAssignment;
+        }
+        setActiveRoom(nextRoom, navigation.targetRegionId || returnDoorId(nextRoom, previousRoom));
         showMessage(message || ('Entered ' + nextRoom.title + '.'));
         playCanvas.focus();
     }
@@ -130,10 +183,20 @@
         var departedRoom = room;
         var previous = navigationStack.pop();
         setActiveRoom(previous.room, previous.entryRegionId);
-        var message = 'Returned to ' + previous.room.title + ' from ' + departedRoom.title + '.';
+        var message = 'Turned back to ' + previous.room.title + ' from ' + departedRoom.title + '.';
         showMessage(message);
-        logEvent('Back to ' + previous.room.title, true, message, 'navigation');
+        logEvent('Behind you: ' + previous.room.title, true, message, 'navigation');
         playCanvas.focus();
+    }
+
+    function returnThroughGateway() {
+        var clusterId = clusterByRoomId[String(room.id)];
+        var assignment = state.clusterGatewayReturns[clusterId];
+        var gatewayRoom = assignment ? roomById[String(assignment.gatewayRoomId)] : null;
+        if (!assignment || !gatewayRoom) return;
+        var message = 'Returned through the Gateway to ' + gatewayRoom.title + '.';
+        logEvent('Gateway return', true, message, 'navigation');
+        navigateToRoom(gatewayRoom, message, { returnMode: 'door', targetRegionId: assignment.gatewayRegionId || '' });
     }
 
     function renderRegionSvg(target, targetRegions) {
@@ -175,6 +238,22 @@
             var region = findRoomRegion(id);
             return '<span>' + esc(region ? region.name : id) + '</span>';
         }).join('') : '<p class="empty-mini">No extra doors unlocked</p>');
+        renderGatewayAssignments();
+    }
+
+    function renderGatewayAssignments() {
+        var html = '';
+        Object.keys(state.gatewayAssignments || {}).forEach(function (gatewayRoomId) {
+            var gatewayRoom = roomById[gatewayRoomId];
+            var assignments = state.gatewayAssignments[gatewayRoomId] || {};
+            Object.keys(assignments).forEach(function (regionId) {
+                var assignment = assignments[regionId];
+                var door = gatewayRoom ? (gatewayRoom.data.regions || []).find(function (region) { return String(region.id) === String(regionId); }) : null;
+                var cluster = clusterById[String(assignment.clusterId)];
+                html += '<div><strong>' + esc(gatewayRoom ? gatewayRoom.title : gatewayRoomId) + ' · ' + esc(door ? door.name : regionId) + '</strong><span><i class="fa-solid fa-arrow-right"></i> ' + esc(cluster ? cluster.name : assignment.clusterId) + '</span></div>';
+            });
+        });
+        $('#gateway-assignments').html(html || '<p class="empty-mini">No Gateway room has been entered yet.</p>');
     }
 
     function overlayImage(region, url, canvas) {
@@ -320,19 +399,32 @@
         var pass = evaluation.conditionMatched;
         var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
         var destination = null;
+        var navigation = null;
         if (region.kind === 'door') {
-            var canExit = window.NLRoomRules.canExit(region, state, $('#entry-region').val());
+            var gatewayAssignment = gatewayAssignmentForExit(room, region.id);
+            var gatewayReturn = activeGatewayReturnForRoom(room, region.id);
+            var canExit = !!gatewayReturn || window.NLRoomRules.canExit(region, state, $('#entry-region').val());
             if (!canExit) {
                 pass = false;
                 if (!evaluation.effects.message) message = 'This door has not been unlocked. You can only leave through the door you entered.';
             } else {
-                destination = resolveRoomTarget(region.door && region.door.targetRoom);
+                if (gatewayReturn) {
+                    destination = roomById[String(gatewayReturn.gatewayRoomId)] || null;
+                    navigation = { returnMode: 'door', targetRegionId: gatewayReturn.gatewayRegionId || '' };
+                } else if (gatewayAssignment) {
+                    destination = roomById[String(gatewayAssignment.entryRoomId)] || null;
+                    navigation = { returnMode: gatewayAssignment.returnMode || 'behind', targetRegionId: gatewayAssignment.returnRegionId || '', gatewayAssignment: gatewayAssignment };
+                } else {
+                    var connection = connectionByExit[String(room.id) + ':' + region.id] || null;
+                    destination = connection ? roomById[String(connection.targetRoomId)] : resolveRoomTarget(region.door && region.door.targetRoom);
+                    navigation = connection ? { returnMode: connection.returnMode || 'behind', targetRegionId: connection.targetRegionId || '' } : { returnMode: 'behind', targetRegionId: '' };
+                }
                 if (!destination) {
                     pass = false;
-                    message = evaluation.effects.message || ((region.door && region.door.targetRoom) ? 'The target room “' + region.door.targetRoom + '” is unavailable.' : 'This door does not have a target room yet.');
+                    message = evaluation.effects.message || ((region.door && region.door.targetRoom) ? 'The target room “' + region.door.targetRoom + '” is unavailable.' : 'This exit does not have an active destination.');
                 } else {
                     pass = true;
-                    message = evaluation.effects.message || ('Enter ' + destination.title + '.');
+                    message = evaluation.effects.message || (gatewayAssignment ? 'The Gateway opens into ' + destination.title + '.' : ('Enter ' + destination.title + '.'));
                 }
             }
         }
@@ -351,7 +443,7 @@
         }
         showMessage(message);
         logEvent(region.name, pass, message, room.title, evaluation);
-        if (destination && pass && !openedObject) navigateToRoom(destination, message);
+        if (destination && pass && !openedObject) navigateToRoom(destination, message, navigation);
     }
 
     function clickObjectRegion(region) {
@@ -377,6 +469,7 @@
     $('#show-regions').on('change', renderRegions);
     $('#reset-session').on('click', reset);
     $('#back-room').on('click', returnToPreviousRoom);
+    $('#gateway-return-actions').on('click', '.gateway-return-button', returnThroughGateway);
     $('#toggle-inventory').on('click', function () { $('#inventory-panel').hasClass('visible') ? closeInventory() : openInventory(); });
     $('#close-inventory').on('click', closeInventory);
     $('#inventory-objects').on('click', '.inventory-object', function () { openObject($(this).attr('data-object-slug'), 'inventory'); });

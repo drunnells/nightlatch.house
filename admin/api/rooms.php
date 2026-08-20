@@ -1,6 +1,7 @@
 <?php
 require dirname(dirname(__DIR__)) . '/app/bootstrap.php';
 require_once dirname(dirname(__DIR__)) . '/app/interactive-logic.php';
+require_once dirname(dirname(__DIR__)) . '/app/map-topology.php';
 nightlatch_require_admin(true);
 
 try {
@@ -11,6 +12,12 @@ try {
 
     if ($action === 'delete') {
         $id = isset($payload['id']) ? (int) $payload['id'] : 0;
+        $entryStmt = nightlatch_db()->prepare('SELECT name FROM room_clusters WHERE entry_room_id = ? LIMIT 1');
+        $entryStmt->execute(array($id));
+        $entryCluster = $entryStmt->fetch();
+        if ($entryCluster) {
+            nightlatch_json(array('ok' => false, 'error' => 'This room is the entry room for cluster “' . $entryCluster['name'] . '”. Choose a different entry room in Map before deleting it.'), 422);
+        }
         nightlatch_db()->prepare('DELETE FROM rooms WHERE id = ?')->execute(array($id));
         nightlatch_json(array('ok' => true));
     }
@@ -42,23 +49,31 @@ try {
         $roomJson,
     );
 
+    $pdo = nightlatch_db();
+    $pdo->beginTransaction();
     if ($id) {
         $values[] = $adminId;
         $values[] = $id;
-        $stmt = nightlatch_db()->prepare('UPDATE rooms SET title = ?, slug = ?, description = ?, status = ?, background_asset = ?, background_prompt = ?, room_data = ?, updated_by = ? WHERE id = ?');
+        $stmt = $pdo->prepare('UPDATE rooms SET title = ?, slug = ?, description = ?, status = ?, background_asset = ?, background_prompt = ?, room_data = ?, updated_by = ? WHERE id = ?');
         $stmt->execute($values);
     } else {
         $values[] = $adminId;
         $values[] = $adminId;
-        $stmt = nightlatch_db()->prepare('INSERT INTO rooms (title, slug, description, status, background_asset, background_prompt, room_data, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $pdo->prepare('INSERT INTO rooms (title, slug, description, status, background_asset, background_prompt, room_data, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute($values);
-        $id = (int) nightlatch_db()->lastInsertId();
+        $id = (int) $pdo->lastInsertId();
     }
+
+    $gateway = isset($payload['gateway']) && is_array($payload['gateway']) ? $payload['gateway'] : array('enabled' => false);
+    nightlatch_sync_room_topology($pdo, $id, $roomData, $gateway);
+    $pdo->commit();
 
     nightlatch_json(array('ok' => true, 'id' => $id, 'slug' => $slug, 'savedAt' => date(DATE_ATOM)));
 } catch (PDOException $exception) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     $message = $exception->getCode() === '23000' ? 'That room slug is already in use.' : 'The room could not be saved.';
     nightlatch_json(array('ok' => false, 'error' => $message), 500);
 } catch (Throwable $exception) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);
 }

@@ -55,9 +55,11 @@ The S3 config shape currently includes:
 - Nightlatch House will become a point-and-click puzzle adventure.
 - The current development focus is the admin room/object creator and its debug-play tooling, not the production player-facing game client.
 - The admin tool should allow CRUD operations for rooms, inspectable objects, inventory metadata, and the data needed to assemble rooms into playable maps.
-- Rooms are nodes in a house graph. Doors or other exits connect one room node to another room node.
-- A generated map may differ for each play-through, but once a play session starts, that session's map must remain stable across multiple visits or browser sessions.
-- The eventual game flow should create a player session, generate or assign a random room map from admin-created room data, persist that map for the session, and let the player continue playing against the same map.
+- Rooms are grouped into clusters. Connections inside a cluster are authored statically through the top-level Map editor.
+- Every cluster has one entry room and a Gateway return behavior: either a persistent behind-you control or a selected Door / exit region in the entry room.
+- A Gateway room owns a finite set of Gateway exit regions, an eligible pool of destination clusters, and a destination count. On first entry during a play-through, distinct clusters are randomly paired with shuffled Gateway exits and that assignment remains stable for the run.
+- Static connections stay inside a cluster. Cross-cluster travel uses Gateway assignments to enter the selected cluster's entry room.
+- A future player game run should persist current location, arrival context, and Gateway assignments. Anonymous runs may use an opaque browser/server token; signed-in runs should attach to the player's Firebase identity without making assignments global to every run owned by that player.
 
 ## Identity and Authentication
 
@@ -66,6 +68,7 @@ The S3 config shape currently includes:
 - Use `scripts/create-admin.php` to bootstrap an admin account from the command line.
 - Do not add player accounts to the admin authentication schema.
 - If player accounts are needed, the intended direction is Firebase Authentication unless the project guidance changes.
+- Persist procedural topology against a saved game run rather than directly against a player identity so one account may own multiple games with different Gateway assignments.
 
 ## Interactive Content Authoring and Runtime Logic
 
@@ -86,9 +89,12 @@ The S3 config shape currently includes:
 - Legacy `condition` / `success` / `failure` regions must be normalized into the branch format when loaded and written as version 2 data on the next save.
 - Shared evaluation behavior belongs in `assets/js/room-rules.js`; shared admin rule-builder behavior belongs in `assets/js/logic-editor.js`; server-side shape and limit validation belongs in `app/interactive-logic.php`.
 - Current region rules run when the player clicks a region. Future room-entry or state-change triggers should reuse the same evaluator instead of creating separate condition semantics.
-- Door regions may point to another room node. A player may always leave through the door used to enter the room; other exits must be unlocked before use.
+- Canonical room topology is stored separately from room interaction JSON. Legacy `door.targetRoom` values may be imported, and canonical topology is mirrored back into door metadata for compatibility.
+- Static door connections identify a source room/region, destination room, and return behavior. Returns may use a paired destination door, a contextual behind-you control, or an explicit one-way connection.
+- Gateway exits have no static target. They resolve through the current run's saved Gateway assignment and enter the destination cluster's configured entry room.
+- A player may always use the paired door or behind-you path through which they arrived unless the connection is one-way; other exits must be unlocked before use.
 - Keep room and object rules declarative in saved content data so the editor debugger and eventual player can use the same semantics.
-- The debug-play page is an authoring tool. It should fit the complete room into the available viewport, traverse configured room exits, provide a named return-to-previous-room control, and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, entry-door behavior, and the event log.
+- The debug-play page is an authoring tool. It should fit the complete room into the available viewport, traverse canonical static connections, present named behind-you and Gateway return controls, keep randomized Gateway assignments stable until reset, and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, arrival behavior, Gateway assignments, and the event log.
 
 ## Generated Image Workflow
 
@@ -148,6 +154,8 @@ The S3 config shape currently includes:
   - `php tests/debug-object-layout.test.php`
   - `php tests/interactive-logic.test.php`
   - `php tests/content-variables.test.php`
+  - `php tests/map-topology.test.php`
+  - `php tests/map-editor-render.test.php`
   - `node tests/room-rules.test.js`
 - Run `node --check` on changed browser JavaScript files.
 - Run `git diff --check` before handing off changes.

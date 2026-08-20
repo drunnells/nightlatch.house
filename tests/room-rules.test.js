@@ -144,4 +144,18 @@ var inventory = rules.ownedObjects([
 ], state);
 assert.deepStrictEqual(inventory.map(function (object) { return object.slug; }), ['puzzle-box']);
 
+var gatewayAssignments = rules.assignGatewayDestinations({
+    destinationCount: 2,
+    exitRegionIds: ['left-gateway', 'right-gateway', 'unused-gateway'],
+    candidateClusterIds: ['glass-wing', 'cellar', 'attic']
+}, {
+    'glass-wing': { id: 'glass-wing', entryRoomId: 10, gatewayReturnMode: 'behind' },
+    cellar: { id: 'cellar', entryRoomId: 20, gatewayReturnMode: 'door', gatewayReturnRegionId: 'cellar-return' },
+    attic: { id: 'attic', entryRoomId: 30, gatewayReturnMode: 'behind' }
+}, function () { return 0; });
+var assignedGatewayExits = Object.keys(gatewayAssignments);
+assert.strictEqual(assignedGatewayExits.length, 2, 'a Gateway assigns exactly its configured destination count');
+assert.strictEqual(new Set(assignedGatewayExits.map(function (exitId) { return gatewayAssignments[exitId].clusterId; })).size, 2, 'a Gateway uses distinct destination clusters');
+assert.ok(gatewayAssignments[assignedGatewayExits[0]].entryRoomId, 'Gateway assignments snapshot the cluster entry room');
+
 console.log('room-rules tests passed');

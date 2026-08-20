@@ -20,5 +20,14 @@ if (strpos($styles, '.object-modal { position: absolute;') === false
     fwrite(STDERR, "The object modal is not sized relative to the room canvas.\n");
     exit(1);
 }
+$debugScript = file_get_contents(dirname(__DIR__) . '/assets/js/play-debug.js');
+if (strpos($debugMarkup, 'id="back-room"') === false
+    || strpos($debugMarkup, 'window.NL_DEBUG_ROOMS') === false
+    || $debugScript === false
+    || strpos($debugScript, 'navigateToRoom') === false
+    || strpos($debugScript, 'returnToPreviousRoom') === false) {
+    fwrite(STDERR, "Debug room traversal and return navigation are incomplete.\n");
+    exit(1);
+}
 
 fwrite(STDOUT, "debug-object layout tests passed\n");

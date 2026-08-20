@@ -1,20 +1,30 @@
 (function ($) {
     'use strict';
 
-    var room = window.NL_DEBUG_ROOM;
+    var initialRoom = window.NL_DEBUG_ROOM;
+    var room = initialRoom;
+    var rooms = Array.isArray(window.NL_DEBUG_ROOMS) && window.NL_DEBUG_ROOMS.length ? window.NL_DEBUG_ROOMS : [initialRoom];
     var objects = Array.isArray(window.NL_DEBUG_OBJECTS) ? window.NL_DEBUG_OBJECTS : [];
     var objectBySlug = {};
+    var roomById = {};
+    var roomBySlug = {};
     var regions = room.data.regions || [];
     var state;
     var activeObject = null;
+    var navigationStack = [];
     var svg = document.getElementById('play-regions');
     var objectSvg = document.getElementById('object-play-regions');
     var playStage = document.querySelector('.play-stage');
     var playCanvas = document.querySelector('.play-canvas');
+    var roomImage = document.getElementById('room-image');
     var objectModalBody = document.getElementById('object-modal-body');
     var objectCanvas = document.getElementById('object-play-canvas');
 
     objects.forEach(function (object) { objectBySlug[object.slug] = object; });
+    rooms.forEach(function (candidate) {
+        roomById[String(candidate.id)] = candidate;
+        roomBySlug[candidate.slug] = candidate;
+    });
 
     function fitRoomToStage() {
         var stageStyle = window.getComputedStyle(playStage);
@@ -43,18 +53,88 @@
 
     function reset() {
         state = { flags: {}, items: {}, unlockedDoors: {}, overlays: {} };
-        regions.forEach(function (region) {
-            if (region.kind === 'door' && region.door && region.door.unlocked) state.unlockedDoors[region.id] = true;
+        rooms.forEach(function (candidate) {
+            (candidate.data.regions || []).forEach(function (region) {
+                if (region.kind === 'door' && region.door && region.door.unlocked) state.unlockedDoors[region.id] = true;
+            });
         });
+        navigationStack = [];
         closeObject(false);
         closeInventory();
-        $('#entry-region').val('');
+        setActiveRoom(initialRoom, '');
         $('#event-log').html('<em>Session reset. Click a highlighted region.</em>');
         $('.player-message').removeClass('visible');
-        renderAll();
     }
 
     function esc(value) { return $('<div>').text(value === undefined || value === null ? '' : value).html(); }
+
+    function resolveRoomTarget(target) {
+        var key = String(target === undefined || target === null ? '' : target).trim();
+        return key ? (roomById[key] || roomBySlug[key] || null) : null;
+    }
+
+    function sameRoom(first, second) {
+        return !!first && !!second && (String(first.id) === String(second.id) || first.slug === second.slug);
+    }
+
+    function returnDoorId(nextRoom, previousRoom) {
+        var door = (nextRoom.data.regions || []).find(function (region) {
+            return region.kind === 'door' && region.door && sameRoom(resolveRoomTarget(region.door.targetRoom), previousRoom);
+        });
+        return door ? door.id : '';
+    }
+
+    function populateEntryDoors(entryRegionId) {
+        var html = '<option value="">No entry door (start room)</option>';
+        regions.filter(function (region) { return region.kind === 'door'; }).forEach(function (region) {
+            html += '<option value="' + esc(region.id) + '">' + esc(region.name) + '</option>';
+        });
+        $('#entry-region').html(html).val(entryRegionId || '');
+    }
+
+    function updateBackButton() {
+        var previous = navigationStack.length ? navigationStack[navigationStack.length - 1].room : null;
+        $('#back-room').prop('hidden', !previous);
+        $('#back-room-label').text(previous ? 'Back to ' + previous.title : 'Back');
+    }
+
+    function setActiveRoom(nextRoom, entryRegionId) {
+        if (!nextRoom) return;
+        room = nextRoom;
+        regions = room.data.regions || [];
+        closeObject(false);
+        closeInventory();
+        $('#debug-room-title').text(room.title);
+        $('#debug-room-slug').text(room.slug);
+        $('#debug-editor-link').attr('href', 'room-edit.php?id=' + room.id);
+        roomImage.setAttribute('src', room.backgroundAsset);
+        roomImage.setAttribute('alt', room.title);
+        svg.setAttribute('viewBox', '0 0 ' + room.data.canvas.width + ' ' + room.data.canvas.height);
+        playCanvas.style.aspectRatio = room.data.canvas.width + ' / ' + room.data.canvas.height;
+        populateEntryDoors(entryRegionId);
+        updateBackButton();
+        renderAll();
+        fitRoomToStage();
+    }
+
+    function navigateToRoom(nextRoom, message) {
+        var previousRoom = room;
+        navigationStack.push({ room: previousRoom, entryRegionId: $('#entry-region').val() || '' });
+        setActiveRoom(nextRoom, returnDoorId(nextRoom, previousRoom));
+        showMessage(message || ('Entered ' + nextRoom.title + '.'));
+        playCanvas.focus();
+    }
+
+    function returnToPreviousRoom() {
+        if (!navigationStack.length) return;
+        var departedRoom = room;
+        var previous = navigationStack.pop();
+        setActiveRoom(previous.room, previous.entryRegionId);
+        var message = 'Returned to ' + previous.room.title + ' from ' + departedRoom.title + '.';
+        showMessage(message);
+        logEvent('Back to ' + previous.room.title, true, message, 'navigation');
+        playCanvas.focus();
+    }
 
     function renderRegionSvg(target, targetRegions) {
         target.innerHTML = '';
@@ -239,29 +319,39 @@
         var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id });
         var pass = evaluation.conditionMatched;
         var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
+        var destination = null;
         if (region.kind === 'door') {
             var canExit = window.NLRoomRules.canExit(region, state, $('#entry-region').val());
             if (!canExit) {
                 pass = false;
                 if (!evaluation.effects.message) message = 'This door has not been unlocked. You can only leave through the door you entered.';
             } else {
-                pass = true;
-                message = evaluation.effects.message || ('Would navigate to ' + ((region.door && region.door.targetRoom) || 'the connected room') + '.');
+                destination = resolveRoomTarget(region.door && region.door.targetRoom);
+                if (!destination) {
+                    pass = false;
+                    message = evaluation.effects.message || ((region.door && region.door.targetRoom) ? 'The target room “' + region.door.targetRoom + '” is unavailable.' : 'This door does not have a target room yet.');
+                } else {
+                    pass = true;
+                    message = evaluation.effects.message || ('Enter ' + destination.title + '.');
+                }
             }
         }
 
         renderState();
         renderRoomOverlays();
         renderInventory();
+        var openedObject = false;
         if (evaluation.effects.examineObjects.length) {
             var objectSlug = evaluation.effects.examineObjects[0];
-            if (!openObject(objectSlug, 'room region')) {
+            openedObject = openObject(objectSlug, 'room region');
+            if (!openedObject) {
                 message = 'The referenced object “' + objectSlug + '” is unavailable in this debugger.';
                 pass = false;
             }
         }
         showMessage(message);
         logEvent(region.name, pass, message, room.title, evaluation);
+        if (destination && pass && !openedObject) navigateToRoom(destination, message);
     }
 
     function clickObjectRegion(region) {
@@ -286,6 +376,7 @@
     });
     $('#show-regions').on('change', renderRegions);
     $('#reset-session').on('click', reset);
+    $('#back-room').on('click', returnToPreviousRoom);
     $('#toggle-inventory').on('click', function () { $('#inventory-panel').hasClass('visible') ? closeInventory() : openInventory(); });
     $('#close-inventory').on('click', closeInventory);
     $('#inventory-objects').on('click', '.inventory-object', function () { openObject($(this).attr('data-object-slug'), 'inventory'); });
@@ -323,9 +414,7 @@
         renderAll();
     });
 
-    regions.filter(function (region) { return region.kind === 'door'; }).forEach(function (region) {
-        $('#entry-region').append('<option value="' + esc(region.id) + '">' + esc(region.name) + '</option>');
-    });
+    roomImage.addEventListener('load', fitRoomToStage);
     fitRoomToStage();
     if (window.ResizeObserver) {
         new ResizeObserver(fitRoomToStage).observe(playStage);

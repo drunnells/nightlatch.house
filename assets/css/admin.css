@@ -256,6 +256,7 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .logic-condition input, .logic-condition select { min-width: 0; padding: 7px 8px; font-size: 9px; }
 .logic-condition .logic-source { grid-column: 1; grid-row: 1; }
 .logic-condition .logic-key { grid-column: 2; grid-row: 1; }
+.logic-condition > .logic-inventory-picker { grid-column: 2; grid-row: 1; }
 .logic-condition .logic-remove-node { grid-column: 3; grid-row: 1; }
 .logic-condition .logic-operator { grid-column: 1; grid-row: 2; }
 .logic-condition .logic-value { grid-column: 2; grid-row: 2; }
@@ -275,8 +276,42 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .logic-action-note i { color: var(--gold); margin-top: 2px; }
 .logic-add-action { width: 100%; }
 .logic-add-branch { margin: 4px 0 12px; }
+.logic-inventory-picker { position: relative; min-width: 0; }
+.logic-picker-toggle { width: 100%; min-height: 34px; padding: 6px 8px; display: grid; grid-template-columns: minmax(0, 1fr) 10px; align-items: center; gap: 7px; color: #bfc8c5; text-align: left; background: #0a0f10; border: 1px solid #3a4543; cursor: pointer; }
+.logic-picker-toggle:hover, .logic-inventory-picker.open .logic-picker-toggle { color: var(--gold-light); border-color: var(--gold-dark); }
+.logic-picker-toggle span, .logic-inventory-option span { min-width: 0; }
+.logic-picker-toggle strong, .logic-picker-toggle small, .logic-inventory-option strong, .logic-inventory-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logic-picker-toggle strong, .logic-inventory-option strong { font-size: 9px; font-weight: 600; }
+.logic-picker-toggle small, .logic-inventory-option small { margin-top: 2px; color: #74807d; font-family: monospace; font-size: 8px; }
+.logic-picker-toggle > i { color: #75817e; font-size: 8px; transition: transform .15s; }
+.logic-inventory-picker.open .logic-picker-toggle > i { transform: rotate(180deg); }
+.logic-picker-menu { display: none; margin-top: 4px; padding: 6px; border: 1px solid #4c5552; background: #0b1011; box-shadow: 0 12px 28px rgba(0,0,0,.55); }
+.logic-inventory-picker.open .logic-picker-menu { display: block; }
+.logic-picker-search { height: 30px; display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; border: 1px solid #343f3d; background: #080c0d; }
+.logic-picker-search i { color: #687572; text-align: center; font-size: 8px; }
+.logic-picker-search input { width: 100%; height: 28px; margin: 0; padding: 5px 6px 5px 0; color: #cad1ce; background: transparent; border: 0; outline: 0; font-size: 9px; }
+.logic-picker-options { max-height: 190px; margin-top: 5px; overflow-y: auto; }
+.logic-inventory-option { width: 100%; min-height: 38px; padding: 6px 7px; display: grid; grid-template-columns: minmax(0, 1fr) 13px; align-items: center; gap: 6px; color: #aeb8b5; text-align: left; background: transparent; border: 0; border-bottom: 1px solid #222c2b; cursor: pointer; }
+.logic-inventory-option:hover { color: var(--gold-light); background: #151c1b; }
+.logic-inventory-option > i { color: #75a99f; font-size: 8px; }
+.logic-picker-empty { margin: 5px 0 0; padding: 9px; color: #6f7b78; font-size: 8px; line-height: 1.45; text-align: center; }
 .logic-overlay-generator { margin-top: 7px; }
 .logic-overlay-preview { max-height: 110px; }
+.overlay-library-toggle { width: 100%; min-height: 34px; margin-top: 7px; padding: 0 9px; display: grid; grid-template-columns: 18px minmax(0, 1fr) 12px; align-items: center; gap: 5px; color: #8eaaa5; text-align: left; border: 1px solid #3c5652; background: #111918; cursor: pointer; font-size: 10px; }
+.overlay-library-toggle:hover:not(:disabled), .overlay-library-toggle[aria-expanded="true"] { color: #b9d8d2; border-color: #5c7e78; }
+.overlay-library-toggle:disabled { opacity: .45; cursor: default; }
+.overlay-library-toggle small { min-width: 17px; margin-left: 4px; padding: 2px 5px; color: #111716; background: #70978f; border-radius: 8px; font-size: 8px; }
+.overlay-library-toggle > i:last-child { font-size: 8px; transition: transform .15s; }
+.overlay-library-toggle[aria-expanded="true"] > i:last-child { transform: rotate(180deg); }
+.overlay-library { display: none; margin-top: 5px; padding: 8px; border: 1px solid #344743; background: #0a1110; }
+.overlay-library.visible { display: block; }
+.overlay-library > .hint { margin: 0 0 7px; }
+.overlay-library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 230px; overflow-y: auto; }
+.logic-overlay-choice { position: relative; min-width: 0; padding: 4px; color: #899692; text-align: left; border: 1px solid #303b39; background: #0d1313; cursor: pointer; }
+.logic-overlay-choice:hover, .logic-overlay-choice.selected { color: #c4d7d3; border-color: #66877f; }
+.logic-overlay-choice img { width: 100%; height: 62px; display: block; object-fit: contain; background: #050808; }
+.logic-overlay-choice span { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
+.logic-overlay-choice > i { position: absolute; top: 7px; right: 7px; width: 17px; height: 17px; display: grid; place-items: center; color: #0a1110; background: #84b1a8; border-radius: 50%; font-size: 8px; }
 .bounds-readout { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line-soft); margin-top: 18px; padding-top: 13px; color: var(--muted); font-size: 9px; }
 .bounds-readout code { font-size: 9px; }
 .nl-toast { position: fixed; z-index: 100; right: 18px; bottom: 18px; color: #dce9df; background: #17231a; border: 1px solid #486650; padding: 11px 15px; box-shadow: 0 10px 30px #000; transform: translateY(20px); opacity: 0; pointer-events: none; transition: .2s; }
@@ -337,6 +372,8 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 /* Debug inventory and object examination */
 .debug-actions { justify-content: flex-end; }
 .debug-actions .btn-ghost { white-space: nowrap; }
+#back-room { max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
+#back-room-label { max-width: 150px; display: inline-block; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 #inventory-count { min-width: 17px; height: 17px; display: inline-grid; place-items: center; color: #17150f; background: var(--gold); border-radius: 9px; font-size: 9px; }
 .inventory-panel { position: absolute; z-index: 8; top: 18px; right: 18px; bottom: 18px; width: min(350px, calc(100% - 36px)); padding: 18px; color: var(--text); background: rgba(15,21,22,.98); border: 1px solid #4b4634; box-shadow: 0 18px 60px #000; transform: translateX(calc(100% + 30px)); visibility: hidden; opacity: 0; pointer-events: none; transition: transform .2s ease, opacity .2s ease, visibility 0s linear .2s; overflow-y: auto; }
 .inventory-panel.visible { transform: translateX(0); visibility: visible; opacity: 1; pointer-events: auto; transition-delay: 0s; }

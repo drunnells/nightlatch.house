@@ -140,6 +140,23 @@ function nightlatch_validate_interactive_data($data, $contentKind)
         if (isset($region['logic'])) {
             nightlatch_validate_region_logic($region['logic'], $contentKind, $regionKind);
         }
+        if (isset($region['overlayLibrary'])) {
+            if (!is_array($region['overlayLibrary']) || count($region['overlayLibrary']) > 100) {
+                throw new RuntimeException('A region overlay library must contain at most 100 images.');
+            }
+            foreach ($region['overlayLibrary'] as $overlay) {
+                if (is_string($overlay)) {
+                    nightlatch_logic_string($overlay, 2048, 'Saved overlay asset');
+                    continue;
+                }
+                if (!is_array($overlay)) {
+                    throw new RuntimeException('Every saved region overlay must be an object.');
+                }
+                nightlatch_logic_string(isset($overlay['asset']) ? $overlay['asset'] : '', 2048, 'Saved overlay asset');
+                nightlatch_logic_string(isset($overlay['prompt']) ? $overlay['prompt'] : '', 2000, 'Saved overlay prompt');
+                nightlatch_logic_string(isset($overlay['source']) ? $overlay['source'] : '', 40, 'Saved overlay source');
+            }
+        }
     }
     return $data;
 }

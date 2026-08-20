@@ -4,6 +4,7 @@ nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $room = null;
+$rooms = array();
 $objects = array();
 $error = '';
 try {
@@ -12,6 +13,10 @@ try {
     $row = $stmt->fetch();
     if (!$row) throw new RuntimeException('Save the room before opening the debugger.');
     $room = nightlatch_room_payload($row);
+    $roomRows = nightlatch_db()->query('SELECT * FROM rooms ORDER BY title')->fetchAll();
+    foreach ($roomRows as $roomRow) {
+        $rooms[] = nightlatch_room_payload($roomRow);
+    }
     $objectRows = nightlatch_db()->query('SELECT * FROM objects ORDER BY title')->fetchAll();
     foreach ($objectRows as $objectRow) {
         $objects[] = nightlatch_object_payload($objectRow);
@@ -26,10 +31,10 @@ require __DIR__ . '/_header.php';
 <?php else: ?>
 <div class="debug-shell" id="debug-player">
     <section class="debug-game">
-        <div class="debug-topbar"><div><a href="room-edit.php?id=<?php echo (int) $room['id']; ?>"><i class="fa-solid fa-chevron-left"></i> Editor</a><span class="debug-badge"><i class="fa-solid fa-bug"></i> DEBUG PLAY</span></div><div><strong><?php echo nightlatch_h($room['title']); ?></strong><code><?php echo nightlatch_h($room['slug']); ?></code></div><div class="debug-actions"><button id="toggle-inventory" class="btn-ghost" aria-expanded="false"><i class="fa-solid fa-suitcase"></i> Inventory <span id="inventory-count">0</span></button><button id="reset-session" class="btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset state</button></div></div>
+        <div class="debug-topbar"><div><a id="debug-editor-link" href="room-edit.php?id=<?php echo (int) $room['id']; ?>"><i class="fa-solid fa-chevron-left"></i> Editor</a><span class="debug-badge"><i class="fa-solid fa-bug"></i> DEBUG PLAY</span></div><div><strong id="debug-room-title"><?php echo nightlatch_h($room['title']); ?></strong><code id="debug-room-slug"><?php echo nightlatch_h($room['slug']); ?></code></div><div class="debug-actions"><button id="back-room" class="btn-ghost" hidden><i class="fa-solid fa-arrow-left"></i> <span id="back-room-label">Back</span></button><button id="toggle-inventory" class="btn-ghost" aria-expanded="false"><i class="fa-solid fa-suitcase"></i> Inventory <span id="inventory-count">0</span></button><button id="reset-session" class="btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset state</button></div></div>
         <div class="play-stage">
             <div class="play-canvas" tabindex="-1" style="aspect-ratio:<?php echo (int) $room['data']['canvas']['width']; ?>/<?php echo (int) $room['data']['canvas']['height']; ?>">
-                <img src="<?php echo nightlatch_h($room['backgroundAsset']); ?>" alt="<?php echo nightlatch_h($room['title']); ?>">
+                <img id="room-image" src="<?php echo nightlatch_h($room['backgroundAsset']); ?>" alt="<?php echo nightlatch_h($room['title']); ?>">
                 <div id="overlay-layer"></div>
                 <svg id="play-regions" viewBox="0 0 <?php echo (int) $room['data']['canvas']['width']; ?> <?php echo (int) $room['data']['canvas']['height']; ?>" preserveAspectRatio="none"></svg>
                 <div class="player-message" id="player-message"></div>
@@ -64,7 +69,7 @@ require __DIR__ . '/_header.php';
         <div class="console-section legend"><h3>Region overlay</h3><p><span class="legend-swatch interaction"></span> Interaction</p><p><span class="legend-swatch door"></span> Door / exit</p><label class="check-row"><input type="checkbox" id="show-regions" checked><span>Show hit regions</span></label></div>
     </aside>
 </div>
-<script>window.NL_DEBUG_ROOM = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_OBJECTS = <?php echo json_encode($objects, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+<script>window.NL_DEBUG_ROOM = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_ROOMS = <?php echo json_encode($rooms, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_OBJECTS = <?php echo json_encode($objects, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/play-debug.js')); ?>"></script>
 <?php endif; ?>

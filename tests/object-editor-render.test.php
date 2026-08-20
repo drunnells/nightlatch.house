@@ -42,14 +42,22 @@ if (strpos($html, 'js/object-image-tools.js') === false
 $styles = file_get_contents(dirname(__DIR__) . '/assets/css/admin.css');
 $editorScript = file_get_contents(dirname(__DIR__) . '/assets/js/room-editor.js');
 $logicScript = file_get_contents(dirname(__DIR__) . '/assets/js/logic-editor.js');
-if ($styles === false || $editorScript === false || $logicScript === false) {
+$objectEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/object-edit.php');
+if ($styles === false || $editorScript === false || $logicScript === false || $objectEditorMarkup === false) {
     fwrite(STDERR, "Object editor layout assets could not be read.\n");
     exit(1);
 }
 if (strpos($logicScript, 'logic-add-branch') === false
     || strpos($logicScript, 'logic-add-group') === false
-    || strpos($logicScript, 'logic-generate-overlay') === false) {
+    || strpos($logicScript, 'logic-generate-overlay') === false
+    || strpos($logicScript, 'logic-inventory-picker') === false
+    || strpos($logicScript, 'overlay-library-toggle') === false) {
     fwrite(STDERR, "Object editor is missing multi-branch logic controls.\n");
+    exit(1);
+}
+if (strpos($objectEditorMarkup, 'json_encode($objectOptions') === false
+    || strpos($editorScript, 'fresh.overlayLibrary') === false) {
+    fwrite(STDERR, "Object editor is missing inventory object choices.\n");
     exit(1);
 }
 $roomEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/room-edit.php');

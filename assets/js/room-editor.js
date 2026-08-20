@@ -31,6 +31,7 @@
             kind: 'interaction',
             bounds: bounds,
             logic: window.NLRoomRules.defaultLogic(),
+            overlayLibrary: [],
             door: { targetRoom: '', unlocked: false }
         };
     }
@@ -42,6 +43,7 @@
         fresh.kind = region.kind || fresh.kind;
         fresh.bounds = $.extend({}, fresh.bounds, region.bounds || {});
         fresh.logic = window.NLRoomRules.normalizeLogic(region);
+        fresh.overlayLibrary = Array.isArray(region.overlayLibrary) ? region.overlayLibrary.slice() : [];
         fresh.door = $.extend({}, fresh.door, region.door || {});
         return fresh;
     }

@@ -29,9 +29,9 @@ Each room is stored as a graph node with a lifecycle status (`development`, `sta
 - ordered results for messages, overlays, flags, inventory, door unlocking, and object examination;
 - optional door metadata pointing at a target room node.
 
-The first matching branch runs. An empty condition group is an unconditional branch. Overlay results may show or replace an overlay, upload or generate branch-specific artwork, or explicitly remove the region's existing overlay. Legacy single-condition `condition` / `success` / `failure` data is normalized into the branch format when opened and is written as version 2 room or object data on the next save.
+The first matching branch runs. An empty condition group is an unconditional branch. Overlay results may show or replace an overlay, upload or generate branch-specific artwork, reuse a visual from that region's overlay library, or explicitly remove the region's existing overlay. Inventory checks and grant/remove results use a searchable portable-object picker while continuing to save the object's stable inventory key. Legacy single-condition `condition` / `success` / `failure` data is normalized into the branch format when opened and is written as version 2 room or object data on the next save.
 
-The debug player lets a designer change flags and items, choose the room's entry door, click hit regions, and inspect the event log. It enforces the initial navigation rule: the entry door is always a valid way back, while other doors must be unlocked before traversal.
+The debug player lets a designer change flags and items, choose the room's entry door, traverse valid target-room exits, return with a named “Back to …” control, click hit regions, and inspect the event log. It preserves the same runtime state while moving between rooms and enforces the initial navigation rule: the entry door is always a valid exit, while other doors must be unlocked before traversal.
 
 ## Interactive objects and inventory
 

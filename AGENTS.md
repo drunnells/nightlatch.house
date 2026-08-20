@@ -80,12 +80,14 @@ The S3 config shape currently includes:
 - Branch results are ordered actions. Supported actions show player messages, show/replace or clear the region overlay, set or clear flags, grant or remove items, unlock a door, or open an object viewer.
 - Overlay removal is explicit: `clear_overlay` deletes the current region-scoped overlay. A new overlay replaces the previous overlay for that region.
 - Each `set_overlay` result owns its asset and optional generation prompt so overlays may be uploaded or generated independently in IF, ELSE IF, or ELSE branches.
+- Each region keeps an `overlayLibrary` of up to 100 previously linked, uploaded, or generated overlays so authors can visually reuse the same artwork across branches without duplicating files.
+- Inventory conditions and grant/remove results store stable inventory keys, but the editor authors them through a searchable picker of saved portable objects rather than free-text keys.
 - Legacy `condition` / `success` / `failure` regions must be normalized into the branch format when loaded and written as version 2 data on the next save.
 - Shared evaluation behavior belongs in `assets/js/room-rules.js`; shared admin rule-builder behavior belongs in `assets/js/logic-editor.js`; server-side shape and limit validation belongs in `app/interactive-logic.php`.
 - Current region rules run when the player clicks a region. Future room-entry or state-change triggers should reuse the same evaluator instead of creating separate condition semantics.
 - Door regions may point to another room node. A player may always leave through the door used to enter the room; other exits must be unlocked before use.
 - Keep room and object rules declarative in saved content data so the editor debugger and eventual player can use the same semantics.
-- The debug-play page is an authoring tool. It should fit the complete room into the available viewport and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, entry-door behavior, and the event log.
+- The debug-play page is an authoring tool. It should fit the complete room into the available viewport, traverse configured room exits, provide a named return-to-previous-room control, and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, entry-door behavior, and the event log.
 
 ## Generated Image Workflow
 

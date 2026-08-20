@@ -21,6 +21,7 @@ $object = array(
     'updatedAt' => null,
 );
 $error = '';
+$objectOptions = array();
 if ($id) {
     try {
         $stmt = nightlatch_db()->prepare('SELECT * FROM objects WHERE id = ?');
@@ -33,6 +34,11 @@ if ($id) {
     } catch (Throwable $exception) {
         $error = $exception->getMessage();
     }
+}
+try {
+    $objectOptions = nightlatch_db()->query('SELECT title, slug, portable, inventory_key FROM objects ORDER BY title')->fetchAll();
+} catch (Throwable $exception) {
+    $objectOptions = array();
 }
 
 $pageTitle = ($id ? 'Edit object' : 'Create object') . ' · Nightlatch Room Forge';
@@ -138,7 +144,7 @@ require __DIR__ . '/_header.php';
         </div>
     </section>
 </div>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = []; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>

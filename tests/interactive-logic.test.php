@@ -17,6 +17,9 @@ $data = array(
     'regions' => array(array(
         'id' => 'painting',
         'kind' => 'interaction',
+        'overlayLibrary' => array(
+            array('asset' => '../painting-open.png', 'prompt' => 'Open the painting.', 'source' => 'generated'),
+        ),
         'logic' => array(
             'version' => 1,
             'branches' => array(array(
@@ -59,6 +62,16 @@ $invalid['regions'][0]['logic']['branches'][0]['actions'][] = array('type' => 'e
 try {
     nightlatch_validate_interactive_data($invalid, 'object');
     fwrite(STDERR, "Object logic accepted an examine-object result.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+$invalid = $data;
+$invalid['regions'][0]['overlayLibrary'] = array_fill(0, 101, array('asset' => '../overlay.png'));
+try {
+    nightlatch_validate_interactive_data($invalid, 'room');
+    fwrite(STDERR, "An oversized region overlay library was accepted.\n");
     exit(1);
 } catch (RuntimeException $exception) {
     // Expected.

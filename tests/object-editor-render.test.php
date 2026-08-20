@@ -37,6 +37,24 @@ if (strpos($html, 'js/object-image-tools.js') === false) {
     exit(1);
 }
 
+$styles = file_get_contents(dirname(__DIR__) . '/assets/css/admin.css');
+$editorScript = file_get_contents(dirname(__DIR__) . '/assets/js/room-editor.js');
+if ($styles === false || $editorScript === false) {
+    fwrite(STDERR, "Object editor layout assets could not be read.\n");
+    exit(1);
+}
+if (strpos($styles, 'grid-template-rows: minmax(0, 1fr)') === false
+    || strpos($styles, '.editor-sidebar, .inspector { min-height: 0;') === false
+    || strpos($styles, '.editor-workspace { min-width: 0; min-height: 0; overflow: hidden;') === false) {
+    fwrite(STDERR, "Object editor columns are not constrained to the viewport.\n");
+    exit(1);
+}
+if (strpos($editorScript, "image.addEventListener('load', scheduleZoom)") === false
+    || strpos($editorScript, 'new ResizeObserver(scheduleZoom).observe(canvasStage)') === false) {
+    fwrite(STDERR, "Object editor does not refit the image after layout and image changes.\n");
+    exit(1);
+}
+
 if (class_exists('DOMDocument')) {
     libxml_use_internal_errors(true);
     $document = new DOMDocument();

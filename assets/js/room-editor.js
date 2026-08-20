@@ -17,6 +17,7 @@
     var image = document.getElementById('room-image');
     var roomCanvas = document.getElementById('room-canvas');
     var canvasStage = document.getElementById('canvas-stage');
+    var zoomFrame = null;
 
     function uid() {
         return 'region-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -510,6 +511,13 @@
         roomCanvas.style.height = Math.floor(canvas.height * fitScale * zoom) + 'px';
         $('#zoom-label').text(zoom === 1 ? 'Fit' : Math.round(zoom * 100) + '%');
     }
+    function scheduleZoom() {
+        if (zoomFrame !== null) window.cancelAnimationFrame(zoomFrame);
+        zoomFrame = window.requestAnimationFrame(function () {
+            zoomFrame = null;
+            applyZoom();
+        });
+    }
     $('#zoom-in').on('click', function () { zoom = Math.min(2, zoom + 0.15); applyZoom(); });
     $('#zoom-out').on('click', function () { zoom = Math.max(0.55, zoom - 0.15); applyZoom(); });
 
@@ -533,9 +541,12 @@
     renderRegions();
     fillInspector();
     applyZoom();
+    image.addEventListener('load', scheduleZoom);
+    window.addEventListener('load', scheduleZoom);
+    scheduleZoom();
     if (window.ResizeObserver) {
-        new ResizeObserver(applyZoom).observe(canvasStage);
+        new ResizeObserver(scheduleZoom).observe(canvasStage);
     } else {
-        window.addEventListener('resize', applyZoom);
+        window.addEventListener('resize', scheduleZoom);
     }
 })(jQuery);

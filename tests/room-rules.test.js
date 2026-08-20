@@ -124,6 +124,29 @@ var legacyLogic = rules.normalizeLogic({
 assert.strictEqual(legacyLogic.branches[0].actions.length, 3, 'legacy success fields become actions');
 assert.strictEqual(legacyLogic.elseActions[0].text, 'Legacy failure', 'legacy failure messages become ELSE actions');
 
+var sequenceProbe = rules.defaultLogic();
+var nextSequence = parseInt(sequenceProbe.branches[0].when.id.split('-').pop(), 10) + 1;
+var loadedBranchId = 'branch-' + nextSequence;
+var loadedGroupId = 'group-' + (nextSequence + 1);
+var loadedLogic = rules.normalizeLogic({
+    logic: {
+        branches: [{
+            id: loadedBranchId,
+            when: {
+                id: loadedGroupId,
+                type: 'group',
+                match: 'all',
+                children: []
+            },
+            actions: []
+        }],
+        elseActions: []
+    }
+});
+var addedBranch = rules.defaultLogic().branches[0];
+assert.notStrictEqual(addedBranch.id, loadedLogic.branches[0].id, 'a new ELSE IF branch does not reuse a loaded branch identifier');
+assert.notStrictEqual(addedBranch.when.id, loadedLogic.branches[0].when.id, 'a new ELSE IF condition group does not reuse a loaded group identifier');
+
 state.flags.temporary = '1';
 state.items.disposable = '1';
 var removalEffects = rules.applyActions([

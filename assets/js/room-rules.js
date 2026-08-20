@@ -15,9 +15,19 @@
         return (prefix || 'logic') + '-' + idSequence;
     }
 
+    function logicId(prefix, existingId) {
+        if (existingId) {
+            existingId = String(existingId);
+            var sequenceMatch = /-(\d+)$/.exec(existingId);
+            if (sequenceMatch) idSequence = Math.max(idSequence, parseInt(sequenceMatch[1], 10));
+            return existingId;
+        }
+        return uid(prefix);
+    }
+
     function conditionNode(source, key, operator, value, id) {
         return {
-            id: id || uid('condition'),
+            id: logicId('condition', id),
             type: 'condition',
             source: source === 'item' ? 'item' : 'flag',
             key: key || '',
@@ -28,7 +38,7 @@
 
     function conditionGroup(match, children, id) {
         return {
-            id: id || uid('group'),
+            id: logicId('group', id),
             type: 'group',
             match: match === 'any' ? 'any' : 'all',
             children: Array.isArray(children) ? children : []
@@ -53,7 +63,7 @@
 
     function normalizeAction(action) {
         action = action || {};
-        var normalized = { id: action.id || uid('action'), type: action.type || 'message' };
+        var normalized = { id: logicId('action', action.id), type: action.type || 'message' };
         if (normalized.type === 'message') normalized.text = action.text || '';
         if (normalized.type === 'set_overlay') {
             normalized.asset = action.asset || '';
@@ -89,7 +99,7 @@
                 version: 1,
                 branches: region.logic.branches.map(function (branch) {
                     return {
-                        id: branch.id || uid('branch'),
+                        id: logicId('branch', branch.id),
                         when: normalizeExpression(branch.when),
                         actions: (branch.actions || []).map(normalizeAction)
                     };

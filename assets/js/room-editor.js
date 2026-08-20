@@ -427,21 +427,59 @@
         image.src = url;
     }
 
+    function applyCroppedBackground(url, width, height, cropBounds) {
+        var scaleX = width / cropBounds.width;
+        var scaleY = height / cropBounds.height;
+        var right = cropBounds.x + cropBounds.width;
+        var bottom = cropBounds.y + cropBounds.height;
+        var keptRegions = [];
+        regions.forEach(function (region) {
+            var regionRight = region.bounds.x + region.bounds.width;
+            var regionBottom = region.bounds.y + region.bounds.height;
+            var left = Math.max(region.bounds.x, cropBounds.x);
+            var top = Math.max(region.bounds.y, cropBounds.y);
+            var clippedRight = Math.min(regionRight, right);
+            var clippedBottom = Math.min(regionBottom, bottom);
+            if (clippedRight <= left || clippedBottom <= top) return;
+            region.bounds = {
+                x: (left - cropBounds.x) * scaleX,
+                y: (top - cropBounds.y) * scaleY,
+                width: (clippedRight - left) * scaleX,
+                height: (clippedBottom - top) * scaleY
+            };
+            keptRegions.push(region);
+        });
+        regions = keptRegions;
+        if (selectedId && !selected()) selectedId = null;
+        canvas = { width: width, height: height };
+        image.onload = function () {
+            svg.setAttribute('viewBox', '0 0 ' + canvas.width + ' ' + canvas.height);
+            roomCanvas.style.aspectRatio = canvas.width + ' / ' + canvas.height;
+            renderRegions();
+            fillInspector();
+            applyZoom();
+            markDirty();
+        };
+        image.src = url;
+    }
+
     function updatePromptCount() { $('#prompt-count').text($('#gemini-prompt').val().length + ' / 2000'); }
     $('#gemini-prompt').on('input', updatePromptCount); updatePromptCount();
     $('#generate-image').on('click', function () {
         var prompt = $('#gemini-prompt').val().trim();
         var button = $(this);
+        var generationPayload = { prompt: prompt, assetType: editor.assetType };
+        if (isObject && window.NL_OBJECT_REFERENCE) generationPayload.reference = window.NL_OBJECT_REFERENCE;
         button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Building the ' + contentLabel + '…');
-        $('#generation-status').text('Gemini image generation may take a minute.').addClass('visible');
+        $('#generation-status').text(window.NL_OBJECT_REFERENCE ? 'Gemini is using the selected reference crop. Generation may take a minute.' : 'Gemini image generation may take a minute.').addClass('visible');
         fetch('api/gemini-generate.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
-            body: JSON.stringify({ prompt: prompt, assetType: editor.assetType })
+            body: JSON.stringify(generationPayload)
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error);
             setBackground(result.url, true);
-            $('#generation-status').text('New image ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the ' + contentLabel + ' to keep this selection.');
+            $('#generation-status').text('New image ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + (result.referenceUsed ? ' · reference crop applied' : '') + '. Save the ' + contentLabel + ' to keep this selection.');
             toast('Gemini ' + (isObject ? 'object image' : 'background') + ' created');
         }).catch(function (error) {
             $('#generation-status').text(error.message);
@@ -478,6 +516,16 @@
     function toast(message, error) {
         $('#toast').text(message).toggleClass('error', !!error).addClass('visible');
         window.setTimeout(function () { $('#toast').removeClass('visible'); }, 3200);
+    }
+
+    if (isObject) {
+        window.NLObjectEditorBridge = {
+            getBackgroundAsset: function () { return image.getAttribute('src'); },
+            getCanvas: function () { return { width: canvas.width, height: canvas.height }; },
+            getRegionCount: function () { return regions.length; },
+            applyCrop: applyCroppedBackground,
+            toast: toast
+        };
     }
 
     svg.setAttribute('viewBox', '0 0 ' + canvas.width + ' ' + canvas.height);

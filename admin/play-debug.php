@@ -33,6 +33,20 @@ require __DIR__ . '/_header.php';
                 <div id="overlay-layer"></div>
                 <svg id="play-regions" viewBox="0 0 <?php echo (int) $room['data']['canvas']['width']; ?> <?php echo (int) $room['data']['canvas']['height']; ?>" preserveAspectRatio="none"></svg>
                 <div class="player-message" id="player-message"></div>
+                <div class="object-modal" id="object-modal" hidden role="dialog" aria-modal="true" aria-labelledby="object-modal-title">
+                    <div class="object-modal-backdrop" data-close-object></div>
+                    <section class="object-modal-card">
+                        <header class="object-modal-header"><div><span class="eyebrow">Examining</span><h2 id="object-modal-title">Object</h2></div><button id="close-object" class="object-close" aria-label="Close object and return to room"><i class="fa-solid fa-xmark"></i><span>Close</span></button></header>
+                        <div class="object-modal-body" id="object-modal-body">
+                            <div class="object-play-canvas" id="object-play-canvas">
+                                <img id="object-image" alt="">
+                                <div id="object-overlay-layer"></div>
+                                <svg id="object-play-regions" preserveAspectRatio="none" aria-label="Object interaction regions"></svg>
+                                <div class="player-message" id="object-player-message"></div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
             </div>
             <aside class="inventory-panel" id="inventory-panel" aria-hidden="true">
                 <div class="inventory-heading"><div><span class="eyebrow">Carried objects</span><h2>Inventory</h2></div><button id="close-inventory" class="icon-button" aria-label="Close inventory"><i class="fa-solid fa-xmark"></i></button></div>
@@ -41,20 +55,6 @@ require __DIR__ . '/_header.php';
         </div>
         <div class="debug-logbar"><span><i class="fa-solid fa-terminal"></i> Event log</span><div id="event-log"><em>Session started. Click a highlighted region.</em></div></div>
     </section>
-    <div class="object-modal" id="object-modal" hidden role="dialog" aria-modal="true" aria-labelledby="object-modal-title">
-        <div class="object-modal-backdrop" data-close-object></div>
-        <section class="object-modal-card">
-            <header class="object-modal-header"><div><span class="eyebrow">Examining</span><h2 id="object-modal-title">Object</h2></div><button id="close-object" class="object-close" aria-label="Close object and return to room"><i class="fa-solid fa-xmark"></i><span>Close</span></button></header>
-            <div class="object-modal-body" id="object-modal-body">
-                <div class="object-play-canvas" id="object-play-canvas">
-                    <img id="object-image" alt="">
-                    <div id="object-overlay-layer"></div>
-                    <svg id="object-play-regions" preserveAspectRatio="none" aria-label="Object interaction regions"></svg>
-                    <div class="player-message" id="object-player-message"></div>
-                </div>
-            </div>
-        </section>
-    </div>
     <aside class="debug-console">
         <div class="console-heading"><div class="eyebrow">Runtime inspector</div><h2>Session state</h2><p>Edit values here to exercise both sides of a puzzle rule.</p></div>
         <label for="entry-region">Entered through</label><select id="entry-region"><option value="">No entry door (start room)</option></select>

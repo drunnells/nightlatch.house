@@ -33,11 +33,20 @@ The debug player lets a designer change flags and items, choose the room's entry
 
 ## Interactive objects and inventory
 
-Objects are first-class interactive content records with their own close-up artwork, canvas dimensions, and declarative regions. They use the same condition, message, flag, item-grant, and graphic-overlay semantics as room interactions. Room regions may select an object to examine when their rule passes; the debug player opens that object in an 80%-of-viewport viewer over the room, and closing it returns to the room.
+Objects are first-class interactive content records with their own close-up artwork, canvas dimensions, and declarative regions. They use the same condition, message, flag, item-grant, and graphic-overlay semantics as room interactions. Room regions may select an object to examine when their rule passes; the debug player opens that object in an 80%-of-room-image viewer, and closing it returns to the room.
 
 An object may be room-bound or portable. Portable objects have a unique inventory key. When that key exists in the session's item state—whether entered in the debugger or granted by a successful region—the object appears in the debug inventory and can be opened from there. Object overlays, flags, granted items, and inventory persist for the life of the debug session and reset with the existing reset control.
 
 The object authoring flow is available from **Objects** in the admin navigation. Create and save objects before selecting them from a room region. As with rooms, this first pass supports the `development` lifecycle while S3 publication remains future work.
+
+### Object image authoring
+
+The object editor's **Assets** panel provides two additional workflows:
+
+- **Crop or lasso object** opens the current object image in a selection workspace. Rectangle selections make a conventional crop. Lasso selections are built point by point and produce a PNG with transparency outside the closed polygon. Existing interaction regions inside the crop are transformed to the new canvas; regions entirely outside it are removed.
+- **Choose reference** opens a searchable thumbnail library of saved raster room and object backgrounds. After choosing an image, drag a rectangle around the exact detail to use. The server securely extracts that crop and sends it to Gemini with the next object-generation prompt as an inline visual reference. The reference remains selected for additional variants until it is cleared or the editor page is reloaded.
+
+The debug object viewer is nested inside the rendered room canvas. Its backdrop covers the room, and its modal occupies 80% of the room image's displayed width and height rather than 80% of the browser window.
 
 The first pass intentionally saves rooms only in `development`. Staging and production controls remain visible but disabled until S3 publication and environment-specific database insertion are implemented, preventing a local-only draft from being mislabeled as published.
 

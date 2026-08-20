@@ -18,6 +18,12 @@ if ($generationConfig['imageConfig']['imageSize'] !== '1K') {
     exit(1);
 }
 
+$objectRequest = nightlatch_gemini_image_request('Create a puzzle box.', '1:1');
+if ($objectRequest['generationConfig']['imageConfig']['aspectRatio'] !== '1:1') {
+    fwrite(STDERR, "Object generation did not request a square image.\n");
+    exit(1);
+}
+
 $editRequest = nightlatch_gemini_image_edit_request('Turn on the lamp.', 'png-bytes', 'image/png');
 $editParts = $editRequest['contents'][0]['parts'];
 if ($editParts[0]['text'] !== 'Turn on the lamp.') {
@@ -30,6 +36,14 @@ if ($editParts[1]['inlineData']['mimeType'] !== 'image/png' || base64_decode($ed
 }
 if ($editRequest['generationConfig']['imageConfig']['aspectRatio'] !== '1:1' || $editRequest['generationConfig']['imageConfig']['imageSize'] !== '1K') {
     fwrite(STDERR, "Unexpected Gemini edit output dimensions.\n");
+    exit(1);
+}
+
+$referencePrompt = nightlatch_gemini_object_reference_prompt('Make the painting frame slightly tarnished.');
+if (strpos($referencePrompt, 'deliberately selected reference crop') === false
+    || strpos($referencePrompt, 'Make the painting frame slightly tarnished.') === false
+    || strpos($referencePrompt, 'END USER REQUEST') === false) {
+    fwrite(STDERR, "Object reference prompt is incomplete.\n");
     exit(1);
 }
 

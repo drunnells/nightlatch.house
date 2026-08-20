@@ -1,0 +1,24 @@
+<?php
+
+$debugMarkup = file_get_contents(dirname(__DIR__) . '/admin/play-debug.php');
+$styles = file_get_contents(dirname(__DIR__) . '/assets/css/admin.css');
+if ($debugMarkup === false || $styles === false) {
+    fwrite(STDERR, "Debug object layout sources could not be read.\n");
+    exit(1);
+}
+
+$playCanvasPosition = strpos($debugMarkup, '<div class="play-canvas"');
+$objectModalPosition = strpos($debugMarkup, '<div class="object-modal"');
+$inventoryPosition = strpos($debugMarkup, '<aside class="inventory-panel"');
+if ($playCanvasPosition === false || $objectModalPosition === false || $inventoryPosition === false
+    || !($playCanvasPosition < $objectModalPosition && $objectModalPosition < $inventoryPosition)) {
+    fwrite(STDERR, "The object modal is not nested with the room play canvas.\n");
+    exit(1);
+}
+if (strpos($styles, '.object-modal { position: absolute;') === false
+    || strpos($styles, '.object-modal-card { position: relative; z-index: 1; width: 80%; height: 80%;') === false) {
+    fwrite(STDERR, "The object modal is not sized relative to the room canvas.\n");
+    exit(1);
+}
+
+fwrite(STDOUT, "debug-object layout tests passed\n");

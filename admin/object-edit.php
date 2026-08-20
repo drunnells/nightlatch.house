@@ -64,6 +64,14 @@ require __DIR__ . '/_header.php';
             <div class="prompt-meta"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Uses configured Gemini model</span><span id="prompt-count">0 / 2000</span></div>
             <button class="btn-forge btn-block" id="generate-image"><i class="fa-solid fa-sparkles"></i> Generate object image</button>
             <div class="generation-status" id="generation-status"></div>
+            <div class="object-image-tools">
+                <button type="button" class="btn-ghost btn-block" id="open-object-crop"><i class="fa-solid fa-crop-simple"></i> Crop or lasso object</button>
+                <div class="reference-source-card">
+                    <div><span class="eyebrow">Optional Gemini reference</span><strong id="reference-source-title">No reference selected</strong><small id="reference-source-detail">Choose a saved room or object image, then mark the exact area to use.</small></div>
+                    <canvas id="reference-crop-preview" width="240" height="140" hidden></canvas>
+                    <div class="reference-source-actions"><button type="button" class="btn-ghost" id="open-reference-picker"><i class="fa-regular fa-images"></i> Choose reference</button><button type="button" class="icon-button danger" id="clear-reference" title="Clear reference" hidden><i class="fa-solid fa-xmark"></i></button></div>
+                </div>
+            </div>
         </div>
 
         <div class="editor-panel" data-panel-content="settings">
@@ -126,6 +134,32 @@ require __DIR__ . '/_header.php';
         </div>
     </aside>
 </div>
+<div class="image-workspace" id="object-crop-workspace" hidden role="dialog" aria-modal="true" aria-labelledby="object-crop-title">
+    <div class="image-workspace-backdrop" data-close-image-workspace></div>
+    <section class="image-workspace-card">
+        <header class="image-workspace-header"><div><span class="eyebrow">Object extraction</span><h2 id="object-crop-title">Crop the current image</h2></div><button type="button" class="object-close" data-close-image-workspace><i class="fa-solid fa-xmark"></i><span>Close</span></button></header>
+        <div class="image-workspace-toolbar"><div class="selection-modes"><button type="button" class="active" data-crop-mode="rectangle"><i class="fa-regular fa-square"></i> Rectangle</button><button type="button" data-crop-mode="lasso"><i class="fa-solid fa-draw-polygon"></i> Lasso</button></div><p id="crop-instruction">Drag a rectangle tightly around the object.</p></div>
+        <div class="image-selection-stage"><div class="image-selection-canvas" id="object-crop-canvas"><img id="object-crop-image" alt="Object crop source"><svg id="object-crop-layer" preserveAspectRatio="none"></svg></div></div>
+        <footer class="image-workspace-footer"><span id="crop-selection-status">No selection yet</span><div><button type="button" class="btn-ghost" id="reset-object-crop"><i class="fa-solid fa-rotate-left"></i> Reset</button><button type="button" class="btn-ghost" id="close-lasso" hidden><i class="fa-solid fa-link"></i> Close shape</button><button type="button" class="btn-forge" id="apply-object-crop"><i class="fa-solid fa-crop-simple"></i> Use cropped object</button></div></footer>
+    </section>
+</div>
+
+<div class="image-workspace" id="reference-workspace" hidden role="dialog" aria-modal="true" aria-labelledby="reference-workspace-title">
+    <div class="image-workspace-backdrop" data-close-reference-workspace></div>
+    <section class="image-workspace-card reference-workspace-card">
+        <header class="image-workspace-header"><div><span class="eyebrow">Gemini visual reference</span><h2 id="reference-workspace-title">Choose an image area</h2></div><button type="button" class="object-close" data-close-reference-workspace><i class="fa-solid fa-xmark"></i><span>Close</span></button></header>
+        <div class="asset-library-view" id="asset-library-view">
+            <div class="asset-search"><i class="fa-solid fa-magnifying-glass"></i><input id="asset-search" type="search" placeholder="Search saved rooms and objects"><span id="asset-search-count"></span></div>
+            <div class="asset-thumbnail-grid" id="asset-thumbnail-grid"><p class="asset-loading"><i class="fa-solid fa-spinner fa-spin"></i> Loading saved images…</p></div>
+        </div>
+        <div class="reference-select-view" id="reference-select-view" hidden>
+            <div class="image-workspace-toolbar"><button type="button" class="btn-ghost" id="back-to-assets"><i class="fa-solid fa-chevron-left"></i> Images</button><p><strong id="selected-reference-title"></strong> · Drag a rectangle around the exact reference area.</p></div>
+            <div class="image-selection-stage"><div class="image-selection-canvas" id="reference-selection-canvas"><img id="reference-selection-image" alt="Reference selection source"><svg id="reference-selection-layer" preserveAspectRatio="none"></svg></div></div>
+            <footer class="image-workspace-footer"><span id="reference-selection-status">No area selected</span><button type="button" class="btn-forge" id="use-reference-selection"><i class="fa-solid fa-check"></i> Use selected area</button></footer>
+        </div>
+    </section>
+</div>
 <script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/object-image-tools.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

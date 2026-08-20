@@ -7,6 +7,10 @@ nightlatch_require_admin(true);
 try {
     nightlatch_verify_csrf();
     $payload = nightlatch_input_json();
+    $assetType = isset($payload['assetType']) ? $payload['assetType'] : 'rooms';
+    if (!in_array($assetType, array('rooms', 'objects'), true)) {
+        throw new RuntimeException('The image asset type is invalid.');
+    }
     $prompt = trim(isset($payload['prompt']) ? $payload['prompt'] : '');
     if (strlen($prompt) < 12 || strlen($prompt) > 2000) {
         throw new RuntimeException('Enter an image prompt between 12 and 2,000 characters.');
@@ -61,7 +65,7 @@ try {
     }
     $imageOptions = nightlatch_generated_image_options();
     $optimized = nightlatch_mobile_jpeg($binary, $imageOptions['maximumWidth'], $imageOptions['jpegQuality']);
-    $directory = NIGHTLATCH_ROOT . '/assets/graphics/rooms/generated';
+    $directory = NIGHTLATCH_ROOT . '/assets/graphics/' . $assetType . '/generated';
     if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
         throw new RuntimeException('The generated asset directory could not be created.');
     }
@@ -71,7 +75,7 @@ try {
     }
     nightlatch_json(array(
         'ok' => true,
-        'url' => '../assets/graphics/rooms/generated/' . $name,
+        'url' => '../assets/graphics/' . $assetType . '/generated/' . $name,
         'width' => $optimized['width'],
         'height' => $optimized['height'],
         'bytes' => strlen($optimized['bytes']),

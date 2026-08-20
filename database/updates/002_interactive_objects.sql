@@ -1,0 +1,23 @@
+CREATE TABLE objects (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    title VARCHAR(160) NOT NULL,
+    slug VARCHAR(190) NOT NULL,
+    description TEXT NULL,
+    status ENUM('development', 'staging', 'production') NOT NULL DEFAULT 'development',
+    background_asset VARCHAR(500) NULL,
+    background_prompt TEXT NULL,
+    portable TINYINT(1) NOT NULL DEFAULT 0,
+    inventory_key VARCHAR(190) NULL,
+    object_data LONGTEXT NOT NULL,
+    created_by INT UNSIGNED NOT NULL,
+    updated_by INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_objects_slug (slug),
+    UNIQUE KEY uq_objects_inventory_key (inventory_key),
+    KEY idx_objects_status (status),
+    KEY idx_objects_portable (portable),
+    CONSTRAINT fk_objects_created_by FOREIGN KEY (created_by) REFERENCES admin_users (id),
+    CONSTRAINT fk_objects_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

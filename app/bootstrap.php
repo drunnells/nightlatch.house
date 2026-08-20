@@ -148,7 +148,41 @@ function nightlatch_asset($relativePath)
 
 function nightlatch_room_payload($row)
 {
-    $data = json_decode($row['room_data'], true);
+    $data = nightlatch_interactive_content_data($row['room_data']);
+    return array(
+        'id' => (int) $row['id'],
+        'title' => $row['title'],
+        'slug' => $row['slug'],
+        'description' => $row['description'],
+        'status' => $row['status'],
+        'backgroundAsset' => $row['background_asset'],
+        'backgroundPrompt' => $row['background_prompt'],
+        'data' => $data,
+        'updatedAt' => $row['updated_at'],
+    );
+}
+
+function nightlatch_object_payload($row)
+{
+    $data = nightlatch_interactive_content_data($row['object_data']);
+    return array(
+        'id' => (int) $row['id'],
+        'title' => $row['title'],
+        'slug' => $row['slug'],
+        'description' => $row['description'],
+        'status' => $row['status'],
+        'backgroundAsset' => $row['background_asset'],
+        'backgroundPrompt' => $row['background_prompt'],
+        'portable' => !empty($row['portable']),
+        'inventoryKey' => isset($row['inventory_key']) ? $row['inventory_key'] : '',
+        'data' => $data,
+        'updatedAt' => $row['updated_at'],
+    );
+}
+
+function nightlatch_interactive_content_data($json)
+{
+    $data = json_decode($json, true);
     if (!is_array($data)) {
         $data = array();
     }
@@ -161,15 +195,5 @@ function nightlatch_room_payload($row)
     if (!isset($data['version'])) {
         $data['version'] = 1;
     }
-    return array(
-        'id' => (int) $row['id'],
-        'title' => $row['title'],
-        'slug' => $row['slug'],
-        'description' => $row['description'],
-        'status' => $row['status'],
-        'backgroundAsset' => $row['background_asset'],
-        'backgroundPrompt' => $row['background_prompt'],
-        'data' => $data,
-        'updatedAt' => $row['updated_at'],
-    );
+    return $data;
 }

@@ -34,5 +34,22 @@ assert.strictEqual(state.items.old_coin, '1');
 assert.strictEqual(state.overlays['north-door'], '../door-open.png');
 assert.strictEqual(rules.canExit(door, state, 'south-door'), true, 'an unlocked door becomes traversable');
 
-console.log('room-rules tests passed');
+var objectRegion = {
+    id: 'hidden-catch',
+    kind: 'interaction',
+    success: { overlay: '../catch-open.png' }
+};
+rules.applySuccess(objectRegion, state, { overlayKey: 'object:puzzle-box:hidden-catch' });
+assert.strictEqual(state.overlays['object:puzzle-box:hidden-catch'], '../catch-open.png', 'object overlays use their scoped state key');
+assert.strictEqual(state.overlays['hidden-catch'], undefined, 'object overlays do not collide with room regions');
 
+state.items.puzzle_box = '1';
+state.items.nonportable_prop = '1';
+var inventory = rules.ownedObjects([
+    { slug: 'puzzle-box', portable: true, inventoryKey: 'puzzle_box' },
+    { slug: 'painting', portable: false, inventoryKey: 'nonportable_prop' },
+    { slug: 'missing-key', portable: true, inventoryKey: 'not_owned' }
+], state);
+assert.deepStrictEqual(inventory.map(function (object) { return object.slug; }), ['puzzle-box']);
+
+console.log('room-rules tests passed');

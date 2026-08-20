@@ -3,3 +3,7 @@ assets/graphics/rooms/uploads/*
 assets/graphics/rooms/generated/*
 !assets/graphics/rooms/uploads/.gitkeep
 !assets/graphics/rooms/generated/.gitkeep
+assets/graphics/objects/uploads/*
+assets/graphics/objects/generated/*
+!assets/graphics/objects/uploads/.gitkeep
+!assets/graphics/objects/generated/.gitkeep

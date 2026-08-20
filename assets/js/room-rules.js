@@ -18,11 +18,12 @@
         return exists && String(bucket[condition.key]) === String(condition.value);
     }
 
-    function applySuccess(region, state) {
+    function applySuccess(region, state, options) {
+        options = options || {};
         var outcome = region.success || {};
         if (outcome.setFlag && outcome.setFlag.key) state.flags[outcome.setFlag.key] = outcome.setFlag.value;
         if (outcome.grantItem) state.items[outcome.grantItem] = '1';
-        if (outcome.overlay) state.overlays[region.id] = outcome.overlay;
+        if (outcome.overlay) state.overlays[options.overlayKey || region.id] = outcome.overlay;
         if (outcome.unlockDoor) state.unlockedDoors[region.id] = true;
         return state;
     }
@@ -32,10 +33,16 @@
         return region.id === entryRegionId || !!state.unlockedDoors[region.id];
     }
 
+    function ownedObjects(objects, state) {
+        return (objects || []).filter(function (object) {
+            return object.portable && object.inventoryKey && Object.prototype.hasOwnProperty.call(state.items, object.inventoryKey);
+        });
+    }
+
     return {
         conditionPasses: conditionPasses,
         applySuccess: applySuccess,
-        canExit: canExit
+        canExit: canExit,
+        ownedObjects: ownedObjects
     };
 }));
-

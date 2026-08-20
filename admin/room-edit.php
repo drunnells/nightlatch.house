@@ -19,6 +19,7 @@ $room = array(
     'updatedAt' => null,
 );
 $error = '';
+$objectOptions = array();
 if ($id) {
     try {
         $stmt = nightlatch_db()->prepare('SELECT * FROM rooms WHERE id = ?');
@@ -31,6 +32,11 @@ if ($id) {
     } catch (Throwable $exception) {
         $error = $exception->getMessage();
     }
+}
+try {
+    $objectOptions = nightlatch_db()->query('SELECT title, slug, portable, inventory_key FROM objects ORDER BY title')->fetchAll();
+} catch (Throwable $exception) {
+    $objectOptions = array();
 }
 
 $pageTitle = ($id ? 'Edit room' : 'Create room') . ' · Nightlatch Room Forge';
@@ -104,6 +110,8 @@ require __DIR__ . '/_header.php';
             <div class="two-cols"><div><label for="condition-operator">Check</label><select id="condition-operator"><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="exists">Exists</option><option value="not_exists">Does not exist</option></select></div><div><label for="condition-value">Value</label><input id="condition-value" placeholder="1"></div></div>
             <div class="section-rule then"><span>THEN</span></div>
             <label for="success-message">Player message</label><textarea id="success-message" rows="3" placeholder="The brass key turns with a heavy click."></textarea>
+            <label for="examine-object">Open object viewer</label><select id="examine-object"><option value="">Do not examine an object</option><?php foreach ($objectOptions as $objectOption): ?><option value="<?php echo nightlatch_h($objectOption['slug']); ?>"><?php echo nightlatch_h($objectOption['title']); ?><?php echo !empty($objectOption['portable']) && $objectOption['inventory_key'] ? ' · inventory: ' . nightlatch_h($objectOption['inventory_key']) : ''; ?></option><?php endforeach; ?></select>
+            <p class="hint">The referenced object opens over the room after this rule passes. For portable objects, grant its inventory key below to add it to the player inventory.</p>
             <label for="overlay-asset">Graphic overlay URL</label><input id="overlay-asset" placeholder="../assets/graphics/rooms/door-open.png">
             <label class="mini-upload" for="overlay-upload"><i class="fa-solid fa-upload"></i> Upload overlay graphic<input id="overlay-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>
             <button type="button" class="overlay-generator-toggle" id="toggle-overlay-generator" aria-expanded="false"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate overlay with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>
@@ -126,6 +134,6 @@ require __DIR__ . '/_header.php';
         </div>
     </aside>
 </div>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

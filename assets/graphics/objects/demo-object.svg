@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="68%">
+      <stop offset="0" stop-color="#303b39"/>
+      <stop offset="0.62" stop-color="#111819"/>
+      <stop offset="1" stop-color="#070a0b"/>
+    </radialGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#5a402a"/>
+      <stop offset="0.48" stop-color="#241a13"/>
+      <stop offset="1" stop-color="#67482d"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1200" fill="url(#bg)"/>
+  <ellipse cx="600" cy="950" rx="390" ry="85" fill="#000" opacity=".45"/>
+  <rect x="260" y="285" width="680" height="610" rx="34" fill="url(#wood)" stroke="#9b7b47" stroke-width="12"/>
+  <rect x="310" y="335" width="580" height="510" rx="18" fill="none" stroke="#b6985b" stroke-width="6" opacity=".7"/>
+  <circle cx="600" cy="590" r="105" fill="#151818" stroke="#c4a65f" stroke-width="15"/>
+  <path d="M600 515a42 42 0 0 1 22 78l31 105h-106l31-105a42 42 0 0 1 22-78z" fill="#d1b66f"/>
+  <text x="600" y="1040" fill="#c9b77f" text-anchor="middle" font-family="Georgia, serif" font-size="34" letter-spacing="8">OBJECT STUDY</text>
+</svg>

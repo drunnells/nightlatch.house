@@ -25,6 +25,7 @@ $admin = nightlatch_admin();
     <?php if ($admin): ?>
         <nav class="admin-nav" aria-label="Admin navigation">
             <a href="index.php"><i class="fa-solid fa-door-open"></i> Rooms</a>
+            <a href="objects.php"><i class="fa-solid fa-magnifying-glass"></i> Objects</a>
             <a href="admins.php"><i class="fa-solid fa-user-shield"></i> Admins</a>
         </nav>
         <div class="admin-account">

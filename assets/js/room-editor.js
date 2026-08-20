@@ -2,6 +2,9 @@
     'use strict';
 
     var room = window.NL_ROOM_BOOTSTRAP;
+    var editor = window.NL_EDITOR_CONTEXT || { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' };
+    var isObject = editor.kind === 'object';
+    var contentLabel = isObject ? 'object' : 'room';
     var regions = room.data && Array.isArray(room.data.regions) ? room.data.regions : [];
     var canvas = room.data && room.data.canvas ? room.data.canvas : { width: 1600, height: 900 };
     var selectedId = null;
@@ -26,7 +29,7 @@
             kind: 'interaction',
             bounds: bounds,
             condition: { source: 'always', key: '', operator: 'equals', value: '' },
-            success: { message: '', overlay: '', overlayPrompt: '', setFlag: { key: '', value: '' }, grantItem: '', unlockDoor: false },
+            success: { message: '', examineObject: '', overlay: '', overlayPrompt: '', setFlag: { key: '', value: '' }, grantItem: '', unlockDoor: false },
             failure: { message: '' },
             door: { targetRoom: '', unlocked: false }
         };
@@ -111,6 +114,7 @@
         $('#condition-operator').val(region.condition.operator);
         $('#condition-value').val(region.condition.value);
         $('#success-message').val(region.success.message);
+        $('#examine-object').val(region.success.examineObject || '');
         $('#overlay-asset').val(region.success.overlay);
         $('#overlay-prompt').val(region.success.overlayPrompt || '');
         updateOverlayPromptCount();
@@ -134,10 +138,11 @@
         var region = selected();
         if (!region) return;
         region.name = $('#region-name').val().trim() || 'Untitled region';
-        region.kind = $('#region-kind').val();
+        region.kind = isObject ? 'interaction' : $('#region-kind').val();
         region.condition = { source: $('#condition-source').val(), key: $('#condition-key').val().trim(), operator: $('#condition-operator').val(), value: $('#condition-value').val() };
         region.success = {
             message: $('#success-message').val(),
+            examineObject: $('#examine-object').val() || '',
             overlay: $('#overlay-asset').val().trim(),
             overlayPrompt: $('#overlay-prompt').val(),
             setFlag: { key: $('#set-flag-key').val().trim(), value: $('#set-flag-value').val() },
@@ -145,7 +150,7 @@
             unlockDoor: $('#unlock-door').prop('checked')
         };
         region.failure = { message: $('#failure-message').val() };
-        region.door = { targetRoom: $('#target-room').val().trim(), unlocked: $('#door-unlocked').prop('checked') };
+        region.door = isObject ? { targetRoom: '', unlocked: false } : { targetRoom: $('#target-room').val().trim(), unlocked: $('#door-unlocked').prop('checked') };
         $('#inspector-title').text(region.name);
         $('#door-fields').toggle(region.kind === 'door');
         $('#unlock-door-row').toggle(region.kind === 'door');
@@ -246,10 +251,16 @@
     function markDirty() {
         $('#save-indicator').html('<i class="fa-solid fa-circle"></i> Unsaved changes').addClass('dirty');
     }
-    $('#room-title, #room-slug, #room-description, #room-status, #gemini-prompt').on('input change', markDirty);
+    $('#room-title, #room-slug, #room-description, #room-status, #gemini-prompt, #object-portable, #inventory-key').on('input change', markDirty);
+
+    function updatePortableFields() {
+        $('#inventory-key-fields').toggle($('#object-portable').prop('checked'));
+    }
+    $('#object-portable').on('change', updatePortableFields);
+    updatePortableFields();
 
     function roomPayload() {
-        return {
+        var payload = {
             id: room.id || 0,
             title: $('#room-title').val().trim(),
             slug: $('#room-slug').val().trim(),
@@ -259,40 +270,49 @@
             backgroundPrompt: $('#gemini-prompt').val(),
             data: { version: 1, canvas: canvas, regions: regions }
         };
+        if (isObject) {
+            payload.portable = $('#object-portable').prop('checked');
+            payload.inventoryKey = $('#inventory-key').val().trim();
+        }
+        return payload;
     }
 
     function saveRoom() {
         $('#save-room').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Saving');
-        return fetch('api/rooms.php', {
+        return fetch(editor.apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
             body: JSON.stringify(roomPayload())
         }).then(function (response) { return response.json(); }).then(function (result) {
-            if (!result.ok) throw new Error(result.error || 'Room could not be saved.');
+            if (!result.ok) throw new Error(result.error || ('The ' + contentLabel + ' could not be saved.'));
             room.id = result.id;
             $('#room-slug').val(result.slug);
-            history.replaceState({}, '', 'room-edit.php?id=' + result.id);
-            $('#debug-link').attr('href', 'play-debug.php?id=' + result.id);
+            if (isObject) {
+                $('#room-slug').prop('readonly', true);
+                if (result.inventoryKey) $('#inventory-key').val(result.inventoryKey);
+            }
+            history.replaceState({}, '', editor.editUrl + '?id=' + result.id);
+            if (editor.debugUrl) $('#debug-link').attr('href', editor.debugUrl + '?id=' + result.id);
             $('#save-indicator').html('<i class="fa-regular fa-circle-check"></i> Saved just now').removeClass('dirty');
-            toast('Room saved');
+            toast((isObject ? 'Object' : 'Room') + ' saved');
             return result;
         }).catch(function (error) {
             toast(error.message, true);
             throw error;
         }).finally(function () {
-            $('#save-room').prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save room');
+            $('#save-room').prop('disabled', false).html('<i class="fa-solid fa-floppy-disk"></i> Save ' + contentLabel);
         });
     }
     $('#save-room').on('click', saveRoom);
     $('#preview-room').on('click', function () {
-        saveRoom().then(function (result) { window.location.href = 'play-debug.php?id=' + result.id; }).catch(function () {});
+        saveRoom().then(function (result) { if (editor.debugUrl) window.location.href = editor.debugUrl + '?id=' + result.id; }).catch(function () {});
     });
 
     $('#asset-upload').on('change', function () {
         if (!this.files[0]) return;
         uploadAsset(this.files[0], function (url) {
             setBackground(url, true);
-            toast('Background uploaded');
+            toast((isObject ? 'Object image' : 'Background') + ' uploaded');
         }, $('.upload-drop'));
     });
 
@@ -347,6 +367,7 @@
             body: JSON.stringify({
                 prompt: prompt,
                 backgroundAsset: image.getAttribute('src'),
+                assetType: editor.assetType,
                 canvas: canvas,
                 bounds: region.bounds
             })
@@ -361,7 +382,7 @@
                 fieldLock = false;
             }
             markDirty();
-            $('#overlay-generation-status').text('Overlay ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the room to keep it.');
+            $('#overlay-generation-status').text('Overlay ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the ' + contentLabel + ' to keep it.');
             toast('Gemini region overlay created');
         }).catch(function (error) {
             $('#overlay-generation-status').text(error.message);
@@ -374,6 +395,7 @@
     function uploadAsset(file, onSuccess, loadingElement) {
         var data = new FormData();
         data.append('asset', file);
+        data.append('assetType', editor.assetType);
         data.append('csrf_token', window.NL_CSRF);
         loadingElement.addClass('loading');
         fetch('api/upload-asset.php', { method: 'POST', body: data }).then(function (response) { return response.json(); }).then(function (result) {
@@ -410,32 +432,32 @@
     $('#generate-image').on('click', function () {
         var prompt = $('#gemini-prompt').val().trim();
         var button = $(this);
-        button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Building the room…');
+        button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Building the ' + contentLabel + '…');
         $('#generation-status').text('Gemini image generation may take a minute.').addClass('visible');
         fetch('api/gemini-generate.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
-            body: JSON.stringify({ prompt: prompt })
+            body: JSON.stringify({ prompt: prompt, assetType: editor.assetType })
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error);
             setBackground(result.url, true);
-            $('#generation-status').text('New background ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the room to keep this selection.');
-            toast('Gemini background created');
+            $('#generation-status').text('New image ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the ' + contentLabel + ' to keep this selection.');
+            toast('Gemini ' + (isObject ? 'object image' : 'background') + ' created');
         }).catch(function (error) {
             $('#generation-status').text(error.message);
             toast(error.message, true);
-        }).finally(function () { button.prop('disabled', false).html('<i class="fa-solid fa-sparkles"></i> Generate background'); });
+        }).finally(function () { button.prop('disabled', false).html('<i class="fa-solid fa-sparkles"></i> Generate ' + (isObject ? 'object image' : 'background')); });
     });
 
     $('#delete-room').on('click', function () {
-        if (!room.id || !window.confirm('Delete this room and its region configuration? This cannot be undone.')) return;
-        fetch('api/rooms.php', {
+        if (!room.id || !window.confirm('Delete this ' + contentLabel + ' and its region configuration? This cannot be undone.')) return;
+        fetch(editor.apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
             body: JSON.stringify({ action: 'delete', id: room.id })
         }).then(function (response) { return response.json(); }).then(function (result) {
-            if (!result.ok) throw new Error(result.error || 'Room could not be deleted.');
-            window.location.href = 'index.php';
+            if (!result.ok) throw new Error(result.error || ('The ' + contentLabel + ' could not be deleted.'));
+            window.location.href = editor.listUrl;
         }).catch(function (error) { toast(error.message, true); });
     });
 

@@ -41,6 +41,19 @@ if ($localDemo !== realpath(dirname(__DIR__) . '/assets/graphics/rooms/demo-room
     fwrite(STDERR, "Local room asset path was not resolved correctly.\n");
     exit(1);
 }
+
+$localObjectDemo = nightlatch_local_content_asset_path('../assets/graphics/objects/demo-object.svg', 'objects');
+if ($localObjectDemo !== realpath(dirname(__DIR__) . '/assets/graphics/objects/demo-object.svg')) {
+    fwrite(STDERR, "Local object asset path was not resolved correctly.\n");
+    exit(1);
+}
+try {
+    nightlatch_local_content_asset_path('../assets/graphics/rooms/demo-room.svg', 'objects');
+    fwrite(STDERR, "Cross-type object asset access was not rejected.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
 try {
     nightlatch_local_room_asset_path('../assets/graphics/rooms/../../README.md');
     fwrite(STDERR, "Room asset traversal was not rejected.\n");

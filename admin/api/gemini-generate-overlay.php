@@ -11,6 +11,10 @@ try {
     }
 
     $payload = nightlatch_input_json();
+    $assetType = isset($payload['assetType']) ? $payload['assetType'] : 'rooms';
+    if (!in_array($assetType, array('rooms', 'objects'), true)) {
+        throw new RuntimeException('The image asset type is invalid.');
+    }
     $prompt = trim(isset($payload['prompt']) ? $payload['prompt'] : '');
     if (strlen($prompt) < 3 || strlen($prompt) > 2000) {
         throw new RuntimeException('Enter an overlay prompt between 3 and 2,000 characters.');
@@ -19,19 +23,19 @@ try {
         throw new RuntimeException('Select a valid region before generating an overlay.');
     }
 
-    $backgroundPath = nightlatch_local_room_asset_path($payload['backgroundAsset']);
+    $backgroundPath = nightlatch_local_content_asset_path($payload['backgroundAsset'], $assetType);
     $sourceInfo = getimagesize($backgroundPath);
     $supportedTypes = array(IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP);
     if (!$sourceInfo || !in_array($sourceInfo[2], $supportedTypes, true)) {
-        throw new RuntimeException('The room background must be a PNG, JPG, or WebP image.');
+        throw new RuntimeException('The background must be a PNG, JPG, or WebP image.');
     }
     if ($sourceInfo[0] > 8192 || $sourceInfo[1] > 8192 || ($sourceInfo[0] * $sourceInfo[1]) > 50000000) {
-        throw new RuntimeException('The room background is too large to prepare safely.');
+        throw new RuntimeException('The background is too large to prepare safely.');
     }
     $sourceBytes = file_get_contents($backgroundPath);
     $sourceImage = $sourceBytes !== false ? imagecreatefromstring($sourceBytes) : false;
     if (!$sourceImage) {
-        throw new RuntimeException('The room background must be a PNG, JPG, or WebP image that PHP GD can read.');
+        throw new RuntimeException('The background must be a PNG, JPG, or WebP image that PHP GD can read.');
     }
 
     $sourceBox = nightlatch_region_source_box(
@@ -97,7 +101,7 @@ try {
     }
     $overlayBytes = nightlatch_extract_overlay_image($generatedBytes, $spec);
 
-    $directory = NIGHTLATCH_ROOT . '/assets/graphics/rooms/generated';
+    $directory = NIGHTLATCH_ROOT . '/assets/graphics/' . $assetType . '/generated';
     if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
         throw new RuntimeException('The generated asset directory could not be created.');
     }
@@ -111,7 +115,7 @@ try {
 
     nightlatch_json(array(
         'ok' => true,
-        'url' => '../assets/graphics/rooms/generated/' . $name,
+        'url' => '../assets/graphics/' . $assetType . '/generated/' . $name,
         'width' => $spec['outputWidth'],
         'height' => $spec['outputHeight'],
         'bytes' => strlen($overlayBytes),

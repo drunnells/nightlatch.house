@@ -50,34 +50,42 @@ function nightlatch_overlay_edit_prompt($userPrompt, $spec)
 
 function nightlatch_local_room_asset_path($assetUrl)
 {
+    return nightlatch_local_content_asset_path($assetUrl, 'rooms');
+}
+
+function nightlatch_local_content_asset_path($assetUrl, $assetType)
+{
+    if (!in_array($assetType, array('rooms', 'objects'), true)) {
+        throw new RuntimeException('The image asset type is invalid.');
+    }
     if (!is_string($assetUrl)) {
-        throw new RuntimeException('The room background must be a local image asset.');
+        throw new RuntimeException('The background must be a local image asset.');
     }
     $urlPath = parse_url($assetUrl, PHP_URL_PATH);
     if (!is_string($urlPath) || $urlPath === '') {
-        throw new RuntimeException('The room background must be a local image asset.');
+        throw new RuntimeException('The background must be a local image asset.');
     }
 
     $urlPath = str_replace('\\', '/', rawurldecode($urlPath));
-    $marker = '/assets/graphics/rooms/';
+    $marker = '/assets/graphics/' . $assetType . '/';
     $searchPath = '/' . ltrim($urlPath, '/');
     $position = strpos($searchPath, $marker);
     if ($position === false) {
-        throw new RuntimeException('The room background must be stored under assets/graphics/rooms.');
+        throw new RuntimeException('The background must be stored under assets/graphics/' . $assetType . '.');
     }
 
     $relative = substr($searchPath, $position + strlen($marker));
     if ($relative === '' || strpos("/{$relative}/", '/../') !== false || strpos($relative, "\0") !== false) {
-        throw new RuntimeException('The room background path is invalid.');
+        throw new RuntimeException('The background path is invalid.');
     }
 
-    $roomAssetRoot = realpath(NIGHTLATCH_ROOT . '/assets/graphics/rooms');
-    if (!$roomAssetRoot) {
-        throw new RuntimeException('The room asset directory could not be found on this server.');
+    $assetRoot = realpath(NIGHTLATCH_ROOT . '/assets/graphics/' . $assetType);
+    if (!$assetRoot) {
+        throw new RuntimeException('The asset directory could not be found on this server.');
     }
-    $candidate = realpath($roomAssetRoot . '/' . $relative);
-    if (!$candidate || strpos($candidate, $roomAssetRoot . DIRECTORY_SEPARATOR) !== 0 || !is_file($candidate)) {
-        throw new RuntimeException('The room background image could not be found on this server.');
+    $candidate = realpath($assetRoot . '/' . $relative);
+    if (!$candidate || strpos($candidate, $assetRoot . DIRECTORY_SEPARATOR) !== 0 || !is_file($candidate)) {
+        throw new RuntimeException('The background image could not be found on this server.');
     }
 
     return $candidate;
@@ -93,7 +101,7 @@ function nightlatch_region_source_box($bounds, $canvas, $imageWidth, $imageHeigh
     }
     if (!isset($canvas['width'], $canvas['height']) || !is_numeric($canvas['width']) || !is_numeric($canvas['height'])
         || !is_finite((float) $canvas['width']) || !is_finite((float) $canvas['height'])) {
-        throw new RuntimeException('The room canvas dimensions are invalid.');
+        throw new RuntimeException('The canvas dimensions are invalid.');
     }
 
     $canvasWidth = (float) $canvas['width'];

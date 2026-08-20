@@ -4,6 +4,10 @@ nightlatch_require_admin(true);
 
 try {
     nightlatch_verify_csrf();
+    $assetType = isset($_POST['assetType']) ? $_POST['assetType'] : 'rooms';
+    if (!in_array($assetType, array('rooms', 'objects'), true)) {
+        throw new RuntimeException('The image asset type is invalid.');
+    }
     if (!isset($_FILES['asset']) || $_FILES['asset']['error'] !== UPLOAD_ERR_OK) {
         throw new RuntimeException('Choose an image to upload.');
     }
@@ -19,15 +23,14 @@ try {
     }
 
     $name = date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.' . $extensions[$mime];
-    $directory = NIGHTLATCH_ROOT . '/assets/graphics/rooms/uploads';
+    $directory = NIGHTLATCH_ROOT . '/assets/graphics/' . $assetType . '/uploads';
     if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
         throw new RuntimeException('The upload directory could not be created.');
     }
     if (!move_uploaded_file($_FILES['asset']['tmp_name'], $directory . '/' . $name)) {
         throw new RuntimeException('The image could not be stored.');
     }
-    nightlatch_json(array('ok' => true, 'url' => '../assets/graphics/rooms/uploads/' . $name));
+    nightlatch_json(array('ok' => true, 'url' => '../assets/graphics/' . $assetType . '/uploads/' . $name));
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);
 }
-

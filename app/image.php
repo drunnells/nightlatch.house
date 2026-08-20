@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Shared GD helpers for mobile-sized generated room artwork.
+ * Shared GD helpers for mobile-sized generated interactive artwork.
  */
 
 function nightlatch_generated_image_options()

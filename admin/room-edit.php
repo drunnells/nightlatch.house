@@ -12,7 +12,7 @@ $room = array(
     'backgroundAsset' => '../assets/graphics/rooms/demo-room.svg',
     'backgroundPrompt' => '',
     'data' => array(
-        'version' => 1,
+        'version' => 2,
         'canvas' => array('width' => 1600, 'height' => 900),
         'regions' => array(),
     ),
@@ -104,36 +104,14 @@ require __DIR__ . '/_header.php';
             <div class="inspector-heading"><div><span class="eyebrow">Selected region</span><h2 id="inspector-title">Region</h2></div><button id="delete-region" class="icon-button danger" title="Delete region"><i class="fa-solid fa-trash"></i></button></div>
             <label for="region-name">Name</label><input id="region-name" placeholder="Locked cabinet">
             <label for="region-kind">Region type</label><select id="region-kind"><option value="interaction">Interaction</option><option value="door">Door / exit</option></select>
-            <div class="section-rule"><span>IF</span></div>
-            <label for="condition-source">Value source</label><select id="condition-source"><option value="flag">Flag</option><option value="item">Collectable item</option><option value="always">Always</option></select>
-            <label for="condition-key">Flag or item key</label><input id="condition-key" placeholder="brass_key">
-            <div class="two-cols"><div><label for="condition-operator">Check</label><select id="condition-operator"><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="exists">Exists</option><option value="not_exists">Does not exist</option></select></div><div><label for="condition-value">Value</label><input id="condition-value" placeholder="1"></div></div>
-            <div class="section-rule then"><span>THEN</span></div>
-            <label for="success-message">Player message</label><textarea id="success-message" rows="3" placeholder="The brass key turns with a heavy click."></textarea>
-            <label for="examine-object">Open object viewer</label><select id="examine-object"><option value="">Do not examine an object</option><?php foreach ($objectOptions as $objectOption): ?><option value="<?php echo nightlatch_h($objectOption['slug']); ?>"><?php echo nightlatch_h($objectOption['title']); ?><?php echo !empty($objectOption['portable']) && $objectOption['inventory_key'] ? ' · inventory: ' . nightlatch_h($objectOption['inventory_key']) : ''; ?></option><?php endforeach; ?></select>
-            <p class="hint">The referenced object opens over the room after this rule passes. For portable objects, grant its inventory key below to add it to the player inventory.</p>
-            <label for="overlay-asset">Graphic overlay URL</label><input id="overlay-asset" placeholder="../assets/graphics/rooms/door-open.png">
-            <label class="mini-upload" for="overlay-upload"><i class="fa-solid fa-upload"></i> Upload overlay graphic<input id="overlay-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>
-            <button type="button" class="overlay-generator-toggle" id="toggle-overlay-generator" aria-expanded="false"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate overlay with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>
-            <div class="overlay-generator" id="overlay-generator">
-                <p class="hint">Gemini receives the exact room crop inside a fixed template. Describe only what should change.</p>
-                <label for="overlay-prompt">Overlay edit prompt</label>
-                <textarea id="overlay-prompt" rows="4" maxlength="2000" placeholder="Make the lamp turned on, casting a warm amber glow."></textarea>
-                <div class="prompt-meta"><span><i class="fa-solid fa-crop-simple"></i> Uses selected region</span><span id="overlay-prompt-count">0 / 2000</span></div>
-                <button type="button" class="btn-forge btn-block" id="generate-overlay"><i class="fa-solid fa-sparkles"></i> Generate region overlay</button>
-                <div class="generation-status" id="overlay-generation-status"></div>
-                <img class="overlay-preview" id="overlay-preview" alt="Generated region overlay preview">
-            </div>
-            <label for="set-flag-key">Set flag</label><div class="two-cols"><input id="set-flag-key" placeholder="library_door"><input id="set-flag-value" placeholder="open"></div>
-            <label for="grant-item">Grant item</label><input id="grant-item" placeholder="silver_coin">
-            <label class="check-row" id="unlock-door-row"><input id="unlock-door" type="checkbox"><span>Unlock this door when the rule succeeds</span></label>
+            <div class="region-logic-editor" id="region-logic-editor"></div>
             <div id="door-fields"><label for="target-room">Target room ID or slug</label><input id="target-room" placeholder="east-hall"><label class="check-row"><input id="door-unlocked" type="checkbox"><span>Door starts unlocked</span></label><p class="hint">Players can only return through their entry door until another door is unlocked by room logic.</p></div>
-            <div class="section-rule fallback"><span>OTHERWISE</span></div>
-            <label for="failure-message">Player message</label><textarea id="failure-message" rows="3" placeholder="The lock will not move."></textarea>
             <div class="bounds-readout"><span>Position</span><code id="region-bounds">x 0 · y 0 · w 0 · h 0</code></div>
         </div>
     </aside>
 </div>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

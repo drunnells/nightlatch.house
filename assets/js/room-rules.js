@@ -8,9 +8,124 @@
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
+    var idSequence = 0;
+
+    function uid(prefix) {
+        idSequence += 1;
+        return (prefix || 'logic') + '-' + idSequence;
+    }
+
+    function conditionNode(source, key, operator, value, id) {
+        return {
+            id: id || uid('condition'),
+            type: 'condition',
+            source: source === 'item' ? 'item' : 'flag',
+            key: key || '',
+            operator: operator || 'equals',
+            value: value === undefined || value === null ? '' : String(value)
+        };
+    }
+
+    function conditionGroup(match, children, id) {
+        return {
+            id: id || uid('group'),
+            type: 'group',
+            match: match === 'any' ? 'any' : 'all',
+            children: Array.isArray(children) ? children : []
+        };
+    }
+
+    function defaultLogic() {
+        return {
+            version: 1,
+            branches: [{ id: uid('branch'), when: conditionGroup('all', []), actions: [] }],
+            elseActions: []
+        };
+    }
+
+    function normalizeExpression(expression) {
+        if (!expression || expression.source === 'always') return conditionGroup('all', [], expression && expression.id);
+        if (expression.type === 'group') {
+            return conditionGroup(expression.match, (expression.children || []).map(normalizeExpression), expression.id);
+        }
+        return conditionNode(expression.source, expression.key, expression.operator, expression.value, expression.id);
+    }
+
+    function normalizeAction(action) {
+        action = action || {};
+        var normalized = { id: action.id || uid('action'), type: action.type || 'message' };
+        if (normalized.type === 'message') normalized.text = action.text || '';
+        if (normalized.type === 'set_overlay') {
+            normalized.asset = action.asset || '';
+            normalized.prompt = action.prompt || '';
+        }
+        if (normalized.type === 'set_flag') {
+            normalized.key = action.key || '';
+            normalized.value = action.value === undefined || action.value === null ? '' : String(action.value);
+        }
+        if (normalized.type === 'clear_flag' || normalized.type === 'grant_item' || normalized.type === 'remove_item') {
+            normalized.key = action.key || '';
+        }
+        if (normalized.type === 'examine_object') normalized.objectSlug = action.objectSlug || '';
+        return normalized;
+    }
+
+    function legacyActions(outcome) {
+        outcome = outcome || {};
+        var actions = [];
+        if (outcome.message) actions.push(normalizeAction({ type: 'message', text: outcome.message }));
+        if (outcome.overlay) actions.push(normalizeAction({ type: 'set_overlay', asset: outcome.overlay, prompt: outcome.overlayPrompt || '' }));
+        if (outcome.setFlag && outcome.setFlag.key) actions.push(normalizeAction({ type: 'set_flag', key: outcome.setFlag.key, value: outcome.setFlag.value }));
+        if (outcome.grantItem) actions.push(normalizeAction({ type: 'grant_item', key: outcome.grantItem }));
+        if (outcome.unlockDoor) actions.push(normalizeAction({ type: 'unlock_door' }));
+        if (outcome.examineObject) actions.push(normalizeAction({ type: 'examine_object', objectSlug: outcome.examineObject }));
+        return actions;
+    }
+
+    function normalizeLogic(region) {
+        region = region || {};
+        if (region.logic && Array.isArray(region.logic.branches)) {
+            return {
+                version: 1,
+                branches: region.logic.branches.map(function (branch) {
+                    return {
+                        id: branch.id || uid('branch'),
+                        when: normalizeExpression(branch.when),
+                        actions: (branch.actions || []).map(normalizeAction)
+                    };
+                }),
+                elseActions: (region.logic.elseActions || []).map(normalizeAction)
+            };
+        }
+        return {
+            version: 1,
+            branches: [{
+                id: uid('branch'),
+                when: normalizeExpression(region.condition || { source: 'always' }),
+                actions: legacyActions(region.success)
+            }],
+            elseActions: legacyActions(region.failure)
+        };
+    }
+
+    function stateBucket(state, source) {
+        state = state || {};
+        if (source === 'item') return state.items || {};
+        return state.flags || {};
+    }
+
     function conditionPasses(condition, state) {
         if (!condition || condition.source === 'always') return true;
-        var bucket = condition.source === 'item' ? state.items : state.flags;
+        if (condition.type === 'group') {
+            var children = condition.children || [];
+            if (!children.length) return true;
+            if (condition.match === 'any') {
+                return children.some(function (child) { return conditionPasses(child, state); });
+            }
+            return children.every(function (child) { return conditionPasses(child, state); });
+        }
+        if (!condition.key) return false;
+        var bucket = stateBucket(state, condition.source);
         var exists = Object.prototype.hasOwnProperty.call(bucket, condition.key);
         if (condition.operator === 'exists') return exists;
         if (condition.operator === 'not_exists') return !exists;
@@ -18,13 +133,108 @@
         return exists && String(bucket[condition.key]) === String(condition.value);
     }
 
+    function conditionTrace(condition, state, trace) {
+        trace = trace || [];
+        if (!condition || condition.source === 'always') return trace;
+        if (condition.type === 'group') {
+            (condition.children || []).forEach(function (child) { conditionTrace(child, state, trace); });
+            return trace;
+        }
+        trace.push({
+            source: condition.source,
+            key: condition.key,
+            operator: condition.operator,
+            value: condition.value,
+            passed: conditionPasses(condition, state)
+        });
+        return trace;
+    }
+
+    function evaluateRegion(region, state) {
+        var logic = normalizeLogic(region);
+        var testedBranches = [];
+        for (var index = 0; index < logic.branches.length; index += 1) {
+            var branch = logic.branches[index];
+            var passed = conditionPasses(branch.when, state);
+            var trace = conditionTrace(branch.when, state);
+            testedBranches.push({
+                branchId: branch.id,
+                branchIndex: index,
+                branchLabel: index === 0 ? 'IF' : 'ELSE IF ' + index,
+                passed: passed,
+                trace: trace
+            });
+            if (passed) {
+                return {
+                    branchId: branch.id,
+                    branchIndex: index,
+                    branchLabel: index === 0 ? 'IF' : 'ELSE IF ' + index,
+                    conditionMatched: true,
+                    trace: trace,
+                    testedBranches: testedBranches,
+                    actions: branch.actions
+                };
+            }
+        }
+        return {
+            branchId: 'else',
+            branchIndex: -1,
+            branchLabel: 'ELSE',
+            conditionMatched: false,
+            trace: [],
+            testedBranches: testedBranches,
+            actions: logic.elseActions
+        };
+    }
+
+    function ensureState(state) {
+        state.flags = state.flags || {};
+        state.items = state.items || {};
+        state.overlays = state.overlays || {};
+        state.unlockedDoors = state.unlockedDoors || {};
+        return state;
+    }
+
+    function applyActions(actions, state, options) {
+        options = options || {};
+        state = ensureState(state || {});
+        var result = { messages: [], examineObjects: [], applied: [] };
+        (actions || []).forEach(function (rawAction) {
+            var action = normalizeAction(rawAction);
+            var overlayKey = options.overlayKey || options.regionId;
+            if (action.type === 'message' && action.text) result.messages.push(action.text);
+            if (action.type === 'set_overlay' && action.asset && overlayKey) state.overlays[overlayKey] = action.asset;
+            if (action.type === 'clear_overlay' && overlayKey) delete state.overlays[overlayKey];
+            if (action.type === 'set_flag' && action.key) state.flags[action.key] = action.value;
+            if (action.type === 'clear_flag' && action.key) delete state.flags[action.key];
+            if (action.type === 'grant_item' && action.key) state.items[action.key] = '1';
+            if (action.type === 'remove_item' && action.key) delete state.items[action.key];
+            if (action.type === 'unlock_door' && options.regionId && options.regionKind === 'door') state.unlockedDoors[options.regionId] = true;
+            if (action.type === 'examine_object' && action.objectSlug) result.examineObjects.push(action.objectSlug);
+            result.applied.push(action.type);
+        });
+        result.message = result.messages.join('\n');
+        return result;
+    }
+
+    function runRegion(region, state, options) {
+        options = options || {};
+        if (region) {
+            if (!options.regionId) options.regionId = region.id;
+            if (!options.regionKind) options.regionKind = region.kind;
+        }
+        var evaluation = evaluateRegion(region, state);
+        evaluation.effects = applyActions(evaluation.actions, state, options);
+        return evaluation;
+    }
+
     function applySuccess(region, state, options) {
         options = options || {};
-        var outcome = region.success || {};
-        if (outcome.setFlag && outcome.setFlag.key) state.flags[outcome.setFlag.key] = outcome.setFlag.value;
-        if (outcome.grantItem) state.items[outcome.grantItem] = '1';
-        if (outcome.overlay) state.overlays[options.overlayKey || region.id] = outcome.overlay;
-        if (outcome.unlockDoor) state.unlockedDoors[region.id] = true;
+        if (region) {
+            if (!options.regionId) options.regionId = region.id;
+            if (!options.regionKind) options.regionKind = region.kind;
+        }
+        applyActions(legacyActions(region && region.success), state, options);
         return state;
     }
 
@@ -40,7 +250,17 @@
     }
 
     return {
+        conditionNode: conditionNode,
+        conditionGroup: conditionGroup,
+        defaultLogic: defaultLogic,
+        normalizeExpression: normalizeExpression,
+        normalizeAction: normalizeAction,
+        normalizeLogic: normalizeLogic,
         conditionPasses: conditionPasses,
+        conditionTrace: conditionTrace,
+        evaluateRegion: evaluateRegion,
+        applyActions: applyActions,
+        runRegion: runRegion,
         applySuccess: applySuccess,
         canExit: canExit,
         ownedObjects: ownedObjects

@@ -14,7 +14,7 @@ $object = array(
     'portable' => false,
     'inventoryKey' => '',
     'data' => array(
-        'version' => 1,
+        'version' => 2,
         'canvas' => array('width' => 1200, 'height' => 1200),
         'regions' => array(),
     ),
@@ -108,28 +108,7 @@ require __DIR__ . '/_header.php';
             <div class="inspector-heading"><div><span class="eyebrow">Selected region</span><h2 id="inspector-title">Region</h2></div><button id="delete-region" class="icon-button danger" title="Delete region"><i class="fa-solid fa-trash"></i></button></div>
             <label for="region-name">Name</label><input id="region-name" placeholder="Hidden latch">
             <input id="region-kind" type="hidden" value="interaction">
-            <div class="section-rule"><span>IF</span></div>
-            <label for="condition-source">Value source</label><select id="condition-source"><option value="flag">Flag</option><option value="item">Collectable item</option><option value="always">Always</option></select>
-            <label for="condition-key">Flag or item key</label><input id="condition-key" placeholder="small_brass_key">
-            <div class="two-cols"><div><label for="condition-operator">Check</label><select id="condition-operator"><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="exists">Exists</option><option value="not_exists">Does not exist</option></select></div><div><label for="condition-value">Value</label><input id="condition-value" placeholder="1"></div></div>
-            <div class="section-rule then"><span>THEN</span></div>
-            <label for="success-message">Player message</label><textarea id="success-message" rows="3" placeholder="A hidden compartment clicks open."></textarea>
-            <label for="overlay-asset">Graphic overlay URL</label><input id="overlay-asset" placeholder="../assets/graphics/objects/generated/compartment-open.jpg">
-            <label class="mini-upload" for="overlay-upload"><i class="fa-solid fa-upload"></i> Upload overlay graphic<input id="overlay-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>
-            <button type="button" class="overlay-generator-toggle" id="toggle-overlay-generator" aria-expanded="false"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate overlay with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>
-            <div class="overlay-generator" id="overlay-generator">
-                <p class="hint">Gemini receives the exact object crop inside a fixed template. Describe only what should change.</p>
-                <label for="overlay-prompt">Overlay edit prompt</label>
-                <textarea id="overlay-prompt" rows="4" maxlength="2000" placeholder="Show the small compartment open with a brass key inside."></textarea>
-                <div class="prompt-meta"><span><i class="fa-solid fa-crop-simple"></i> Uses selected region</span><span id="overlay-prompt-count">0 / 2000</span></div>
-                <button type="button" class="btn-forge btn-block" id="generate-overlay"><i class="fa-solid fa-sparkles"></i> Generate region overlay</button>
-                <div class="generation-status" id="overlay-generation-status"></div>
-                <img class="overlay-preview" id="overlay-preview" alt="Generated object region overlay preview">
-            </div>
-            <label for="set-flag-key">Set flag</label><div class="two-cols"><input id="set-flag-key" placeholder="puzzle_box"><input id="set-flag-value" placeholder="open"></div>
-            <label for="grant-item">Grant item / inventory key</label><input id="grant-item" placeholder="small_brass_key">
-            <div class="section-rule fallback"><span>OTHERWISE</span></div>
-            <label for="failure-message">Player message</label><textarea id="failure-message" rows="3" placeholder="The latch refuses to move."></textarea>
+            <div class="region-logic-editor" id="region-logic-editor"></div>
             <div class="bounds-readout"><span>Position</span><code id="region-bounds">x 0 · y 0 · w 0 · h 0</code></div>
         </div>
     </aside>
@@ -159,7 +138,9 @@ require __DIR__ . '/_header.php';
         </div>
     </section>
 </div>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = []; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/object-image-tools.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

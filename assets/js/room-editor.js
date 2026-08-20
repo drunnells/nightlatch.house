@@ -18,6 +18,7 @@
     var roomCanvas = document.getElementById('room-canvas');
     var canvasStage = document.getElementById('canvas-stage');
     var zoomFrame = null;
+    var logicEditor = null;
 
     function uid() {
         return 'region-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -29,9 +30,7 @@
             name: 'New region',
             kind: 'interaction',
             bounds: bounds,
-            condition: { source: 'always', key: '', operator: 'equals', value: '' },
-            success: { message: '', examineObject: '', overlay: '', overlayPrompt: '', setFlag: { key: '', value: '' }, grantItem: '', unlockDoor: false },
-            failure: { message: '' },
+            logic: window.NLRoomRules.defaultLogic(),
             door: { targetRoom: '', unlocked: false }
         };
     }
@@ -42,10 +41,7 @@
         fresh.name = region.name || fresh.name;
         fresh.kind = region.kind || fresh.kind;
         fresh.bounds = $.extend({}, fresh.bounds, region.bounds || {});
-        fresh.condition = $.extend({}, fresh.condition, region.condition || {});
-        fresh.success = $.extend({}, fresh.success, region.success || {});
-        fresh.success.setFlag = $.extend({}, { key: '', value: '' }, fresh.success.setFlag || {});
-        fresh.failure = $.extend({}, fresh.failure, region.failure || {});
+        fresh.logic = window.NLRoomRules.normalizeLogic(region);
         fresh.door = $.extend({}, fresh.door, region.door || {});
         return fresh;
     }
@@ -110,26 +106,10 @@
         $('#inspector-title').text(region.name);
         $('#region-name').val(region.name);
         $('#region-kind').val(region.kind);
-        $('#condition-source').val(region.condition.source);
-        $('#condition-key').val(region.condition.key);
-        $('#condition-operator').val(region.condition.operator);
-        $('#condition-value').val(region.condition.value);
-        $('#success-message').val(region.success.message);
-        $('#examine-object').val(region.success.examineObject || '');
-        $('#overlay-asset').val(region.success.overlay);
-        $('#overlay-prompt').val(region.success.overlayPrompt || '');
-        updateOverlayPromptCount();
-        updateOverlayPreview(region.success.overlay);
-        $('#set-flag-key').val(region.success.setFlag.key);
-        $('#set-flag-value').val(region.success.setFlag.value);
-        $('#grant-item').val(region.success.grantItem);
-        $('#unlock-door').prop('checked', !!region.success.unlockDoor);
-        $('#failure-message').val(region.failure.message);
         $('#target-room').val(region.door.targetRoom);
         $('#door-unlocked').prop('checked', !!region.door.unlocked);
         $('#door-fields').toggle(region.kind === 'door');
-        $('#unlock-door-row').toggle(region.kind === 'door');
-        $('#condition-key, #condition-operator, #condition-value').prop('disabled', region.condition.source === 'always');
+        if (logicEditor) logicEditor.setRegion(region);
         $('#region-bounds').text('x ' + Math.round(region.bounds.x) + ' · y ' + Math.round(region.bounds.y) + ' · w ' + Math.round(region.bounds.width) + ' · h ' + Math.round(region.bounds.height));
         fieldLock = false;
     }
@@ -138,24 +118,19 @@
         if (fieldLock) return;
         var region = selected();
         if (!region) return;
+        var previousKind = region.kind;
         region.name = $('#region-name').val().trim() || 'Untitled region';
         region.kind = isObject ? 'interaction' : $('#region-kind').val();
-        region.condition = { source: $('#condition-source').val(), key: $('#condition-key').val().trim(), operator: $('#condition-operator').val(), value: $('#condition-value').val() };
-        region.success = {
-            message: $('#success-message').val(),
-            examineObject: $('#examine-object').val() || '',
-            overlay: $('#overlay-asset').val().trim(),
-            overlayPrompt: $('#overlay-prompt').val(),
-            setFlag: { key: $('#set-flag-key').val().trim(), value: $('#set-flag-value').val() },
-            grantItem: $('#grant-item').val().trim(),
-            unlockDoor: $('#unlock-door').prop('checked')
-        };
-        region.failure = { message: $('#failure-message').val() };
+        if (previousKind === 'door' && region.kind !== 'door') {
+            region.logic.branches.forEach(function (branch) {
+                branch.actions = branch.actions.filter(function (action) { return action.type !== 'unlock_door'; });
+            });
+            region.logic.elseActions = region.logic.elseActions.filter(function (action) { return action.type !== 'unlock_door'; });
+        }
         region.door = isObject ? { targetRoom: '', unlocked: false } : { targetRoom: $('#target-room').val().trim(), unlocked: $('#door-unlocked').prop('checked') };
         $('#inspector-title').text(region.name);
         $('#door-fields').toggle(region.kind === 'door');
-        $('#unlock-door-row').toggle(region.kind === 'door');
-        $('#condition-key, #condition-operator, #condition-value').prop('disabled', region.condition.source === 'always');
+        if (previousKind !== region.kind && logicEditor) logicEditor.refresh();
         markDirty();
         renderRegions();
     }
@@ -233,7 +208,7 @@
     });
 
     $('#region-list').on('click', '.region-item', function () { selectRegion($(this).data('id')); });
-    $('#inspector-content').on('input change', 'input, textarea, select', updateSelected);
+    $('#region-name, #region-kind, #target-room, #door-unlocked').on('input change', updateSelected);
     $('#delete-region').on('click', function () {
         if (!selectedId || !window.confirm('Delete this clickable region?')) return;
         regions = regions.filter(function (region) { return region.id !== selectedId; });
@@ -269,7 +244,7 @@
             status: $('#room-status').val(),
             backgroundAsset: image.getAttribute('src'),
             backgroundPrompt: $('#gemini-prompt').val(),
-            data: { version: 1, canvas: canvas, regions: regions }
+            data: { version: 2, canvas: canvas, regions: regions }
         };
         if (isObject) {
             payload.portable = $('#object-portable').prop('checked');
@@ -317,52 +292,10 @@
         }, $('.upload-drop'));
     });
 
-    $('#overlay-upload').on('change', function () {
-        if (!this.files[0]) return;
-        uploadAsset(this.files[0], function (url) {
-            $('#overlay-asset').val(url).trigger('input');
-            toast('Overlay uploaded');
-        }, $('.mini-upload'));
-    });
-
-    $('#toggle-overlay-generator').on('click', function () {
-        var expanded = !$('#overlay-generator').hasClass('visible');
-        $('#overlay-generator').toggleClass('visible', expanded);
-        $(this).attr('aria-expanded', expanded ? 'true' : 'false');
-    });
-
-    function updateOverlayPromptCount() {
-        $('#overlay-prompt-count').text($('#overlay-prompt').val().length + ' / 2000');
-    }
-
-    function updateOverlayPreview(url) {
-        var preview = $('#overlay-preview');
-        if (url) {
-            preview.attr('src', url).addClass('visible');
-        } else {
-            preview.removeAttr('src').removeClass('visible');
-        }
-    }
-
-    $('#overlay-prompt').on('input', updateOverlayPromptCount);
-    $('#overlay-asset').on('input', function () { updateOverlayPreview($(this).val().trim()); });
-    $('#generate-overlay').on('click', function () {
-        updateSelected();
+    function generateOverlay(prompt) {
         var region = selected();
-        var prompt = $('#overlay-prompt').val().trim();
-        if (!region) {
-            toast('Select a region first.', true);
-            return;
-        }
-        if (prompt.length < 3) {
-            toast('Describe the overlay change first.', true);
-            return;
-        }
-
-        var button = $(this);
-        button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Editing region…');
-        $('#overlay-generation-status').text('Preparing the selected crop and sending it to Gemini. This may take a minute.').addClass('visible');
-        fetch('api/gemini-generate-overlay.php', {
+        if (!region) return Promise.reject(new Error('Select a region first.'));
+        return fetch('api/gemini-generate-overlay.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
             body: JSON.stringify({
@@ -374,36 +307,35 @@
             })
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error || 'The overlay could not be generated.');
-            region.success.overlay = result.url;
-            region.success.overlayPrompt = prompt;
-            if (selectedId === region.id) {
-                fieldLock = true;
-                $('#overlay-asset').val(result.url);
-                updateOverlayPreview(result.url);
-                fieldLock = false;
-            }
-            markDirty();
-            $('#overlay-generation-status').text('Overlay ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + '. Save the ' + contentLabel + ' to keep it.');
-            toast('Gemini region overlay created');
-        }).catch(function (error) {
-            $('#overlay-generation-status').text(error.message);
-            toast(error.message, true);
-        }).finally(function () {
-            button.prop('disabled', false).html('<i class="fa-solid fa-sparkles"></i> Generate region overlay');
+            return result;
         });
-    });
+    }
 
-    function uploadAsset(file, onSuccess, loadingElement) {
+    function uploadAssetPromise(file, loadingElement) {
         var data = new FormData();
         data.append('asset', file);
         data.append('assetType', editor.assetType);
         data.append('csrf_token', window.NL_CSRF);
         loadingElement.addClass('loading');
-        fetch('api/upload-asset.php', { method: 'POST', body: data }).then(function (response) { return response.json(); }).then(function (result) {
+        return fetch('api/upload-asset.php', { method: 'POST', body: data }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error);
-            onSuccess(result.url);
-        }).catch(function (error) { toast(error.message, true); }).finally(function () { loadingElement.removeClass('loading'); });
+            return result.url;
+        }).finally(function () { loadingElement.removeClass('loading'); });
     }
+
+    function uploadAsset(file, onSuccess, loadingElement) {
+        uploadAssetPromise(file, loadingElement).then(onSuccess).catch(function (error) { toast(error.message, true); });
+    }
+
+    logicEditor = window.NLLogicEditor.create({
+        root: '#region-logic-editor',
+        isObject: isObject,
+        objects: window.NL_EDITOR_OBJECTS || [],
+        onChange: markDirty,
+        notify: toast,
+        uploadOverlay: uploadAssetPromise,
+        generateOverlay: generateOverlay
+    });
 
     function setBackground(url, updateDimensions) {
         image.onload = function () {

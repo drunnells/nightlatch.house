@@ -1,5 +1,6 @@
 <?php
 require dirname(dirname(__DIR__)) . '/app/bootstrap.php';
+require_once dirname(dirname(__DIR__)) . '/app/interactive-logic.php';
 nightlatch_require_admin(true);
 
 try {
@@ -28,6 +29,7 @@ try {
     }
 
     $roomData = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : array();
+    nightlatch_validate_interactive_data($roomData, 'room');
     $roomJson = json_encode($roomData, JSON_UNESCAPED_SLASHES);
     $id = isset($payload['id']) ? (int) $payload['id'] : 0;
     $values = array(

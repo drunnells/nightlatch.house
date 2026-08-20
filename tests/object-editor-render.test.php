@@ -16,7 +16,7 @@ $requiredIds = array(
     'object-portable',
     'inventory-key',
     'save-room',
-    'generate-overlay',
+    'region-logic-editor',
     'open-object-crop',
     'open-reference-picker',
     'object-crop-workspace',
@@ -32,15 +32,32 @@ if (strpos($html, "kind: 'object'") === false || strpos($html, "assetType: 'obje
     fwrite(STDERR, "Object editor bootstrap context is incomplete.\n");
     exit(1);
 }
-if (strpos($html, 'js/object-image-tools.js') === false) {
-    fwrite(STDERR, "Object image tools were not loaded by the editor.\n");
+if (strpos($html, 'js/object-image-tools.js') === false
+    || strpos($html, 'js/room-rules.js') === false
+    || strpos($html, 'js/logic-editor.js') === false) {
+    fwrite(STDERR, "Object editor scripts were not loaded completely.\n");
     exit(1);
 }
 
 $styles = file_get_contents(dirname(__DIR__) . '/assets/css/admin.css');
 $editorScript = file_get_contents(dirname(__DIR__) . '/assets/js/room-editor.js');
-if ($styles === false || $editorScript === false) {
+$logicScript = file_get_contents(dirname(__DIR__) . '/assets/js/logic-editor.js');
+if ($styles === false || $editorScript === false || $logicScript === false) {
     fwrite(STDERR, "Object editor layout assets could not be read.\n");
+    exit(1);
+}
+if (strpos($logicScript, 'logic-add-branch') === false
+    || strpos($logicScript, 'logic-add-group') === false
+    || strpos($logicScript, 'logic-generate-overlay') === false) {
+    fwrite(STDERR, "Object editor is missing multi-branch logic controls.\n");
+    exit(1);
+}
+$roomEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/room-edit.php');
+if ($roomEditorMarkup === false
+    || strpos($roomEditorMarkup, 'id="region-logic-editor"') === false
+    || strpos($roomEditorMarkup, 'window.NL_EDITOR_OBJECTS') === false
+    || strpos($roomEditorMarkup, "nightlatch_asset('js/logic-editor.js')") === false) {
+    fwrite(STDERR, "Room editor is missing the shared multi-branch rule builder.\n");
     exit(1);
 }
 if (strpos($styles, 'grid-template-rows: minmax(0, 1fr)') === false

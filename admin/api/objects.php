@@ -1,5 +1,6 @@
 <?php
 require dirname(dirname(__DIR__)) . '/app/bootstrap.php';
+require_once dirname(dirname(__DIR__)) . '/app/interactive-logic.php';
 nightlatch_require_admin(true);
 
 try {
@@ -14,8 +15,8 @@ try {
         $objectStmt->execute(array($id));
         $objectRow = $objectStmt->fetch();
         if ($objectRow) {
-            $referenceStmt = nightlatch_db()->prepare('SELECT title FROM rooms WHERE room_data LIKE ? LIMIT 1');
-            $referenceStmt->execute(array('%"examineObject":"' . $objectRow['slug'] . '"%'));
+            $referenceStmt = nightlatch_db()->prepare('SELECT title FROM rooms WHERE room_data LIKE ? OR room_data LIKE ? LIMIT 1');
+            $referenceStmt->execute(array('%"examineObject":"' . $objectRow['slug'] . '"%', '%"objectSlug":"' . $objectRow['slug'] . '"%'));
             $referencingRoom = $referenceStmt->fetch();
             if ($referencingRoom) {
                 nightlatch_json(array('ok' => false, 'error' => 'Remove this object from the “' . $referencingRoom['title'] . '” room regions before deleting it.'), 409);
@@ -50,6 +51,7 @@ try {
     }
 
     $objectData = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : array();
+    nightlatch_validate_interactive_data($objectData, 'object');
     $objectJson = json_encode($objectData, JSON_UNESCAPED_SLASHES);
     $id = isset($payload['id']) ? (int) $payload['id'] : 0;
     if ($id) {

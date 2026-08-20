@@ -24,10 +24,12 @@ Gemini-generated backgrounds and overlays are stored as progressive JPEGs at qua
 
 Each room is stored as a graph node with a lifecycle status (`development`, `staging`, or `production`), a background asset, its optional Gemini prompt, and versioned JSON room data. Click regions contain normalized image coordinates and declarative behavior:
 
-- a condition against a string-valued flag, a collectable item, or an unconditional rule;
-- success actions for a player message, overlay image, flag mutation, item grant, and door unlock;
-- a fallback message when the condition fails;
+- ordered `IF` / `ELSE IF` branches, with a final `ELSE` branch;
+- nested condition groups that match `ALL` (AND) or `ANY` (OR) flag and inventory checks;
+- ordered results for messages, overlays, flags, inventory, door unlocking, and object examination;
 - optional door metadata pointing at a target room node.
+
+The first matching branch runs. An empty condition group is an unconditional branch. Overlay results may show or replace an overlay, upload or generate branch-specific artwork, or explicitly remove the region's existing overlay. Legacy single-condition `condition` / `success` / `failure` data is normalized into the branch format when opened and is written as version 2 room or object data on the next save.
 
 The debug player lets a designer change flags and items, choose the room's entry door, click hit regions, and inspect the event log. It enforces the initial navigation rule: the entry door is always a valid way back, while other doors must be unlocked before traversal.
 

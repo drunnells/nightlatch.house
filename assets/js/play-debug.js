@@ -165,10 +165,32 @@
         window.nlMessageTimer = window.setTimeout(function () { target.removeClass('visible'); }, 3600);
     }
 
-    function logEvent(name, pass, message, context) {
+    function logicDetail(evaluation) {
+        if (!evaluation || !evaluation.testedBranches) return '';
+        var parts = [];
+        evaluation.testedBranches.forEach(function (branch) {
+            if (!branch.trace.length) {
+                parts.push(branch.branchLabel + ': always');
+                return;
+            }
+            branch.trace.forEach(function (condition) {
+                var comparison = condition.operator === 'exists' ? 'exists' : condition.operator === 'not_exists' ? 'does not exist' : condition.operator.replace('_', ' ') + ' “' + condition.value + '”';
+                parts.push((condition.passed ? '✓ ' : '✕ ') + branch.branchLabel + ' · ' + condition.source + ' ' + condition.key + ' ' + comparison);
+            });
+        });
+        if (evaluation.effects && evaluation.effects.applied.length) {
+            parts.push('Ran: ' + evaluation.effects.applied.map(function (type) { return type.replace(/_/g, ' '); }).join(', '));
+        }
+        return parts.join(' · ');
+    }
+
+    function logEvent(name, pass, message, context, evaluation) {
         var now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         var prefix = context ? '<small>[' + esc(context) + ']</small> ' : '';
-        $('#event-log').prepend('<p><time>' + now + '</time>' + prefix + '<strong>' + esc(name) + '</strong><span class="' + (pass ? 'pass' : 'fail') + '">' + (pass ? 'passed' : 'blocked') + '</span> ' + esc(message) + '</p>');
+        var statusClass = evaluation && evaluation.branchIndex < 0 ? 'else' : (pass ? 'pass' : 'fail');
+        var statusText = evaluation ? evaluation.branchLabel : (pass ? 'passed' : 'blocked');
+        var detail = logicDetail(evaluation);
+        $('#event-log').prepend('<p><time>' + now + '</time>' + prefix + '<strong>' + esc(name) + '</strong><span class="' + statusClass + '">' + esc(statusText) + '</span> ' + esc(message) + (detail ? '<small class="logic-detail">' + esc(detail) + '</small>' : '') + '</p>');
     }
 
     function openObject(slug, source) {
@@ -214,47 +236,45 @@
     }
 
     function clickRoomRegion(region) {
-        var pass = window.NLRoomRules.conditionPasses(region.condition, state);
-        var outcome = pass ? (region.success || {}) : (region.failure || {});
-        var message = outcome.message || (pass ? 'The interaction succeeds.' : 'Nothing happens.');
-        if (pass) window.NLRoomRules.applySuccess(region, state);
+        var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id });
+        var pass = evaluation.conditionMatched;
+        var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
         if (region.kind === 'door') {
             var canExit = window.NLRoomRules.canExit(region, state, $('#entry-region').val());
             if (!canExit) {
                 pass = false;
-                message = (region.failure && region.failure.message) || 'This door has not been unlocked. You can only leave through the door you entered.';
-            } else if (pass) {
-                message = outcome.message || ('Would navigate to ' + ((region.door && region.door.targetRoom) || 'the connected room') + '.');
+                if (!evaluation.effects.message) message = 'This door has not been unlocked. You can only leave through the door you entered.';
+            } else {
+                pass = true;
+                message = evaluation.effects.message || ('Would navigate to ' + ((region.door && region.door.targetRoom) || 'the connected room') + '.');
             }
         }
 
         renderState();
         renderRoomOverlays();
         renderInventory();
-        if (pass && outcome.examineObject) {
-            if (!openObject(outcome.examineObject, 'room region')) {
-                message = 'The referenced object “' + outcome.examineObject + '” is unavailable in this debugger.';
+        if (evaluation.effects.examineObjects.length) {
+            var objectSlug = evaluation.effects.examineObjects[0];
+            if (!openObject(objectSlug, 'room region')) {
+                message = 'The referenced object “' + objectSlug + '” is unavailable in this debugger.';
                 pass = false;
             }
         }
         showMessage(message);
-        logEvent(region.name, pass, message, room.title);
+        logEvent(region.name, pass, message, room.title, evaluation);
     }
 
     function clickObjectRegion(region) {
         if (!activeObject) return;
         var object = activeObject;
-        var pass = window.NLRoomRules.conditionPasses(region.condition, state);
-        var outcome = pass ? (region.success || {}) : (region.failure || {});
-        var message = outcome.message || (pass ? 'The interaction succeeds.' : 'Nothing happens.');
-        if (pass) {
-            window.NLRoomRules.applySuccess(region, state, { overlayKey: objectOverlayKey(object, region) });
-        }
+        var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id, overlayKey: objectOverlayKey(object, region) });
+        var pass = evaluation.conditionMatched;
+        var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
         renderState();
         renderObjectOverlays();
         renderInventory();
         showMessage(message);
-        logEvent(region.name, pass, message, object.title);
+        logEvent(region.name, pass, message, object.title, evaluation);
     }
 
     $(svg).on('click', '.play-region', function () { clickRoomRegion(findRoomRegion($(this).attr('data-id'))); });

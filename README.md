@@ -29,7 +29,7 @@ Each room is stored as a graph node with a lifecycle status (`development`, `sta
 - ordered results for messages, overlays, flags, inventory, door unlocking, and object examination;
 - optional door metadata pointing at a target room node.
 
-The first matching branch runs. An empty condition group is an unconditional branch. Overlay results may show or replace an overlay, upload or generate branch-specific artwork, reuse a visual from that region's overlay library, or explicitly remove the region's existing overlay. Inventory checks and grant/remove results use a searchable portable-object picker while continuing to save the object's stable inventory key. Legacy single-condition `condition` / `success` / `failure` data is normalized into the branch format when opened and is written as version 2 room or object data on the next save.
+The first matching branch runs. An empty condition group is an unconditional branch. Overlay results may show or replace an overlay, upload or generate branch-specific artwork, reuse a visual from that region's overlay library, or explicitly remove the region's existing overlay. Inventory checks, flag keys, and object-examination targets use searchable pickers while continuing to save stable keys/slugs. New flag names can be created from the picker, and the top-level **Flags** catalog shows every saved room/object region that reads, sets, or clears each flag. Legacy single-condition `condition` / `success` / `failure` data is normalized into the branch format when opened and is written as version 2 room or object data on the next save.
 
 The debug player lets a designer change flags and items, choose the room's entry door, traverse valid target-room exits, return with a named “Back to …” control, click hit regions, and inspect the event log. It preserves the same runtime state while moving between rooms and enforces the initial navigation rule: the entry door is always a valid exit, while other doors must be unlocked before traversal.
 
@@ -40,6 +40,8 @@ Objects are first-class interactive content records with their own close-up artw
 An object may be room-bound or portable. Portable objects have a unique inventory key. When that key exists in the session's item state—whether entered in the debugger or granted by a successful region—the object appears in the debug inventory and can be opened from there. Object overlays, flags, granted items, and inventory persist for the life of the debug session and reset with the existing reset control.
 
 The object authoring flow is available from **Objects** in the admin navigation. Create and save objects before selecting them from a room region. As with rooms, this first pass supports the `development` lifecycle while S3 publication remains future work.
+
+Both room and object **Assets** panels can make a precision edit to a selected rectangular area of the current raster image. Gemini edits the selected crop, the server composites it into a new full-image candidate, and the modal lets the author compare the candidate with the original. Cancel leaves the draft unchanged. **Apply to draft** selects the candidate, and the editor's normal Save control persists the new background reference without overwriting the previous file.
 
 ### Object image authoring
 

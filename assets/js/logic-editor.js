@@ -13,7 +13,7 @@
         var maxActions = 25;
 
         function esc(value) {
-            return $('<div>').text(value === undefined || value === null ? '' : value).html();
+            return $('<div>').text(value === undefined || value === null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
         function notify(message, error) {
@@ -70,21 +70,64 @@
             });
         }
 
+        function searchPicker(type, selected, settings, entries) {
+            var current = entries.find(function (entry) { return entry.value === selected; });
+            var label = current ? current.label : (selected ? settings.customLabel : settings.placeholder);
+            var detail = current ? current.detail : (selected || (entries.length ? settings.searchHint : settings.emptyDetail));
+            var html = '<div class="logic-inventory-picker logic-value-picker" data-picker-type="' + esc(type) + '" data-value="' + esc(selected) + '">' +
+                '<button type="button" class="logic-picker-toggle" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
+                '<div class="logic-picker-menu"><div class="logic-picker-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="' + esc(settings.searchPlaceholder) + '" aria-label="' + esc(settings.searchPlaceholder) + '"></div><div class="logic-picker-options" role="listbox">' +
+                '<button type="button" class="logic-picker-option" data-value="" data-search="clear selection"><span><strong>' + esc(settings.clearLabel) + '</strong><small>' + esc(settings.clearDetail) + '</small></span>' + (!selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            entries.forEach(function (entry) {
+                html += '<button type="button" class="logic-picker-option" role="option" aria-selected="' + (selected === entry.value ? 'true' : 'false') + '" data-value="' + esc(entry.value) + '" data-search="' + esc(entry.search.toLowerCase()) + '"><span><strong>' + esc(entry.label) + '</strong><small>' + esc(entry.detail) + '</small></span>' + (selected === entry.value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            });
+            if (settings.allowNew) {
+                html += '<button type="button" class="logic-picker-option logic-create-picker-value" hidden><span><strong>Use as a new flag</strong><small></small></span><i class="fa-solid fa-plus"></i></button>';
+            }
+            if (!entries.length) html += '<p class="logic-picker-empty">' + esc(settings.emptyHelp) + '</p>';
+            return html + '</div></div></div>';
+        }
+
         function inventoryPicker(selected) {
             var objects = inventoryObjects();
-            var current = objects.find(function (object) { return inventoryKey(object) === selected; });
-            var label = current ? current.title : (selected ? 'Custom key' : 'Choose inventory object');
-            var detail = current ? inventoryKey(current) : (selected || (objects.length ? 'Search by name or key' : 'No portable objects available'));
-            var html = '<div class="logic-inventory-picker" data-value="' + esc(selected) + '">' +
-                '<button type="button" class="logic-picker-toggle" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
-                '<div class="logic-picker-menu"><div class="logic-picker-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search inventory objects" aria-label="Search inventory objects"></div><div class="logic-picker-options" role="listbox">' +
-                '<button type="button" class="logic-inventory-option" data-value="" data-search="clear selection"><span><strong>No item selected</strong><small>Clear this inventory key</small></span>' + (!selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
-            objects.forEach(function (object) {
+            var entries = objects.map(function (object) {
                 var key = inventoryKey(object);
-                html += '<button type="button" class="logic-inventory-option" role="option" aria-selected="' + (selected === key ? 'true' : 'false') + '" data-value="' + esc(key) + '" data-search="' + esc((object.title + ' ' + object.slug + ' ' + key).toLowerCase()) + '"><span><strong>' + esc(object.title) + '</strong><small>' + esc(key) + '</small></span>' + (selected === key ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+                return { value: key, label: object.title, detail: key, search: object.title + ' ' + object.slug + ' ' + key };
             });
-            if (!objects.length) html += '<p class="logic-picker-empty">Make an object portable and save it to use its inventory key here.</p>';
-            return html + '</div></div></div>';
+            return searchPicker('inventory', selected, {
+                placeholder: 'Choose inventory object', customLabel: 'Custom key', searchHint: 'Search by name or key', emptyDetail: 'No portable objects available',
+                searchPlaceholder: 'Search inventory objects', clearLabel: 'No item selected', clearDetail: 'Clear this inventory key',
+                emptyHelp: 'Make an object portable and save it to use its inventory key here.'
+            }, entries);
+        }
+
+        function flagPicker(selected) {
+            var entries = (options.flags || []).map(function (flag) {
+                var references = Array.isArray(flag.references) ? flag.references : [];
+                var associations = references.length + ' saved association' + (references.length === 1 ? '' : 's');
+                var search = [flag.key];
+                references.forEach(function (reference) {
+                    search.push(reference.contentTitle, reference.contentSlug, reference.regionName);
+                });
+                return { value: flag.key, label: flag.key, detail: associations, search: search.join(' ') };
+            });
+            return searchPicker('flag', selected, {
+                placeholder: 'Choose or create a flag', customLabel: 'New or unsaved flag', searchHint: 'Search saved flags or type a new name', emptyDetail: 'Type a new flag name',
+                searchPlaceholder: 'Search or create a flag', clearLabel: 'No flag selected', clearDetail: 'Clear this flag key',
+                emptyHelp: 'Type a new flag name above, then choose “Use as a new flag.”', allowNew: true
+            }, entries);
+        }
+
+        function objectPicker(selected) {
+            var entries = (options.objects || []).map(function (object) {
+                var detail = object.slug + (isPortable(object) ? (inventoryKey(object) ? ' · inventory: ' + inventoryKey(object) : ' · portable') : ' · room-bound');
+                return { value: object.slug, label: object.title, detail: detail, search: object.title + ' ' + object.slug + ' ' + inventoryKey(object) };
+            });
+            return searchPicker('object', selected, {
+                placeholder: 'Choose an object', customLabel: 'Unavailable object', searchHint: 'Search by object name or slug', emptyDetail: 'No saved objects available',
+                searchPlaceholder: 'Search objects', clearLabel: 'No object selected', clearDetail: 'Clear this object result',
+                emptyHelp: 'Save an object before selecting it for examination.'
+            }, entries);
         }
 
         function addOverlayToLibrary(asset, prompt, source) {
@@ -151,7 +194,7 @@
             var hideValue = condition.operator === 'exists' || condition.operator === 'not_exists';
             var keyField = condition.source === 'item'
                 ? inventoryPicker(condition.key)
-                : '<input class="logic-condition-field logic-key" data-field="key" value="' + esc(condition.key) + '" placeholder="flag_name" aria-label="Condition key">';
+                : flagPicker(condition.key);
             return '<div class="logic-condition" data-node-id="' + esc(condition.id) + '">' +
                 '<select class="logic-condition-field logic-source" data-field="source" aria-label="Condition source">' +
                     '<option value="flag"' + (condition.source === 'flag' ? ' selected' : '') + '>Flag</option>' +
@@ -199,15 +242,6 @@
             }).join('');
         }
 
-        function objectOptions(selected) {
-            var html = '<option value="">Choose an object</option>';
-            (options.objects || []).forEach(function (object) {
-                var detail = object.portable && object.inventory_key ? ' · inventory: ' + object.inventory_key : '';
-                html += '<option value="' + esc(object.slug) + '"' + (selected === object.slug ? ' selected' : '') + '>' + esc(object.title + detail) + '</option>';
-            });
-            return html;
-        }
-
         function renderActionFields(action) {
             if (action.type === 'message') {
                 return '<label>Player message</label><textarea class="logic-action-field" data-field="text" rows="3" placeholder="Describe what the player notices.">' + esc(action.text) + '</textarea>';
@@ -223,11 +257,11 @@
                     '<div class="overlay-generator logic-overlay-generator' + (expanded ? ' visible' : '') + '"><p class="hint">Gemini receives this exact region crop. Describe only what should change.</p><label>Overlay edit prompt</label><textarea class="logic-action-field logic-overlay-prompt" data-field="prompt" rows="4" maxlength="2000" placeholder="Show the compartment opened.">' + esc(action.prompt) + '</textarea><div class="prompt-meta"><span><i class="fa-solid fa-crop-simple"></i> Uses selected region</span><span>' + (action.prompt || '').length + ' / 2000</span></div><button type="button" class="btn-forge btn-block logic-generate-overlay"><i class="fa-solid fa-sparkles"></i> Generate region overlay</button><div class="generation-status logic-generation-status' + (message ? ' visible' : '') + '">' + esc(message) + '</div></div>';
             }
             if (action.type === 'clear_overlay') return '<p class="logic-action-note"><i class="fa-solid fa-eraser"></i> Removes any overlay currently displayed for this region.</p>';
-            if (action.type === 'set_flag') return '<div class="two-cols"><div><label>Flag key</label><input class="logic-action-field" data-field="key" value="' + esc(action.key) + '" placeholder="ritual_ready"></div><div><label>Value</label><input class="logic-action-field" data-field="value" value="' + esc(action.value) + '" placeholder="yes"></div></div>';
-            if (action.type === 'clear_flag') return '<label>Flag key</label><input class="logic-action-field" data-field="key" value="' + esc(action.key) + '" placeholder="ritual_ready">';
+            if (action.type === 'set_flag') return '<div class="two-cols"><div><label>Flag</label>' + flagPicker(action.key) + '</div><div><label>Value</label><input class="logic-action-field" data-field="value" value="' + esc(action.value) + '" placeholder="yes"></div></div>';
+            if (action.type === 'clear_flag') return '<label>Flag</label>' + flagPicker(action.key);
             if (action.type === 'grant_item' || action.type === 'remove_item') return '<label>Inventory object</label>' + inventoryPicker(action.key);
             if (action.type === 'unlock_door') return '<p class="logic-action-note"><i class="fa-solid fa-lock-open"></i> Unlocks this door for the current play session.</p>';
-            if (action.type === 'examine_object') return '<label>Object to examine</label><select class="logic-action-field" data-field="objectSlug">' + objectOptions(action.objectSlug) + '</select><p class="hint">The object opens over the room after this branch runs.</p>';
+            if (action.type === 'examine_object') return '<label>Object to examine</label>' + objectPicker(action.objectSlug) + '<p class="hint">The object opens over the room after this branch runs.</p>';
             return '<p class="logic-action-note">This action type is not supported by this editor.</p>';
         }
 
@@ -314,32 +348,63 @@
         container.on('input', '.logic-picker-search input', function () {
             var query = $(this).val().trim().toLowerCase();
             var picker = $(this).closest('.logic-inventory-picker');
-            picker.find('.logic-inventory-option').each(function () {
+            picker.find('.logic-picker-option[data-search]').each(function () {
                 $(this).toggle(!query || String($(this).data('search') || '').indexOf(query) !== -1);
             });
+            var createOption = picker.find('.logic-create-picker-value');
+            if (createOption.length) {
+                var rawValue = $(this).val().trim();
+                var exactMatch = picker.find('.logic-picker-option[data-value]').filter(function () { return $(this).attr('data-value') === rawValue; }).length > 0;
+                createOption.prop('hidden', !rawValue || rawValue.length > 190 || exactMatch);
+                createOption.find('small').text(rawValue);
+            }
         });
 
         container.on('keydown', '.logic-picker-search input', function (event) {
-            if (event.key !== 'Escape') return;
-            var picker = $(this).closest('.logic-inventory-picker').removeClass('open');
-            picker.find('.logic-picker-toggle').attr('aria-expanded', 'false').focus();
+            var picker = $(this).closest('.logic-inventory-picker');
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                var createOption = picker.find('.logic-create-picker-value:not([hidden])');
+                if (createOption.length) createOption.trigger('click');
+                else picker.find('.logic-picker-option[data-search]:visible').first().trigger('click');
+                return;
+            }
+            if (event.key === 'Escape') {
+                picker.removeClass('open');
+                picker.find('.logic-picker-toggle').attr('aria-expanded', 'false').focus();
+            }
         });
 
-        container.on('click', '.logic-inventory-option', function () {
-            var value = $(this).attr('data-value') || '';
-            var conditionElement = $(this).closest('.logic-condition');
+        function assignPickerValue(picker, value) {
+            var pickerType = picker.attr('data-picker-type');
+            if (pickerType === 'flag' && value && !(options.flags || []).some(function (flag) { return flag.key === value; })) {
+                options.flags = options.flags || [];
+                options.flags.push({ key: value, references: [] });
+                options.flags.sort(function (first, second) { return first.key.localeCompare(second.key); });
+            }
+            var conditionElement = picker.closest('.logic-condition');
             if (conditionElement.length) {
-                var branch = findBranch($(this).closest('.logic-branch').data('branch-id'));
+                var branch = findBranch(picker.closest('.logic-branch').data('branch-id'));
                 var found = branch && findNode(branch.when, conditionElement.data('node-id'));
                 if (!found) return;
                 found.node.key = value;
             } else {
-                var actionElement = $(this).closest('.logic-action');
+                var actionElement = picker.closest('.logic-action');
                 var action = findAction(actionElement.data('branch-id'), actionElement.data('action-id'));
                 if (!action) return;
-                action.key = value;
+                if (pickerType === 'object') action.objectSlug = value;
+                else action.key = value;
             }
             changed(); render();
+        }
+
+        container.on('click', '.logic-picker-option[data-value]', function () {
+            assignPickerValue($(this).closest('.logic-inventory-picker'), $(this).attr('data-value') || '');
+        });
+
+        container.on('click', '.logic-create-picker-value', function () {
+            var picker = $(this).closest('.logic-inventory-picker');
+            assignPickerValue(picker, picker.find('.logic-picker-search input').val().trim());
         });
 
         $(document).on('click', function () {

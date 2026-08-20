@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__) . '/app/bootstrap.php';
+require_once dirname(__DIR__) . '/app/content-variables.php';
 nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -20,6 +21,7 @@ $room = array(
 );
 $error = '';
 $objectOptions = array();
+$flagOptions = array();
 if ($id) {
     try {
         $stmt = nightlatch_db()->prepare('SELECT * FROM rooms WHERE id = ?');
@@ -37,6 +39,11 @@ try {
     $objectOptions = nightlatch_db()->query('SELECT title, slug, portable, inventory_key FROM objects ORDER BY title')->fetchAll();
 } catch (Throwable $exception) {
     $objectOptions = array();
+}
+try {
+    $flagOptions = nightlatch_flag_catalog();
+} catch (Throwable $exception) {
+    $flagOptions = array();
 }
 
 $pageTitle = ($id ? 'Edit room' : 'Create room') . ' · Nightlatch Room Forge';
@@ -63,6 +70,7 @@ require __DIR__ . '/_header.php';
         <div class="editor-panel" data-panel-content="assets">
             <div class="sidebar-heading"><div><span class="eyebrow">Room artwork</span><h2>Background</h2></div></div>
             <label class="upload-drop" for="asset-upload"><i class="fa-solid fa-cloud-arrow-up"></i><strong>Upload room image</strong><span>PNG, JPG or WebP · up to 12 MB</span><input id="asset-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>
+            <button type="button" class="btn-ghost btn-block image-area-edit-launch" id="open-image-area-edit"><i class="fa-solid fa-wand-magic-sparkles"></i> Edit an image area</button>
             <div class="or-divider"><span>or create with Gemini</span></div>
             <label for="gemini-prompt">Image prompt</label>
             <textarea id="gemini-prompt" rows="8" placeholder="A moody Victorian conservatory at midnight, point-and-click game background, straight-on view, no people..."><?php echo nightlatch_h($room['backgroundPrompt']); ?></textarea>
@@ -110,8 +118,10 @@ require __DIR__ . '/_header.php';
         </div>
     </aside>
 </div>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<?php require __DIR__ . '/_image-area-editor.php'; ?>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/image-area-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

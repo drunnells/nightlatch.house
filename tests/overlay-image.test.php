@@ -89,6 +89,36 @@ if (extension_loaded('gd')) {
         fwrite(STDERR, "Extracted overlay JPEG dimensions are incorrect.\n");
         exit(1);
     }
+
+    $background = imagecreatetruecolor(400, 100);
+    $backgroundRed = imagecolorallocate($background, 180, 20, 20);
+    imagefill($background, 0, 0, $backgroundRed);
+    ob_start();
+    imagepng($background);
+    $backgroundBytes = ob_get_clean();
+    nightlatch_destroy_image($background);
+
+    $editedRegion = imagecreatetruecolor(100, 50);
+    $regionBlue = imagecolorallocate($editedRegion, 20, 40, 190);
+    imagefill($editedRegion, 0, 0, $regionBlue);
+    ob_start();
+    imagepng($editedRegion);
+    $editedRegionBytes = ob_get_clean();
+    nightlatch_destroy_image($editedRegion);
+
+    $composited = nightlatch_composite_region_edit($backgroundBytes, $editedRegionBytes, array('x' => 120, 'y' => 25, 'width' => 100, 'height' => 50));
+    $compositedInfo = getimagesizefromstring($composited['bytes']);
+    $compositedImage = imagecreatefromstring($composited['bytes']);
+    $outsideColor = imagecolorat($compositedImage, 30, 30);
+    $insideColor = imagecolorat($compositedImage, 160, 50);
+    $outsideRed = ($outsideColor >> 16) & 0xFF;
+    $insideBlue = $insideColor & 0xFF;
+    nightlatch_destroy_image($compositedImage);
+    if (!$compositedInfo || $compositedInfo[0] !== 400 || $compositedInfo[1] !== 100 || $compositedInfo[2] !== IMAGETYPE_JPEG
+        || $outsideRed < 130 || $insideBlue < 130) {
+        fwrite(STDERR, "Edited region was not composited into a full JPEG background correctly.\n");
+        exit(1);
+    }
 }
 
 fwrite(STDOUT, "overlay-image tests passed\n");

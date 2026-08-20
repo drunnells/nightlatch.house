@@ -333,6 +333,7 @@
         root: '#region-logic-editor',
         isObject: isObject,
         objects: window.NL_EDITOR_OBJECTS || [],
+        flags: window.NL_EDITOR_FLAGS || [],
         onChange: markDirty,
         notify: toast,
         uploadOverlay: uploadAssetPromise,
@@ -469,6 +470,13 @@
             toast: toast
         };
     }
+    window.NLImageAreaEditorBridge = {
+        assetType: editor.assetType,
+        getBackgroundAsset: function () { return image.getAttribute('src'); },
+        getCanvas: function () { return { width: canvas.width, height: canvas.height }; },
+        applyBackground: function (url) { setBackground(url, true); },
+        toast: toast
+    };
 
     svg.setAttribute('viewBox', '0 0 ' + canvas.width + ' ' + canvas.height);
     roomCanvas.style.aspectRatio = canvas.width + ' / ' + canvas.height;

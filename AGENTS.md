@@ -82,6 +82,7 @@ The S3 config shape currently includes:
 - Each `set_overlay` result owns its asset and optional generation prompt so overlays may be uploaded or generated independently in IF, ELSE IF, or ELSE branches.
 - Each region keeps an `overlayLibrary` of up to 100 previously linked, uploaded, or generated overlays so authors can visually reuse the same artwork across branches without duplicating files.
 - Inventory conditions and grant/remove results store stable inventory keys, but the editor authors them through a searchable picker of saved portable objects rather than free-text keys.
+- Flag keys and object-examination targets use the same searchable picker pattern. New flag keys may be created from the flag picker; saved flag names and their room/object region associations are derived from content JSON in `app/content-variables.php` and shown in the top-level Flags catalog.
 - Legacy `condition` / `success` / `failure` regions must be normalized into the branch format when loaded and written as version 2 data on the next save.
 - Shared evaluation behavior belongs in `assets/js/room-rules.js`; shared admin rule-builder behavior belongs in `assets/js/logic-editor.js`; server-side shape and limit validation belongs in `app/interactive-logic.php`.
 - Current region rules run when the player clicks a region. Future room-entry or state-change triggers should reuse the same evaluator instead of creating separate condition semantics.
@@ -95,11 +96,13 @@ The S3 config shape currently includes:
 - Object artwork may be cropped with a rectangle or point-by-point lasso. Lasso output is a transparent PNG outside the selected polygon, and existing object region bounds must be remapped or removed when they fall outside the crop.
 - Object generation may use a rectangular reference crop selected from a searchable thumbnail library of saved local raster room and object images. Validate and extract the selected reference area on the server before sending it to Gemini.
 - A branch-specific region overlay may be uploaded or generated from an image-editing prompt.
+- Authors may select a rectangular area of a room or object background, describe a precision edit, and review a full-image candidate. Cancel must leave the draft unchanged; Apply changes only the draft background reference, and the normal content Save persists it.
 - Generated region overlays use the exact selected room or object crop as a reference image inside a fixed 1024-by-1024 template. Validate the returned template dimensions before extracting the edited region.
 - Overlay prompt instructions should ask the model to preserve the source crop's position, scale, perspective, framing, style, and template alignment while changing only the requested content.
 - Generated backgrounds request Gemini's 1K output tier.
 - Store generated backgrounds and generated overlays as progressive JPEG files at quality 80 with a maximum width of 1024 pixels, preserving aspect ratio.
 - Generated overlays must be scaled to the selected region's pixel dimensions, subject to the 1024-pixel maximum width.
+- Precision background edits composite the generated region back into the source and store a new progressive JPEG using the same generated-image width and quality limits. Do not overwrite the prior source file in place.
 - Do not automatically convert uploaded assets to JPEG. Preserve their accepted PNG, JPG, or WebP format so uploaded overlays may retain transparency.
 - PHP's GD extension is required for generated-image resizing, template composition, overlay extraction, and JPEG encoding.
 - Keep generated image sizing and quality values centralized in `app/image.php` rather than duplicating magic numbers.
@@ -144,6 +147,7 @@ The S3 config shape currently includes:
   - `php tests/object-crop.test.php`
   - `php tests/debug-object-layout.test.php`
   - `php tests/interactive-logic.test.php`
+  - `php tests/content-variables.test.php`
   - `node tests/room-rules.test.js`
 - Run `node --check` on changed browser JavaScript files.
 - Run `git diff --check` before handing off changes.

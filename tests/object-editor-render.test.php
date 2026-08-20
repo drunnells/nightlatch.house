@@ -21,6 +21,11 @@ $requiredIds = array(
     'open-reference-picker',
     'object-crop-workspace',
     'reference-workspace',
+    'open-image-area-edit',
+    'image-edit-workspace',
+    'image-edit-selection-layer',
+    'generate-image-area-edit',
+    'apply-image-area-edit',
 );
 foreach ($requiredIds as $id) {
     if (strpos($html, 'id="' . $id . '"') === false) {
@@ -33,6 +38,7 @@ if (strpos($html, "kind: 'object'") === false || strpos($html, "assetType: 'obje
     exit(1);
 }
 if (strpos($html, 'js/object-image-tools.js') === false
+    || strpos($html, 'js/image-area-editor.js') === false
     || strpos($html, 'js/room-rules.js') === false
     || strpos($html, 'js/logic-editor.js') === false) {
     fwrite(STDERR, "Object editor scripts were not loaded completely.\n");
@@ -42,8 +48,9 @@ if (strpos($html, 'js/object-image-tools.js') === false
 $styles = file_get_contents(dirname(__DIR__) . '/assets/css/admin.css');
 $editorScript = file_get_contents(dirname(__DIR__) . '/assets/js/room-editor.js');
 $logicScript = file_get_contents(dirname(__DIR__) . '/assets/js/logic-editor.js');
+$imageEditScript = file_get_contents(dirname(__DIR__) . '/assets/js/image-area-editor.js');
 $objectEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/object-edit.php');
-if ($styles === false || $editorScript === false || $logicScript === false || $objectEditorMarkup === false) {
+if ($styles === false || $editorScript === false || $logicScript === false || $imageEditScript === false || $objectEditorMarkup === false) {
     fwrite(STDERR, "Object editor layout assets could not be read.\n");
     exit(1);
 }
@@ -51,12 +58,18 @@ if (strpos($logicScript, 'logic-add-branch') === false
     || strpos($logicScript, 'logic-add-group') === false
     || strpos($logicScript, 'logic-generate-overlay') === false
     || strpos($logicScript, 'logic-inventory-picker') === false
+    || strpos($logicScript, "searchPicker('flag'") === false
+    || strpos($logicScript, "searchPicker('object'") === false
     || strpos($logicScript, 'overlay-library-toggle') === false) {
     fwrite(STDERR, "Object editor is missing multi-branch logic controls.\n");
     exit(1);
 }
 if (strpos($objectEditorMarkup, 'json_encode($objectOptions') === false
-    || strpos($editorScript, 'fresh.overlayLibrary') === false) {
+    || strpos($objectEditorMarkup, 'window.NL_EDITOR_FLAGS') === false
+    || strpos($editorScript, 'fresh.overlayLibrary') === false
+    || strpos($editorScript, 'window.NLImageAreaEditorBridge') === false
+    || strpos($imageEditScript, "fetch('api/gemini-edit-background-region.php'") === false
+    || strpos($imageEditScript, 'data-cancel-image-edit') === false) {
     fwrite(STDERR, "Object editor is missing inventory object choices.\n");
     exit(1);
 }
@@ -64,7 +77,8 @@ $roomEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/room-edit.php')
 if ($roomEditorMarkup === false
     || strpos($roomEditorMarkup, 'id="region-logic-editor"') === false
     || strpos($roomEditorMarkup, 'window.NL_EDITOR_OBJECTS') === false
-    || strpos($roomEditorMarkup, "nightlatch_asset('js/logic-editor.js')") === false) {
+    || strpos($roomEditorMarkup, "nightlatch_asset('js/logic-editor.js')") === false
+    || strpos($roomEditorMarkup, "nightlatch_asset('js/image-area-editor.js')") === false) {
     fwrite(STDERR, "Room editor is missing the shared multi-branch rule builder.\n");
     exit(1);
 }

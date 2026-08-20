@@ -216,3 +216,57 @@ function nightlatch_extract_overlay_image($generatedBytes, $spec)
     }
     return $bytes;
 }
+
+function nightlatch_composite_region_edit($sourceBytes, $editedRegionBytes, $sourceBox)
+{
+    $source = imagecreatefromstring($sourceBytes);
+    $editedRegion = imagecreatefromstring($editedRegionBytes);
+    if (!$source || !$editedRegion) {
+        if ($source) nightlatch_destroy_image($source);
+        if ($editedRegion) nightlatch_destroy_image($editedRegion);
+        throw new RuntimeException('The edited image region could not be composited.');
+    }
+
+    $sourceWidth = imagesx($source);
+    $sourceHeight = imagesy($source);
+    if ($sourceBox['x'] < 0 || $sourceBox['y'] < 0 || $sourceBox['width'] < 1 || $sourceBox['height'] < 1
+        || $sourceBox['x'] + $sourceBox['width'] > $sourceWidth || $sourceBox['y'] + $sourceBox['height'] > $sourceHeight) {
+        nightlatch_destroy_image($editedRegion);
+        nightlatch_destroy_image($source);
+        throw new RuntimeException('The edited image region falls outside the source image.');
+    }
+
+    imagecopyresampled(
+        $source,
+        $editedRegion,
+        $sourceBox['x'],
+        $sourceBox['y'],
+        0,
+        0,
+        $sourceBox['width'],
+        $sourceBox['height'],
+        imagesx($editedRegion),
+        imagesy($editedRegion)
+    );
+    nightlatch_destroy_image($editedRegion);
+
+    $options = nightlatch_generated_image_options();
+    $targetWidth = min($options['maximumWidth'], $sourceWidth);
+    $targetHeight = max(1, (int) round($sourceHeight * ($targetWidth / $sourceWidth)));
+    $target = imagecreatetruecolor($targetWidth, $targetHeight);
+    if (!$target) {
+        nightlatch_destroy_image($source);
+        throw new RuntimeException('The edited background could not be resized.');
+    }
+    $matte = imagecolorallocate($target, 8, 11, 12);
+    imagefill($target, 0, 0, $matte);
+    imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
+
+    try {
+        $bytes = nightlatch_encode_jpeg_image($target, $options['jpegQuality']);
+    } finally {
+        nightlatch_destroy_image($target);
+        nightlatch_destroy_image($source);
+    }
+    return array('bytes' => $bytes, 'width' => $targetWidth, 'height' => $targetHeight);
+}

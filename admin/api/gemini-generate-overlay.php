@@ -5,9 +5,13 @@ require dirname(dirname(__DIR__)) . '/app/overlay-image.php';
 nightlatch_require_admin(true);
 
 try {
+    $outputKind = defined('NIGHTLATCH_REGION_EDIT_OUTPUT') ? NIGHTLATCH_REGION_EDIT_OUTPUT : 'overlay';
+    if (!in_array($outputKind, array('overlay', 'background'), true)) {
+        throw new RuntimeException('The region edit output type is invalid.');
+    }
     nightlatch_verify_csrf();
     if (!extension_loaded('gd')) {
-        throw new RuntimeException('Overlay generation requires the PHP GD extension on the web server.');
+        throw new RuntimeException('Region image editing requires the PHP GD extension on the web server.');
     }
 
     $payload = nightlatch_input_json();
@@ -17,10 +21,10 @@ try {
     }
     $prompt = trim(isset($payload['prompt']) ? $payload['prompt'] : '');
     if (strlen($prompt) < 3 || strlen($prompt) > 2000) {
-        throw new RuntimeException('Enter an overlay prompt between 3 and 2,000 characters.');
+        throw new RuntimeException('Enter an image edit prompt between 3 and 2,000 characters.');
     }
     if (!isset($payload['backgroundAsset'], $payload['bounds'], $payload['canvas']) || !is_array($payload['bounds']) || !is_array($payload['canvas'])) {
-        throw new RuntimeException('Select a valid region before generating an overlay.');
+        throw new RuntimeException('Select a valid region before generating an image edit.');
     }
 
     $backgroundPath = nightlatch_local_content_asset_path($payload['backgroundAsset'], $assetType);
@@ -92,14 +96,25 @@ try {
         }
     }
     if (!$imagePart) {
-        throw new RuntimeException('Gemini returned no edited image. Try a more specific overlay prompt.');
+        throw new RuntimeException('Gemini returned no edited image. Try a more specific image edit prompt.');
     }
 
     $generatedBytes = base64_decode($imagePart['data'], true);
     if ($generatedBytes === false) {
-        throw new RuntimeException('Gemini returned invalid overlay image data.');
+        throw new RuntimeException('Gemini returned invalid edited image data.');
     }
     $overlayBytes = nightlatch_extract_overlay_image($generatedBytes, $spec);
+    $outputBytes = $overlayBytes;
+    $outputWidth = $spec['outputWidth'];
+    $outputHeight = $spec['outputHeight'];
+    $namePrefix = 'overlay-';
+    if ($outputKind === 'background') {
+        $composited = nightlatch_composite_region_edit($sourceBytes, $overlayBytes, $sourceBox);
+        $outputBytes = $composited['bytes'];
+        $outputWidth = $composited['width'];
+        $outputHeight = $composited['height'];
+        $namePrefix = 'image-edit-';
+    }
 
     $directory = NIGHTLATCH_ROOT . '/assets/graphics/' . $assetType . '/generated';
     if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
@@ -108,17 +123,18 @@ try {
     if (!is_writable($directory)) {
         throw new RuntimeException('The generated asset directory is not writable by the web server.');
     }
-    $name = 'overlay-' . date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.jpg';
-    if (file_put_contents($directory . '/' . $name, $overlayBytes, LOCK_EX) === false) {
-        throw new RuntimeException('The generated overlay could not be stored.');
+    $name = $namePrefix . date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.jpg';
+    if (file_put_contents($directory . '/' . $name, $outputBytes, LOCK_EX) === false) {
+        throw new RuntimeException($outputKind === 'background' ? 'The edited background could not be stored.' : 'The generated overlay could not be stored.');
     }
 
     nightlatch_json(array(
         'ok' => true,
         'url' => '../assets/graphics/' . $assetType . '/generated/' . $name,
-        'width' => $spec['outputWidth'],
-        'height' => $spec['outputHeight'],
-        'bytes' => strlen($overlayBytes),
+        'width' => $outputWidth,
+        'height' => $outputHeight,
+        'bytes' => strlen($outputBytes),
+        'outputKind' => $outputKind,
     ));
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);

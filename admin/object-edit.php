@@ -1,5 +1,6 @@
 <?php
 require dirname(__DIR__) . '/app/bootstrap.php';
+require_once dirname(__DIR__) . '/app/content-variables.php';
 nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -22,6 +23,7 @@ $object = array(
 );
 $error = '';
 $objectOptions = array();
+$flagOptions = array();
 if ($id) {
     try {
         $stmt = nightlatch_db()->prepare('SELECT * FROM objects WHERE id = ?');
@@ -39,6 +41,11 @@ try {
     $objectOptions = nightlatch_db()->query('SELECT title, slug, portable, inventory_key FROM objects ORDER BY title')->fetchAll();
 } catch (Throwable $exception) {
     $objectOptions = array();
+}
+try {
+    $flagOptions = nightlatch_flag_catalog();
+} catch (Throwable $exception) {
+    $flagOptions = array();
 }
 
 $pageTitle = ($id ? 'Edit object' : 'Create object') . ' · Nightlatch Room Forge';
@@ -71,6 +78,7 @@ require __DIR__ . '/_header.php';
             <button class="btn-forge btn-block" id="generate-image"><i class="fa-solid fa-sparkles"></i> Generate object image</button>
             <div class="generation-status" id="generation-status"></div>
             <div class="object-image-tools">
+                <button type="button" class="btn-ghost btn-block" id="open-image-area-edit"><i class="fa-solid fa-wand-magic-sparkles"></i> Edit an image area</button>
                 <button type="button" class="btn-ghost btn-block" id="open-object-crop"><i class="fa-solid fa-crop-simple"></i> Crop or lasso object</button>
                 <div class="reference-source-card">
                     <div><span class="eyebrow">Optional Gemini reference</span><strong id="reference-source-title">No reference selected</strong><small id="reference-source-detail">Choose a saved room or object image, then mark the exact area to use.</small></div>
@@ -119,6 +127,7 @@ require __DIR__ . '/_header.php';
         </div>
     </aside>
 </div>
+<?php require __DIR__ . '/_image-area-editor.php'; ?>
 <div class="image-workspace" id="object-crop-workspace" hidden role="dialog" aria-modal="true" aria-labelledby="object-crop-title">
     <div class="image-workspace-backdrop" data-close-image-workspace></div>
     <section class="image-workspace-card">
@@ -144,9 +153,10 @@ require __DIR__ . '/_header.php';
         </div>
     </section>
 </div>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/object-image-tools.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/image-area-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

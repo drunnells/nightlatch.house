@@ -40,6 +40,9 @@ try {
     if ($status !== 'development') {
         nightlatch_json(array('ok' => false, 'error' => 'Staging and production require the S3 publishing workflow. Save this object as development for now.'), 422);
     }
+    $playerDescription = isset($payload['playerDescription']) ? $payload['playerDescription'] : '';
+    nightlatch_logic_string($playerDescription, 8000, 'Player description');
+    $playerDescription = trim((string) $playerDescription);
     if ($portable && !$inventoryKey) {
         $inventoryKey = $slug;
     }
@@ -66,6 +69,7 @@ try {
         $title,
         $slug,
         isset($payload['description']) ? trim($payload['description']) : '',
+        $playerDescription,
         $status,
         isset($payload['backgroundAsset']) ? $payload['backgroundAsset'] : '',
         isset($payload['backgroundPrompt']) ? $payload['backgroundPrompt'] : '',
@@ -77,12 +81,12 @@ try {
     if ($id) {
         $values[] = $adminId;
         $values[] = $id;
-        $stmt = nightlatch_db()->prepare('UPDATE objects SET title = ?, slug = ?, description = ?, status = ?, background_asset = ?, background_prompt = ?, portable = ?, inventory_key = ?, object_data = ?, updated_by = ? WHERE id = ?');
+        $stmt = nightlatch_db()->prepare('UPDATE objects SET title = ?, slug = ?, description = ?, player_description = ?, status = ?, background_asset = ?, background_prompt = ?, portable = ?, inventory_key = ?, object_data = ?, updated_by = ? WHERE id = ?');
         $stmt->execute($values);
     } else {
         $values[] = $adminId;
         $values[] = $adminId;
-        $stmt = nightlatch_db()->prepare('INSERT INTO objects (title, slug, description, status, background_asset, background_prompt, portable, inventory_key, object_data, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt = nightlatch_db()->prepare('INSERT INTO objects (title, slug, description, player_description, status, background_asset, background_prompt, portable, inventory_key, object_data, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute($values);
         $id = (int) nightlatch_db()->lastInsertId();
     }

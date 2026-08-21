@@ -28,6 +28,7 @@ $admin = nightlatch_admin();
             <a href="map.php"><i class="fa-solid fa-circle-nodes"></i> Map</a>
             <a href="objects.php"><i class="fa-solid fa-magnifying-glass"></i> Objects</a>
             <a href="flags.php"><i class="fa-solid fa-flag"></i> Flags</a>
+            <a href="sounds.php"><i class="fa-solid fa-volume-high"></i> Sounds</a>
             <a href="admins.php"><i class="fa-solid fa-user-shield"></i> Admins</a>
         </nav>
         <div class="admin-account">

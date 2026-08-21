@@ -1,12 +1,14 @@
 <?php
 require dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/map-topology.php';
+require_once dirname(__DIR__) . '/app/sounds.php';
 nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $room = null;
 $rooms = array();
 $objects = array();
+$sounds = array();
 $topology = array('clusters' => array(), 'nodes' => array(), 'connections' => array(), 'gateways' => array());
 $error = '';
 try {
@@ -42,6 +44,11 @@ try {
     foreach ($objectRows as $objectRow) {
         $objects[] = nightlatch_object_payload($objectRow);
     }
+    try {
+        $sounds = nightlatch_sound_catalog(nightlatch_db());
+    } catch (Throwable $ignored) {
+        $sounds = array();
+    }
 } catch (Throwable $exception) { $error = $exception->getMessage(); }
 
 $pageTitle = 'Debug play · Nightlatch Room Forge';
@@ -52,23 +59,25 @@ require __DIR__ . '/_header.php';
 <?php else: ?>
 <div class="debug-shell" id="debug-player">
     <section class="debug-game">
-        <div class="debug-topbar"><div><a id="debug-editor-link" href="room-edit.php?id=<?php echo (int) $room['id']; ?>"><i class="fa-solid fa-chevron-left"></i> Editor</a><span class="debug-badge"><i class="fa-solid fa-bug"></i> DEBUG PLAY</span></div><div><strong id="debug-room-title"><?php echo nightlatch_h($room['title']); ?></strong><code id="debug-room-slug"><?php echo nightlatch_h($room['slug']); ?></code></div><div class="debug-actions"><div id="gateway-return-actions"></div><button id="back-room" class="btn-ghost" hidden><i class="fa-solid fa-rotate-left"></i> <span id="back-room-label">Behind you</span></button><button id="toggle-inventory" class="btn-ghost" aria-expanded="false"><i class="fa-solid fa-suitcase"></i> Inventory <span id="inventory-count">0</span></button><button id="reset-session" class="btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset state</button></div></div>
+        <div class="debug-topbar"><div><a id="debug-editor-link" href="room-edit.php?id=<?php echo (int) $room['id']; ?>"><i class="fa-solid fa-chevron-left"></i> Editor</a><span class="debug-badge"><i class="fa-solid fa-bug"></i> DEBUG PLAY</span></div><div><span class="debug-title-line"><strong id="debug-room-title"><?php echo nightlatch_h($room['title']); ?></strong><button type="button" class="description-eye" id="toggle-room-description" aria-label="Show room description" aria-expanded="false"><i class="fa-solid fa-eye"></i></button></span><code id="debug-room-slug"><?php echo nightlatch_h($room['slug']); ?></code></div><div class="debug-actions"><div id="gateway-return-actions"></div><button id="back-room" class="btn-ghost" hidden><i class="fa-solid fa-rotate-left"></i> <span id="back-room-label">Behind you</span></button><button id="toggle-inventory" class="btn-ghost" aria-expanded="false"><i class="fa-solid fa-suitcase"></i> Inventory <span id="inventory-count">0</span></button><button id="reset-session" class="btn-ghost"><i class="fa-solid fa-rotate-left"></i> Reset state</button></div></div>
         <div class="play-stage">
             <div class="play-canvas" tabindex="-1" style="aspect-ratio:<?php echo (int) $room['data']['canvas']['width']; ?>/<?php echo (int) $room['data']['canvas']['height']; ?>">
                 <img id="room-image" src="<?php echo nightlatch_h($room['backgroundAsset']); ?>" alt="<?php echo nightlatch_h($room['title']); ?>">
                 <div id="overlay-layer"></div>
                 <svg id="play-regions" viewBox="0 0 <?php echo (int) $room['data']['canvas']['width']; ?> <?php echo (int) $room['data']['canvas']['height']; ?>" preserveAspectRatio="none"></svg>
                 <div class="player-message" id="player-message"></div>
+                <aside class="player-description-card" id="room-description-card" hidden><header><span><i class="fa-solid fa-eye"></i> Room description</span><button type="button" data-close-description="room" aria-label="Hide room description"><i class="fa-solid fa-xmark"></i></button></header><p id="room-player-description"></p></aside>
                 <div class="object-modal" id="object-modal" hidden role="dialog" aria-modal="true" aria-labelledby="object-modal-title">
                     <div class="object-modal-backdrop" data-close-object></div>
                     <section class="object-modal-card">
-                        <header class="object-modal-header"><div><span class="eyebrow">Examining</span><h2 id="object-modal-title">Object</h2></div><button id="close-object" class="object-close" aria-label="Close object and return to room"><i class="fa-solid fa-xmark"></i><span>Close</span></button></header>
+                        <header class="object-modal-header"><div><span class="eyebrow">Examining</span><h2 id="object-modal-title">Object</h2></div><div class="object-modal-actions"><button type="button" class="description-eye" id="toggle-object-description" aria-label="Show object description" aria-expanded="false"><i class="fa-solid fa-eye"></i></button><button id="close-object" class="object-close" aria-label="Close object and return to room"><i class="fa-solid fa-xmark"></i><span>Close</span></button></div></header>
                         <div class="object-modal-body" id="object-modal-body">
                             <div class="object-play-canvas" id="object-play-canvas">
                                 <img id="object-image" alt="">
                                 <div id="object-overlay-layer"></div>
                                 <svg id="object-play-regions" preserveAspectRatio="none" aria-label="Object interaction regions"></svg>
                                 <div class="player-message" id="object-player-message"></div>
+                                <aside class="player-description-card object-description-card" id="object-description-card" hidden><header><span><i class="fa-solid fa-eye"></i> Object description</span><button type="button" data-close-description="object" aria-label="Hide object description"><i class="fa-solid fa-xmark"></i></button></header><p id="object-player-description"></p></aside>
                             </div>
                         </div>
                     </section>
@@ -91,7 +100,8 @@ require __DIR__ . '/_header.php';
         <div class="console-section legend"><h3>Region overlay</h3><p><span class="legend-swatch interaction"></span> Interaction</p><p><span class="legend-swatch door"></span> Door / exit</p><label class="check-row"><input type="checkbox" id="show-regions" checked><span>Show hit regions</span></label></div>
     </aside>
 </div>
-<script>window.NL_DEBUG_ROOM = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_ROOMS = <?php echo json_encode($rooms, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_OBJECTS = <?php echo json_encode($objects, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_TOPOLOGY = <?php echo json_encode($topology, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+<audio id="debug-sound-player" preload="none"></audio>
+<script>window.NL_DEBUG_ROOM = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_ROOMS = <?php echo json_encode($rooms, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_OBJECTS = <?php echo json_encode($objects, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_SOUNDS = <?php echo json_encode($sounds, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_TOPOLOGY = <?php echo json_encode($topology, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/play-debug.js')); ?>"></script>
 <?php endif; ?>

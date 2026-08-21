@@ -34,6 +34,9 @@ try {
     if ($status !== 'development') {
         nightlatch_json(array('ok' => false, 'error' => 'Staging and production require the S3 publishing workflow. Save this room as development for now.'), 422);
     }
+    $playerDescription = isset($payload['playerDescription']) ? $payload['playerDescription'] : '';
+    nightlatch_logic_string($playerDescription, 8000, 'Player description');
+    $playerDescription = trim((string) $playerDescription);
 
     $roomData = isset($payload['data']) && is_array($payload['data']) ? $payload['data'] : array();
     nightlatch_validate_interactive_data($roomData, 'room');
@@ -43,6 +46,7 @@ try {
         $title,
         $slug,
         isset($payload['description']) ? trim($payload['description']) : '',
+        $playerDescription,
         $status,
         isset($payload['backgroundAsset']) ? $payload['backgroundAsset'] : '',
         isset($payload['backgroundPrompt']) ? $payload['backgroundPrompt'] : '',
@@ -54,12 +58,12 @@ try {
     if ($id) {
         $values[] = $adminId;
         $values[] = $id;
-        $stmt = $pdo->prepare('UPDATE rooms SET title = ?, slug = ?, description = ?, status = ?, background_asset = ?, background_prompt = ?, room_data = ?, updated_by = ? WHERE id = ?');
+        $stmt = $pdo->prepare('UPDATE rooms SET title = ?, slug = ?, description = ?, player_description = ?, status = ?, background_asset = ?, background_prompt = ?, room_data = ?, updated_by = ? WHERE id = ?');
         $stmt->execute($values);
     } else {
         $values[] = $adminId;
         $values[] = $adminId;
-        $stmt = $pdo->prepare('INSERT INTO rooms (title, slug, description, status, background_asset, background_prompt, room_data, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $pdo->prepare('INSERT INTO rooms (title, slug, description, player_description, status, background_asset, background_prompt, room_data, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute($values);
         $id = (int) $pdo->lastInsertId();
     }

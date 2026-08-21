@@ -152,11 +152,15 @@ state.items.disposable = '1';
 var removalEffects = rules.applyActions([
     { type: 'clear_flag', key: 'temporary' },
     { type: 'remove_item', key: 'disposable' },
-    { type: 'examine_object', objectSlug: 'old-box' }
+    { type: 'examine_object', objectSlug: 'old-box' },
+    { type: 'set_description', targetKind: 'room', targetSlug: 'foyer', text: 'The fireplace casts long shadows.' },
+    { type: 'play_sound', soundSlug: 'fireplace-lighting' }
 ], state, { regionId: 'test-region' });
 assert.strictEqual(state.flags.temporary, undefined);
 assert.strictEqual(state.items.disposable, undefined);
 assert.deepStrictEqual(removalEffects.examineObjects, ['old-box']);
+assert.strictEqual(state.descriptions['room:foyer'], 'The fireplace casts long shadows.', 'description results replace player-facing text in session state');
+assert.deepStrictEqual(removalEffects.sounds, ['fireplace-lighting'], 'sound results report the selected sound for playback');
 
 state.items.puzzle_box = '1';
 state.items.nonportable_prop = '1';

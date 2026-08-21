@@ -1,6 +1,7 @@
 <?php
 require dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/content-variables.php';
+require_once dirname(__DIR__) . '/app/sounds.php';
 nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -9,6 +10,7 @@ $object = array(
     'title' => 'Untitled object',
     'slug' => '',
     'description' => '',
+    'playerDescription' => '',
     'status' => 'development',
     'backgroundAsset' => '../assets/graphics/objects/demo-object.svg',
     'backgroundPrompt' => '',
@@ -24,6 +26,8 @@ $object = array(
 $error = '';
 $objectOptions = array();
 $flagOptions = array();
+$roomOptions = array();
+$soundOptions = array();
 if ($id) {
     try {
         $stmt = nightlatch_db()->prepare('SELECT * FROM objects WHERE id = ?');
@@ -46,6 +50,16 @@ try {
     $flagOptions = nightlatch_flag_catalog();
 } catch (Throwable $exception) {
     $flagOptions = array();
+}
+try {
+    $roomOptions = nightlatch_db()->query('SELECT id, title, slug FROM rooms ORDER BY title')->fetchAll();
+} catch (Throwable $exception) {
+    $roomOptions = array();
+}
+try {
+    $soundOptions = nightlatch_sound_catalog(nightlatch_db());
+} catch (Throwable $exception) {
+    $soundOptions = array();
 }
 
 $pageTitle = ($id ? 'Edit object' : 'Create object') . ' · Nightlatch Room Forge';
@@ -92,6 +106,7 @@ require __DIR__ . '/_header.php';
             <div class="sidebar-heading"><div><span class="eyebrow">Examineable content</span><h2>Object settings</h2></div></div>
             <label for="room-title">Object title</label><input id="room-title" value="<?php echo nightlatch_h($object['title']); ?>">
             <label for="room-slug">Stable slug</label><input id="room-slug" value="<?php echo nightlatch_h($object['slug']); ?>" placeholder="created-from-title"<?php echo $id ? ' readonly' : ''; ?>>
+            <label for="player-description">Player description</label><textarea id="player-description" rows="5" placeholder="An ornate object, cold to the touch."><?php echo nightlatch_h($object['playerDescription']); ?></textarea><p class="hint">Hidden in the object viewer until the player chooses the eye control. Results may replace this text for the current session.</p>
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="5"><?php echo nightlatch_h($object['description']); ?></textarea>
             <label class="check-row portable-setting"><input id="object-portable" type="checkbox"<?php echo !empty($object['portable']) ? ' checked' : ''; ?>><span>Player can carry this object</span></label>
             <div id="inventory-key-fields"><label for="inventory-key">Inventory key</label><input id="inventory-key" value="<?php echo nightlatch_h($object['inventoryKey']); ?>" placeholder="defaults-to-object-slug"><p class="hint">Grant this key from a successful room or object region to put the object in the player inventory.</p></div>
@@ -153,7 +168,7 @@ require __DIR__ . '/_header.php';
         </div>
     </section>
 </div>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($object, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOMS = <?php echo json_encode($roomOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_SOUNDS = <?php echo json_encode($soundOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CONTEXT = { kind: 'object', apiUrl: 'api/objects.php', editUrl: 'object-edit.php', listUrl: 'objects.php', debugUrl: '', assetType: 'objects' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>

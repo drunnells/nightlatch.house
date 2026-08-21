@@ -7,6 +7,7 @@ $payload = nightlatch_object_payload(array(
     'title' => 'Puzzle Box',
     'slug' => 'puzzle-box',
     'description' => 'A portable puzzle.',
+    'player_description' => 'An ornate box with a stubborn lid.',
     'status' => 'development',
     'background_asset' => '../assets/graphics/objects/demo-object.svg',
     'background_prompt' => '',
@@ -16,7 +17,8 @@ $payload = nightlatch_object_payload(array(
     'updated_at' => '2026-08-19 12:00:00',
 ));
 
-if ($payload['id'] !== 7 || $payload['portable'] !== true || $payload['inventoryKey'] !== 'puzzle_box') {
+if ($payload['id'] !== 7 || $payload['portable'] !== true || $payload['inventoryKey'] !== 'puzzle_box'
+    || $payload['playerDescription'] !== 'An ornate box with a stubborn lid.') {
     fwrite(STDERR, "Object metadata was not normalized correctly.\n");
     exit(1);
 }

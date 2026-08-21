@@ -5,6 +5,7 @@
     var room = initialRoom;
     var rooms = Array.isArray(window.NL_DEBUG_ROOMS) && window.NL_DEBUG_ROOMS.length ? window.NL_DEBUG_ROOMS : [initialRoom];
     var objects = Array.isArray(window.NL_DEBUG_OBJECTS) ? window.NL_DEBUG_OBJECTS : [];
+    var sounds = Array.isArray(window.NL_DEBUG_SOUNDS) ? window.NL_DEBUG_SOUNDS : [];
     var topology = window.NL_DEBUG_TOPOLOGY || { clusters: [], nodes: [], connections: [], gateways: [] };
     var objectBySlug = {};
     var roomById = {};
@@ -13,6 +14,7 @@
     var clusterByRoomId = {};
     var connectionByExit = {};
     var gatewayByRoomId = {};
+    var soundBySlug = {};
     var regions = room.data.regions || [];
     var state;
     var activeObject = null;
@@ -24,8 +26,10 @@
     var roomImage = document.getElementById('room-image');
     var objectModalBody = document.getElementById('object-modal-body');
     var objectCanvas = document.getElementById('object-play-canvas');
+    var soundPlayer = document.getElementById('debug-sound-player');
 
     objects.forEach(function (object) { objectBySlug[object.slug] = object; });
+    sounds.forEach(function (sound) { soundBySlug[sound.slug] = sound; });
     rooms.forEach(function (candidate) {
         roomById[String(candidate.id)] = candidate;
         roomBySlug[candidate.slug] = candidate;
@@ -85,13 +89,18 @@
     }
 
     function reset() {
-        state = { flags: {}, items: {}, unlockedDoors: {}, overlays: {}, gatewayAssignments: {}, clusterGatewayReturns: {} };
+        state = { flags: {}, items: {}, unlockedDoors: {}, overlays: {}, descriptions: {}, gatewayAssignments: {}, clusterGatewayReturns: {} };
         rooms.forEach(function (candidate) {
             (candidate.data.regions || []).forEach(function (region) {
                 if (region.kind === 'door' && region.door && region.door.unlocked) state.unlockedDoors[region.id] = true;
             });
         });
         navigationStack = [];
+        soundPlayer.pause();
+        soundPlayer.removeAttribute('src');
+        document.getElementById('room-description-card').hidden = true;
+        document.getElementById('object-description-card').hidden = true;
+        $('#toggle-room-description, #toggle-object-description').attr('aria-expanded', 'false');
         closeObject(false);
         closeInventory();
         setActiveRoom(initialRoom, '');
@@ -100,6 +109,43 @@
     }
 
     function esc(value) { return $('<div>').text(value === undefined || value === null ? '' : value).html(); }
+
+    function contentDescription(kind, content) {
+        if (!content) return '';
+        var key = window.NLRoomRules.descriptionKey(kind, content.slug);
+        return Object.prototype.hasOwnProperty.call(state.descriptions, key) ? state.descriptions[key] : (content.playerDescription || '');
+    }
+
+    function renderDescriptions() {
+        $('#room-player-description').text(contentDescription('room', room) || 'No player description has been authored for this room.');
+        $('#object-player-description').text(contentDescription('object', activeObject) || 'No player description has been authored for this object.');
+    }
+
+    function setDescriptionOpen(kind, open) {
+        var isObjectDescription = kind === 'object';
+        var card = document.getElementById(isObjectDescription ? 'object-description-card' : 'room-description-card');
+        var button = $(isObjectDescription ? '#toggle-object-description' : '#toggle-room-description');
+        if (isObjectDescription && !activeObject) return;
+        renderDescriptions();
+        card.hidden = !open;
+        button.attr('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function playEvaluationSounds(evaluation) {
+        (evaluation && evaluation.effects && evaluation.effects.sounds || []).forEach(function (slug) {
+            var sound = soundBySlug[slug];
+            if (!sound || !sound.assetUrl) {
+                logEvent('Sound: ' + slug, false, 'The selected sound is unavailable in this debugger.', 'audio');
+                return;
+            }
+            soundPlayer.pause();
+            soundPlayer.src = sound.assetUrl;
+            soundPlayer.currentTime = 0;
+            soundPlayer.play().catch(function () {
+                logEvent('Sound: ' + sound.name, false, 'The browser could not play this sound.', 'audio');
+            });
+        });
+    }
 
     function resolveRoomTarget(target) {
         var key = String(target === undefined || target === null ? '' : target).trim();
@@ -152,6 +198,7 @@
         ensureGatewayAssignments(room);
         closeObject(false);
         closeInventory();
+        setDescriptionOpen('room', false);
         $('#debug-room-title').text(room.title);
         $('#debug-room-slug').text(room.slug);
         $('#debug-editor-link').attr('href', 'room-edit.php?id=' + room.id);
@@ -310,6 +357,7 @@
         renderRoomOverlays();
         renderObjectOverlays();
         renderInventory();
+        renderDescriptions();
     }
 
     function findRoomRegion(id) {
@@ -357,12 +405,14 @@
         if (!object) return false;
         activeObject = object;
         closeInventory();
+        setDescriptionOpen('object', false);
         $('#object-modal-title').text(object.title);
         $('#object-image').attr('src', object.backgroundAsset).attr('alt', object.title);
         objectSvg.setAttribute('viewBox', '0 0 ' + object.data.canvas.width + ' ' + object.data.canvas.height);
         objectCanvas.style.aspectRatio = object.data.canvas.width + ' / ' + object.data.canvas.height;
         renderRegionSvg(objectSvg, object.data.regions || []);
         renderObjectOverlays();
+        renderDescriptions();
         document.getElementById('object-modal').hidden = false;
         document.body.classList.add('object-modal-open');
         window.requestAnimationFrame(function () {
@@ -378,6 +428,8 @@
         var title = activeObject.title;
         activeObject = null;
         document.getElementById('object-modal').hidden = true;
+        document.getElementById('object-description-card').hidden = true;
+        $('#toggle-object-description').attr('aria-expanded', 'false');
         document.body.classList.remove('object-modal-open');
         $('#object-player-message').removeClass('visible');
         playCanvas.focus();
@@ -396,6 +448,7 @@
 
     function clickRoomRegion(region) {
         var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id });
+        playEvaluationSounds(evaluation);
         var pass = evaluation.conditionMatched;
         var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
         var destination = null;
@@ -432,6 +485,7 @@
         renderState();
         renderRoomOverlays();
         renderInventory();
+        renderDescriptions();
         var openedObject = false;
         if (evaluation.effects.examineObjects.length) {
             var objectSlug = evaluation.effects.examineObjects[0];
@@ -450,11 +504,13 @@
         if (!activeObject) return;
         var object = activeObject;
         var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id, overlayKey: objectOverlayKey(object, region) });
+        playEvaluationSounds(evaluation);
         var pass = evaluation.conditionMatched;
         var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
         renderState();
         renderObjectOverlays();
         renderInventory();
+        renderDescriptions();
         showMessage(message);
         logEvent(region.name, pass, message, object.title, evaluation);
     }
@@ -474,6 +530,9 @@
     $('#close-inventory').on('click', closeInventory);
     $('#inventory-objects').on('click', '.inventory-object', function () { openObject($(this).attr('data-object-slug'), 'inventory'); });
     $('#close-object, [data-close-object]').on('click', function () { closeObject(true); });
+    $('#toggle-room-description').on('click', function () { setDescriptionOpen('room', $(this).attr('aria-expanded') !== 'true'); });
+    $('#toggle-object-description').on('click', function () { setDescriptionOpen('object', $(this).attr('aria-expanded') !== 'true'); });
+    $('[data-close-description]').on('click', function () { setDescriptionOpen($(this).attr('data-close-description'), false); });
     $(document).on('keydown', function (event) {
         if (event.key !== 'Escape') return;
         if (activeObject) closeObject(true); else closeInventory();

@@ -77,6 +77,12 @@
             normalized.key = action.key || '';
         }
         if (normalized.type === 'examine_object') normalized.objectSlug = action.objectSlug || '';
+        if (normalized.type === 'set_description') {
+            normalized.targetKind = action.targetKind === 'object' ? 'object' : 'room';
+            normalized.targetSlug = action.targetSlug || '';
+            normalized.text = action.text || '';
+        }
+        if (normalized.type === 'play_sound') normalized.soundSlug = action.soundSlug || '';
         return normalized;
     }
 
@@ -202,13 +208,20 @@
         state.items = state.items || {};
         state.overlays = state.overlays || {};
         state.unlockedDoors = state.unlockedDoors || {};
+        state.descriptions = state.descriptions || {};
         return state;
+    }
+
+    function descriptionKey(kind, slug) {
+        kind = kind === 'object' ? 'object' : 'room';
+        slug = String(slug || '').trim();
+        return slug ? kind + ':' + slug : '';
     }
 
     function applyActions(actions, state, options) {
         options = options || {};
         state = ensureState(state || {});
-        var result = { messages: [], examineObjects: [], applied: [] };
+        var result = { messages: [], examineObjects: [], sounds: [], applied: [] };
         (actions || []).forEach(function (rawAction) {
             var action = normalizeAction(rawAction);
             var overlayKey = options.overlayKey || options.regionId;
@@ -221,6 +234,11 @@
             if (action.type === 'remove_item' && action.key) delete state.items[action.key];
             if (action.type === 'unlock_door' && options.regionId && options.regionKind === 'door') state.unlockedDoors[options.regionId] = true;
             if (action.type === 'examine_object' && action.objectSlug) result.examineObjects.push(action.objectSlug);
+            if (action.type === 'set_description') {
+                var targetKey = descriptionKey(action.targetKind, action.targetSlug);
+                if (targetKey) state.descriptions[targetKey] = action.text;
+            }
+            if (action.type === 'play_sound' && action.soundSlug) result.sounds.push(action.soundSlug);
             result.applied.push(action.type);
         });
         result.message = result.messages.join('\n');
@@ -300,6 +318,7 @@
         normalizeExpression: normalizeExpression,
         normalizeAction: normalizeAction,
         normalizeLogic: normalizeLogic,
+        descriptionKey: descriptionKey,
         conditionPasses: conditionPasses,
         conditionTrace: conditionTrace,
         evaluateRegion: evaluateRegion,

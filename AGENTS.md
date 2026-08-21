@@ -74,13 +74,14 @@ The S3 config shape currently includes:
 
 - A room contains a background asset, canvas dimensions, and clickable rectangular regions expressed in the room canvas coordinate system.
 - An object is first-class interactive content with close-up artwork, canvas dimensions, and clickable regions using the same declarative rule semantics as rooms.
+- Rooms and objects store a player-facing description separately from designer notes. Debug play hides that description behind an eye control, and session results may replace a selected room or object's description by stable slug.
 - Objects may be room-bound or portable. Portable objects use a stable inventory key, appear in the debug inventory while owned, and can be examined from there.
 - A successful room result may open an object viewer. In debug play, the viewer is a closable modal nested over the room canvas and sized to 80% of the displayed room image's width and height.
 - A region may be an interaction or a door/exit.
 - Version 2 region data stores a `logic` object containing ordered `IF` / `ELSE IF` branches and final `ELSE` results. The first matching branch runs.
 - Conditions are recursive groups that match `all` (AND) or `any` (OR) child conditions. They may inspect string-valued flags or inventory ownership and may be nested at most three group levels deep.
 - An empty condition group is an unconditional match. Blank condition keys must not pass at runtime.
-- Branch results are ordered actions. Supported actions show player messages, show/replace or clear the region overlay, set or clear flags, grant or remove items, unlock a door, or open an object viewer.
+- Branch results are ordered actions. Supported actions show player messages, show/replace or clear the region overlay, set or clear flags, grant or remove items, unlock a door, open an object viewer, replace a selected room/object player description, or play a selected saved sound.
 - Overlay removal is explicit: `clear_overlay` deletes the current region-scoped overlay. A new overlay replaces the previous overlay for that region.
 - Each `set_overlay` result owns its asset and optional generation prompt so overlays may be uploaded or generated independently in IF, ELSE IF, or ELSE branches.
 - Each region keeps an `overlayLibrary` of up to 100 previously linked, uploaded, or generated overlays so authors can visually reuse the same artwork across branches without duplicating files.
@@ -116,8 +117,9 @@ The S3 config shape currently includes:
 ## Local Asset Storage
 
 - Draft room backgrounds and overlays live under `assets/graphics/rooms`; object images and overlays live under `assets/graphics/objects`.
-- The web-server user must have write access to the `generated` and `uploads` directories under both asset roots.
-- Keep generated and uploaded room/object files out of git while retaining the tracked `.gitkeep` files.
+- Uploaded sound-library files live under `assets/sounds/uploads`; their names, stable slugs, MIME types, and paths are stored in MySQL.
+- The web-server user must have write access to the `generated` and `uploads` directories under both image asset roots and to `assets/sounds/uploads`.
+- Keep generated and uploaded room/object files and uploaded sounds out of git while retaining the tracked `.gitkeep` files.
 - Do not solve write-permission problems with world-writable permissions. Prefer an appropriate web-server group, group write access, setgid directories, and the required SELinux writable-content context where applicable.
 - Treat uploaded and selected image paths as untrusted input. Validate MIME types, constrain local path resolution to the applicable room/object asset directory, and reject traversal outside it.
 
@@ -156,6 +158,8 @@ The S3 config shape currently includes:
   - `php tests/content-variables.test.php`
   - `php tests/map-topology.test.php`
   - `php tests/map-editor-render.test.php`
+  - `php tests/sound-library.test.php`
+  - `php tests/sounds-editor-render.test.php`
   - `node tests/room-rules.test.js`
 - Run `node --check` on changed browser JavaScript files.
 - Run `git diff --check` before handing off changes.

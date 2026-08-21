@@ -22,10 +22,15 @@ if (strpos($styles, '.object-modal { position: absolute;') === false
 }
 $debugScript = file_get_contents(dirname(__DIR__) . '/assets/js/play-debug.js');
 if (strpos($debugMarkup, 'id="back-room"') === false
+    || strpos($debugMarkup, 'id="toggle-room-description"') === false
+    || strpos($debugMarkup, 'id="toggle-object-description"') === false
+    || strpos($debugMarkup, 'window.NL_DEBUG_SOUNDS') === false
     || strpos($debugMarkup, 'window.NL_DEBUG_ROOMS') === false
     || $debugScript === false
     || strpos($debugScript, 'navigateToRoom') === false
-    || strpos($debugScript, 'returnToPreviousRoom') === false) {
+    || strpos($debugScript, 'returnToPreviousRoom') === false
+    || strpos($debugScript, 'playEvaluationSounds') === false
+    || strpos($debugScript, 'renderDescriptions') === false) {
     fwrite(STDERR, "Debug room traversal and return navigation are incomplete.\n");
     exit(1);
 }

@@ -15,6 +15,7 @@ $requiredIds = array(
     'region-layer',
     'object-portable',
     'inventory-key',
+    'player-description',
     'save-room',
     'region-logic-editor',
     'open-object-crop',
@@ -60,12 +61,15 @@ if (strpos($logicScript, 'logic-add-branch') === false
     || strpos($logicScript, 'logic-inventory-picker') === false
     || strpos($logicScript, "searchPicker('flag'") === false
     || strpos($logicScript, "searchPicker('object'") === false
+    || strpos($logicScript, "searchPicker('description_target'") === false
+    || strpos($logicScript, "searchPicker('sound'") === false
     || strpos($logicScript, 'overlay-library-toggle') === false) {
     fwrite(STDERR, "Object editor is missing multi-branch logic controls.\n");
     exit(1);
 }
 if (strpos($objectEditorMarkup, 'json_encode($objectOptions') === false
     || strpos($objectEditorMarkup, 'window.NL_EDITOR_FLAGS') === false
+    || strpos($objectEditorMarkup, 'window.NL_EDITOR_SOUNDS') === false
     || strpos($editorScript, 'fresh.overlayLibrary') === false
     || strpos($editorScript, 'window.NLImageAreaEditorBridge') === false
     || strpos($imageEditScript, "fetch('api/gemini-edit-background-region.php'") === false

@@ -357,7 +357,7 @@
     function markDirty() {
         $('#save-indicator').html('<i class="fa-solid fa-circle"></i> Unsaved changes').addClass('dirty');
     }
-    $('#room-title, #room-slug, #room-description, #room-status, #gemini-prompt, #object-portable, #inventory-key').on('input change', markDirty);
+    $('#room-title, #room-slug, #room-description, #player-description, #room-status, #gemini-prompt, #object-portable, #inventory-key').on('input change', markDirty);
 
     $('#room-gateway-enabled').on('change', function () {
         if (!roomClusterId && this.checked) {
@@ -401,6 +401,7 @@
             title: $('#room-title').val().trim(),
             slug: $('#room-slug').val().trim(),
             description: $('#room-description').val(),
+            playerDescription: $('#player-description').val(),
             status: $('#room-status').val(),
             backgroundAsset: image.getAttribute('src'),
             backgroundPrompt: $('#gemini-prompt').val(),
@@ -507,6 +508,8 @@
         isObject: isObject,
         objects: window.NL_EDITOR_OBJECTS || [],
         flags: window.NL_EDITOR_FLAGS || [],
+        rooms: window.NL_EDITOR_ROOMS || [],
+        sounds: window.NL_EDITOR_SOUNDS || [],
         onChange: markDirty,
         notify: toast,
         uploadOverlay: uploadAssetPromise,

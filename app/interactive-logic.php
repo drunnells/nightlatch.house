@@ -66,7 +66,7 @@ function nightlatch_validate_logic_actions($actions, $contentKind, $regionKind)
     if (count($actions) > 25) {
         throw new RuntimeException('A logic branch may contain at most 25 results.');
     }
-    $allowed = array('message', 'set_overlay', 'clear_overlay', 'set_flag', 'clear_flag', 'grant_item', 'remove_item', 'unlock_door', 'examine_object');
+    $allowed = array('message', 'set_overlay', 'clear_overlay', 'set_flag', 'clear_flag', 'grant_item', 'remove_item', 'unlock_door', 'examine_object', 'set_description', 'play_sound');
     foreach ($actions as $action) {
         if (!is_array($action)) {
             throw new RuntimeException('Every branch result must be an object.');
@@ -92,6 +92,15 @@ function nightlatch_validate_logic_actions($actions, $contentKind, $regionKind)
                 throw new RuntimeException('Only room regions may open another object.');
             }
             nightlatch_logic_string(isset($action['objectSlug']) ? $action['objectSlug'] : '', 190, 'Object slug');
+        } elseif ($type === 'set_description') {
+            $targetKind = isset($action['targetKind']) ? $action['targetKind'] : '';
+            if (!in_array($targetKind, array('room', 'object'), true)) {
+                throw new RuntimeException('Description results must target a room or object.');
+            }
+            nightlatch_logic_string(isset($action['targetSlug']) ? $action['targetSlug'] : '', 190, 'Description target slug');
+            nightlatch_logic_string(isset($action['text']) ? $action['text'] : '', 8000, 'Player description');
+        } elseif ($type === 'play_sound') {
+            nightlatch_logic_string(isset($action['soundSlug']) ? $action['soundSlug'] : '', 190, 'Sound slug');
         }
     }
 }

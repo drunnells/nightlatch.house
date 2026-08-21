@@ -5,7 +5,7 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
 ## Local setup
 
 1. Copy `config/config.example.php` to the private `config/config.php` and fill in local MySQL and Gemini values.
-2. Apply `database/updates/001_admin_room_creator.sql`, `database/updates/002_interactive_objects.sql`, and `database/updates/003_room_clusters_and_gateways.sql` in order to the configured database.
+2. Apply `database/updates/001_admin_room_creator.sql`, `database/updates/002_interactive_objects.sql`, `database/updates/003_room_clusters_and_gateways.sql`, and `database/updates/004_player_descriptions_and_sounds.sql` in order to the configured database.
 3. Create the first admin account:
 
    ```bash
@@ -16,7 +16,7 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
 
 The real `config/config.php` must remain private and untracked. Room uploads and Gemini-generated drafts are also ignored by git; the checked-in demo SVG is only an editor placeholder.
 
-Region overlay generation requires PHP's GD extension. The web-server user must be able to write the `generated` and `uploads` directories under both `assets/graphics/rooms` and `assets/graphics/objects`.
+Region overlay generation requires PHP's GD extension. The web-server user must be able to write the `generated` and `uploads` directories under both `assets/graphics/rooms` and `assets/graphics/objects`, plus `assets/sounds/uploads`.
 
 Gemini-generated backgrounds and overlays are stored as progressive JPEGs at quality 80 with a maximum width of 1024 pixels. Uploaded assets retain their original format so transparent PNG overlays remain supported.
 
@@ -26,7 +26,7 @@ Each room is stored as a graph node with a lifecycle status (`development`, `sta
 
 - ordered `IF` / `ELSE IF` branches, with a final `ELSE` branch;
 - nested condition groups that match `ALL` (AND) or `ANY` (OR) flag and inventory checks;
-- ordered results for messages, overlays, flags, inventory, door unlocking, and object examination;
+- ordered results for messages, overlays, flags, inventory, door unlocking, object examination, player-description changes, and sound playback;
 - compatibility door metadata mirrored from the canonical cluster map.
 
 The first matching branch runs. An empty condition group is an unconditional branch. Overlay results may show or replace an overlay, upload or generate branch-specific artwork, reuse a visual from that region's overlay library, or explicitly remove the region's existing overlay. Inventory checks, flag keys, and object-examination targets use searchable pickers while continuing to save stable keys/slugs. New flag names can be created from the picker, and the top-level **Flags** catalog shows every saved room/object region that reads, sets, or clears each flag. Legacy single-condition `condition` / `success` / `failure` data is normalized into the branch format when opened and is written as version 2 room or object data on the next save.
@@ -40,6 +40,10 @@ A room may be marked as a **Gateway room**. Its selected Gateway exit regions do
 The Room editor uses the same topology through a searchable target picker labeled by room and cluster. Direct room targets remain available for static exits in the same cluster; cross-cluster exits must be configured as Gateways.
 
 The debug player lets a designer change flags and items, choose the room's arrival door, traverse canonical connections, use named behind-you and Gateway returns, and inspect the event log. It displays randomized Gateway assignments in the runtime inspector and preserves them until **Reset state**, which starts a fresh debug session and rerolls the assignments.
+
+Rooms and objects keep player-facing descriptions separate from private designer notes. In debug play, an eye control reveals the current description. Interaction results may replace a selected room or object's description for the current session, allowing state changes such as lighting a fireplace to change what the player reads.
+
+The top-level **Sounds** tab stores reusable MP3, WAV, OGG, M4A, and WebM audio. Authors may upload up to 50 files at once, rename and preview them, then select their stable slugs from a **Play sound** result in either room or object logic. Uploaded audio lives under `assets/sounds/uploads` and is ignored by git apart from its tracked `.gitkeep`.
 
 ## Interactive objects and inventory
 

@@ -7,3 +7,5 @@ assets/graphics/objects/uploads/*
 assets/graphics/objects/generated/*
 !assets/graphics/objects/uploads/.gitkeep
 !assets/graphics/objects/generated/.gitkeep
+assets/sounds/uploads/*
+!assets/sounds/uploads/.gitkeep

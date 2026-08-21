@@ -28,6 +28,8 @@ $data = array(
                 'actions' => array(
                     array('id' => 'overlay', 'type' => 'set_overlay', 'asset' => '../painting-open.png', 'prompt' => ''),
                     array('id' => 'flag', 'type' => 'set_flag', 'key' => 'painting_open', 'value' => 'yes'),
+                    array('id' => 'description', 'type' => 'set_description', 'targetKind' => 'room', 'targetSlug' => 'foyer', 'text' => 'Firelight warms the room.'),
+                    array('id' => 'sound', 'type' => 'play_sound', 'soundSlug' => 'fireplace-lighting'),
                 ),
             )),
             'elseActions' => array(array('id' => 'clear', 'type' => 'clear_overlay')),
@@ -36,6 +38,16 @@ $data = array(
 );
 
 nightlatch_validate_interactive_data($data, 'room');
+
+$invalid = $data;
+$invalid['regions'][0]['logic']['branches'][0]['actions'][] = array('type' => 'set_description', 'targetKind' => 'painting', 'targetSlug' => 'foyer', 'text' => 'Invalid target.');
+try {
+    nightlatch_validate_interactive_data($invalid, 'room');
+    fwrite(STDERR, "A description result accepted an invalid content type.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
 
 $invalid = $data;
 $invalid['regions'][0]['logic']['branches'][0]['when']['match'] = 'sometimes';

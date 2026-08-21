@@ -130,6 +130,43 @@
             }, entries);
         }
 
+        function descriptionTargetPicker(selectedKind, selectedSlug) {
+            var selected = selectedSlug ? (selectedKind === 'object' ? 'object:' : 'room:') + selectedSlug : '';
+            var entries = [];
+            (options.rooms || []).forEach(function (room) {
+                entries.push({
+                    value: 'room:' + room.slug,
+                    label: room.title,
+                    detail: 'Room · ' + room.slug + (room.clusterName ? ' · ' + room.clusterName : ''),
+                    search: 'room ' + room.title + ' ' + room.slug + ' ' + (room.clusterName || '')
+                });
+            });
+            (options.objects || []).forEach(function (object) {
+                entries.push({
+                    value: 'object:' + object.slug,
+                    label: object.title,
+                    detail: 'Object · ' + object.slug,
+                    search: 'object ' + object.title + ' ' + object.slug
+                });
+            });
+            return searchPicker('description_target', selected, {
+                placeholder: 'Choose a room or object', customLabel: 'Unavailable content', searchHint: 'Search rooms and objects', emptyDetail: 'No saved content available',
+                searchPlaceholder: 'Search rooms and objects', clearLabel: 'No description target', clearDetail: 'Clear this target',
+                emptyHelp: 'Save a room or object before selecting its player description.'
+            }, entries);
+        }
+
+        function soundPicker(selected) {
+            var entries = (options.sounds || []).map(function (sound) {
+                return { value: sound.slug, label: sound.name, detail: sound.slug, search: sound.name + ' ' + sound.slug + ' ' + (sound.originalFilename || '') };
+            });
+            return searchPicker('sound', selected, {
+                placeholder: 'Choose a sound', customLabel: 'Unavailable sound', searchHint: 'Search by name or slug', emptyDetail: 'No saved sounds available',
+                searchPlaceholder: 'Search sounds', clearLabel: 'No sound selected', clearDetail: 'Clear this sound',
+                emptyHelp: 'Upload sounds from the top-level Sounds tab before selecting one here.'
+            }, entries);
+        }
+
         function addOverlayToLibrary(asset, prompt, source) {
             if (!region || !asset || !String(asset).trim()) return;
             asset = String(asset).trim();
@@ -232,7 +269,9 @@
                 ['set_flag', 'Set flag'],
                 ['clear_flag', 'Clear flag'],
                 ['grant_item', 'Grant item'],
-                ['remove_item', 'Remove item']
+                ['remove_item', 'Remove item'],
+                ['set_description', 'Change player description'],
+                ['play_sound', 'Play sound']
             ];
             if (region && region.kind === 'door') types.push(['unlock_door', 'Unlock this door']);
             if (!options.isObject) types.push(['examine_object', 'Open object viewer']);
@@ -262,6 +301,8 @@
             if (action.type === 'grant_item' || action.type === 'remove_item') return '<label>Inventory object</label>' + inventoryPicker(action.key);
             if (action.type === 'unlock_door') return '<p class="logic-action-note"><i class="fa-solid fa-lock-open"></i> Unlocks this door for the current play session.</p>';
             if (action.type === 'examine_object') return '<label>Object to examine</label>' + objectPicker(action.objectSlug) + '<p class="hint">The object opens over the room after this branch runs.</p>';
+            if (action.type === 'set_description') return '<label>Room or object</label>' + descriptionTargetPicker(action.targetKind, action.targetSlug) + '<label>New player description</label><textarea class="logic-action-field" data-field="text" rows="4" maxlength="8000" placeholder="Describe what the player now sees.">' + esc(action.text) + '</textarea>';
+            if (action.type === 'play_sound') return '<label>Sound</label>' + soundPicker(action.soundSlug) + '<p class="logic-action-note"><i class="fa-solid fa-volume-high"></i> Plays the selected sound when this result runs.</p>';
             return '<p class="logic-action-note">This action type is not supported by this editor.</p>';
         }
 
@@ -393,6 +434,12 @@
                 var action = findAction(actionElement.data('branch-id'), actionElement.data('action-id'));
                 if (!action) return;
                 if (pickerType === 'object') action.objectSlug = value;
+                else if (pickerType === 'description_target') {
+                    var separator = value.indexOf(':');
+                    action.targetKind = separator > 0 && value.slice(0, separator) === 'object' ? 'object' : 'room';
+                    action.targetSlug = separator > 0 ? value.slice(separator + 1) : '';
+                }
+                else if (pickerType === 'sound') action.soundSlug = value;
                 else action.key = value;
             }
             changed(); render();

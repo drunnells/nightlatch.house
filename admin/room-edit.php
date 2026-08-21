@@ -2,6 +2,7 @@
 require dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/content-variables.php';
 require_once dirname(__DIR__) . '/app/map-topology.php';
+require_once dirname(__DIR__) . '/app/sounds.php';
 nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -10,6 +11,7 @@ $room = array(
     'title' => 'Untitled room',
     'slug' => '',
     'description' => '',
+    'playerDescription' => '',
     'status' => 'development',
     'backgroundAsset' => '../assets/graphics/rooms/demo-room.svg',
     'backgroundPrompt' => '',
@@ -24,6 +26,7 @@ $error = '';
 $objectOptions = array();
 $flagOptions = array();
 $roomOptions = array();
+$soundOptions = array();
 $clusterOptions = array();
 $roomClusterId = 0;
 $roomGateway = array('enabled' => false, 'roomId' => $id, 'destinationCount' => 1, 'exitRegionIds' => array(), 'candidateClusterIds' => array());
@@ -49,6 +52,11 @@ try {
     $flagOptions = nightlatch_flag_catalog();
 } catch (Throwable $exception) {
     $flagOptions = array();
+}
+try {
+    $soundOptions = nightlatch_sound_catalog(nightlatch_db());
+} catch (Throwable $exception) {
+    $soundOptions = array();
 }
 try {
     $topology = nightlatch_load_topology(nightlatch_db(), true);
@@ -127,6 +135,7 @@ require __DIR__ . '/_header.php';
             <div class="sidebar-heading"><div><span class="eyebrow">Node details</span><h2>Room settings</h2></div></div>
             <label for="room-title">Room title</label><input id="room-title" value="<?php echo nightlatch_h($room['title']); ?>">
             <label for="room-slug">Slug</label><input id="room-slug" value="<?php echo nightlatch_h($room['slug']); ?>" placeholder="created-from-title">
+            <label for="player-description">Player description</label><textarea id="player-description" rows="5" placeholder="A dark, lonely room."><?php echo nightlatch_h($room['playerDescription']); ?></textarea><p class="hint">Hidden during play until the player chooses the eye control. Results may replace this text for the current session.</p>
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="6"><?php echo nightlatch_h($room['description']); ?></textarea>
             <label for="room-status">Lifecycle</label><select id="room-status"><option value="development"<?php echo $room['status'] === 'development' ? ' selected' : ''; ?>>Development · local draft</option><option value="staging" disabled<?php echo $room['status'] === 'staging' ? ' selected' : ''; ?>>Staging · S3 publishing required</option><option value="production" disabled<?php echo $room['status'] === 'production' ? ' selected' : ''; ?>>Production · S3 publishing required</option></select>
             <p class="hint">This first pass authors local development rooms. Staging and production will be enabled with the S3 publishing workflow.</p>
@@ -178,7 +187,7 @@ require __DIR__ . '/_header.php';
     </aside>
 </div>
 <?php require __DIR__ . '/_image-area-editor.php'; ?>
-<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOMS = <?php echo json_encode($roomOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CLUSTERS = <?php echo json_encode($clusterOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_GATEWAY = <?php echo json_encode($roomGateway, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOM_CLUSTER_ID = <?php echo json_encode($roomClusterId); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOMS = <?php echo json_encode($roomOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_SOUNDS = <?php echo json_encode($soundOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CLUSTERS = <?php echo json_encode($clusterOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_GATEWAY = <?php echo json_encode($roomGateway, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOM_CLUSTER_ID = <?php echo json_encode($roomClusterId); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>

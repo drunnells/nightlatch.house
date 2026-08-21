@@ -12,7 +12,7 @@ try {
 } catch (PDOException $exception) {
     $message = $exception->getCode() === '23000'
         ? 'The map conflicts with an existing cluster, room, or door connection.'
-        : 'The map could not be saved. Confirm that database update 003 has been applied.';
+        : 'The map could not be saved. Confirm that database updates 003, 004, and 005 have been applied.';
     nightlatch_json(array('ok' => false, 'error' => $message), 500);
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 422);

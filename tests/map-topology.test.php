@@ -11,10 +11,10 @@ function topology_room($id, $title, $slug, $doorIds)
     return array('id' => $id, 'title' => $title, 'slug' => $slug, 'data' => array('version' => 2, 'regions' => $regions));
 }
 
-function topology_rejects($topology, $rooms, $message)
+function topology_rejects($topology, $rooms, $message, $sounds = null)
 {
     try {
-        nightlatch_validate_topology($topology, $rooms);
+        nightlatch_validate_topology($topology, $rooms, $sounds);
         fwrite(STDERR, $message . "\n");
         exit(1);
     } catch (RuntimeException $exception) {
@@ -29,10 +29,11 @@ $rooms = array(
     topology_room(4, 'Cellar', 'cellar', array('cellar-return')),
     topology_room(5, 'Palm Hall', 'palm-hall', array('palm-west')),
 );
+$sounds = array(array('id' => 9, 'name' => 'Cold wind'));
 
 $topology = array(
     'clusters' => array(
-        array('id' => 'cluster-main', 'name' => 'Main House', 'slug' => 'main-house', 'entryRoomId' => 1, 'gatewayReturnMode' => 'behind', 'gatewayReturnRegionId' => '', 'isStart' => true),
+        array('id' => 'cluster-main', 'name' => 'Main House', 'slug' => 'main-house', 'ambientSoundId' => 9, 'ambientVolume' => 42, 'entryRoomId' => 1, 'gatewayReturnMode' => 'behind', 'gatewayReturnRegionId' => '', 'isStart' => true),
         array('id' => 'cluster-glass', 'name' => 'Glass Wing', 'slug' => 'glass-wing', 'entryRoomId' => 3, 'gatewayReturnMode' => 'door', 'gatewayReturnRegionId' => 'conservatory-return', 'isStart' => false),
         array('id' => 'cluster-cellar', 'name' => 'Cellar', 'slug' => 'cellar', 'entryRoomId' => 4, 'gatewayReturnMode' => 'behind', 'gatewayReturnRegionId' => '', 'isStart' => false),
     ),
@@ -52,9 +53,13 @@ $topology = array(
     ),
 );
 
-$normalized = nightlatch_validate_topology($topology, $rooms);
+$normalized = nightlatch_validate_topology($topology, $rooms, $sounds);
 if (count($normalized['clusters']) !== 3 || count($normalized['connections']) !== 2 || $normalized['gateways'][0]['destinationCount'] !== 2) {
     fwrite(STDERR, "Valid map topology was not normalized correctly.\n");
+    exit(1);
+}
+if ($normalized['clusters'][0]['ambientSoundId'] !== '9' || $normalized['clusters'][0]['ambientVolume'] !== 42 || $normalized['clusters'][1]['ambientVolume'] !== 35) {
+    fwrite(STDERR, "Cluster ambient audio was not normalized correctly.\n");
     exit(1);
 }
 
@@ -69,7 +74,7 @@ foreach ($savedTopology['nodes'] as &$node) {
 }
 unset($node);
 $savedTopology['gateways'][0]['candidateClusterIds'] = array(2, 3);
-$savedNormalized = nightlatch_validate_topology($savedTopology, $rooms);
+$savedNormalized = nightlatch_validate_topology($savedTopology, $rooms, $sounds);
 if ($savedNormalized['clusters'][0]['id'] !== '1' || $savedNormalized['nodes'][0]['clusterId'] !== '1') {
     fwrite(STDERR, "Saved numeric cluster identifiers were not normalized correctly.\n");
     exit(1);
@@ -78,6 +83,14 @@ if ($savedNormalized['clusters'][0]['id'] !== '1' || $savedNormalized['nodes'][0
 $invalid = $topology;
 $invalid['clusters'][1]['entryRoomId'] = 2;
 topology_rejects($invalid, $rooms, 'A cluster accepted an entry room from another cluster.');
+
+$invalid = $topology;
+$invalid['clusters'][0]['ambientSoundId'] = 99;
+topology_rejects($invalid, $rooms, 'A cluster accepted an ambient sound that no longer exists.', $sounds);
+
+$invalid = $topology;
+$invalid['clusters'][0]['ambientVolume'] = 101;
+topology_rejects($invalid, $rooms, 'A cluster accepted ambient volume above 100.', $sounds);
 
 $invalid = $topology;
 $invalid['connections'][0]['targetRoomId'] = 3;

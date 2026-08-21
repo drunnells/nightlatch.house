@@ -5,7 +5,7 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
 ## Local setup
 
 1. Copy `config/config.example.php` to the private `config/config.php` and fill in local MySQL and Gemini values.
-2. Apply `database/updates/001_admin_room_creator.sql`, `database/updates/002_interactive_objects.sql`, `database/updates/003_room_clusters_and_gateways.sql`, and `database/updates/004_player_descriptions_and_sounds.sql` in order to the configured database.
+2. Apply `database/updates/001_admin_room_creator.sql`, `database/updates/002_interactive_objects.sql`, `database/updates/003_room_clusters_and_gateways.sql`, `database/updates/004_player_descriptions_and_sounds.sql`, and `database/updates/005_cluster_ambient_audio.sql` in order to the configured database.
 3. Create the first admin account:
 
    ```bash
@@ -33,13 +33,13 @@ The first matching branch runs. An empty condition group is an unconditional bra
 
 ## Clusters, connections, and Gateways
 
-The top-level **Map** tab is the source of truth for authored room topology. Rooms are arranged into clusters and connected by dragging saved Door / exit regions onto destination room nodes. Static connections remain inside one cluster and specify one of three return behaviors: a paired destination door, a contextual behind-you control, or an explicit one-way passage. Every cluster identifies an entry room and the return behavior used when a Gateway enters that cluster.
+The top-level **Map** tab is the source of truth for authored room topology. Rooms are arranged into clusters and connected by dragging saved Door / exit regions onto destination room nodes. Static connections remain inside one cluster and specify one of three return behaviors: a paired destination door, a contextual behind-you control, or an explicit one-way passage. Every cluster identifies an entry room and the return behavior used when a Gateway enters that cluster. A cluster can also select a saved sound as looping ambience and set its volume from 0 to 100 percent.
 
 A room may be marked as a **Gateway room**. Its selected Gateway exit regions do not have static room targets. Instead, the author chooses an eligible pool of destination clusters and the number of distinct destinations to select. The runtime shuffles both the chosen clusters and available exits on first entry to the Gateway room, then keeps those assignments stable for that play session. The editor refuses to save a Gateway with fewer eligible clusters or Gateway Door / exit regions than its configured destination count.
 
 The Room editor uses the same topology through a searchable target picker labeled by room and cluster. Direct room targets remain available for static exits in the same cluster; cross-cluster exits must be configured as Gateways.
 
-The debug player lets a designer change flags and items, choose the room's arrival door, traverse canonical connections, use named behind-you and Gateway returns, and inspect the event log. It displays randomized Gateway assignments in the runtime inspector and preserves them until **Reset state**, which starts a fresh debug session and rerolls the assignments.
+The debug player lets a designer change flags and items, choose the room's arrival door, traverse canonical connections, use named behind-you and Gateway returns, and inspect the event log. It displays randomized Gateway assignments in the runtime inspector and preserves them until **Reset state**, which starts a fresh debug session and rerolls the assignments. Cluster ambience loops on a dedicated channel, continues between rooms in the same cluster, and changes or stops when travel enters a different cluster.
 
 Rooms and objects keep player-facing descriptions separate from private designer notes. In debug play, an eye control reveals the current description. Interaction results may replace a selected room or object's description for the current session, allowing state changes such as lighting a fireplace to change what the player reads.
 

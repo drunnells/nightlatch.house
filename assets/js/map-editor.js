@@ -7,6 +7,13 @@
     state.nodes = Array.isArray(state.nodes) ? state.nodes : [];
     state.connections = Array.isArray(state.connections) ? state.connections : [];
     state.gateways = Array.isArray(state.gateways) ? state.gateways : [];
+    var sounds = Array.isArray(window.NL_MAP_SOUNDS) ? window.NL_MAP_SOUNDS : [];
+    var soundById = {};
+    sounds.forEach(function (sound) { soundById[String(sound.id)] = sound; });
+    state.clusters.forEach(function (cluster) {
+        if (cluster.ambientSoundId === undefined || cluster.ambientSoundId === null) cluster.ambientSoundId = '';
+        if (cluster.ambientVolume === undefined || cluster.ambientVolume === null) cluster.ambientVolume = 35;
+    });
     var activeClusterId = state.clusters.length ? String(state.clusters[0].id) : '';
     var selectedRoomId = '';
     var draggedExit = null;
@@ -51,6 +58,36 @@
         return state.nodes.filter(function (node) { return id(node.clusterId) === id(clusterId); });
     }
 
+    function renderAmbientSoundOptions(query) {
+        var cluster = activeCluster();
+        if (!cluster) return;
+        query = String(query || '').trim().toLowerCase();
+        var selectedId = id(cluster.ambientSoundId);
+        var html = '<button type="button" class="logic-picker-option map-sound-option" data-sound-id=""><span><strong>No ambient sound</strong><small>Silence in this cluster</small></span>' + (!selectedId ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+        var matches = sounds.filter(function (sound) {
+            return !query || String(sound.name + ' ' + sound.slug + ' ' + (sound.originalFilename || '')).toLowerCase().indexOf(query) !== -1;
+        });
+        matches.forEach(function (sound) {
+            html += '<button type="button" class="logic-picker-option map-sound-option" data-sound-id="' + esc(sound.id) + '"><span><strong>' + esc(sound.name) + '</strong><small>' + esc(sound.slug) + '</small></span>' + (selectedId === id(sound.id) ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+        });
+        if (!matches.length) html += '<p class="logic-picker-empty">' + (sounds.length ? 'No sounds match that search.' : 'Upload sounds from the Sounds tab first.') + '</p>';
+        $('#cluster-ambient-sound-options').html(html);
+    }
+
+    function renderAmbientSoundPicker() {
+        var cluster = activeCluster();
+        if (!cluster) return;
+        var sound = soundById[id(cluster.ambientSoundId)] || null;
+        var selectedId = id(cluster.ambientSoundId);
+        $('#cluster-ambient-sound').val(selectedId);
+        $('#cluster-ambient-sound-name').text(sound ? sound.name : (selectedId ? 'Unavailable sound' : 'No ambient sound'));
+        $('#cluster-ambient-sound-detail').text(sound ? sound.slug : (selectedId ? 'Saved sound #' + selectedId : 'Silence in this cluster'));
+        $('#cluster-ambient-sound-search').val('');
+        $('#cluster-ambient-sound-picker').removeClass('open');
+        $('#cluster-ambient-sound-toggle').attr('aria-expanded', 'false');
+        renderAmbientSoundOptions('');
+    }
+
     function renderClusterList() {
         var html = '';
         state.clusters.forEach(function (cluster) {
@@ -70,6 +107,12 @@
         $('#cluster-name').val(cluster.name);
         $('#cluster-slug').val(cluster.slug);
         $('#cluster-description').val(cluster.description || '');
+        renderAmbientSoundPicker();
+        var ambientVolume = Math.max(0, Math.min(100, parseInt(cluster.ambientVolume, 10)));
+        if (isNaN(ambientVolume)) ambientVolume = 35;
+        cluster.ambientVolume = ambientVolume;
+        $('#cluster-ambient-volume').val(ambientVolume);
+        $('#cluster-ambient-volume-value').text(ambientVolume + '%');
         $('#cluster-start').prop('checked', !!cluster.isStart);
         $('#cluster-return-mode').val(cluster.gatewayReturnMode || 'behind');
         var nodes = clusterNodes(cluster.id);
@@ -301,7 +344,7 @@
     $('#add-cluster').on('click', function () {
         var sequence = state.clusters.length + 1;
         var name = 'New cluster ' + sequence;
-        var cluster = { id: 'new-' + Date.now().toString(36), name: name, slug: slug(name), description: '', entryRoomId: '', gatewayReturnMode: 'behind', gatewayReturnRegionId: '', isStart: state.clusters.length === 0 };
+        var cluster = { id: 'new-' + Date.now().toString(36), name: name, slug: slug(name), description: '', ambientSoundId: '', ambientVolume: 35, entryRoomId: '', gatewayReturnMode: 'behind', gatewayReturnRegionId: '', isStart: state.clusters.length === 0 };
         state.clusters.push(cluster);
         activeClusterId = id(cluster.id);
         selectedRoomId = '';
@@ -341,6 +384,38 @@
     $('#cluster-name').on('change', function () {
         var cluster = activeCluster();
         if (cluster && !cluster.slug) { cluster.slug = slug(cluster.name); $('#cluster-slug').val(cluster.slug); }
+    });
+    $('#cluster-ambient-sound-toggle').on('click', function () {
+        var picker = $('#cluster-ambient-sound-picker');
+        var open = !picker.hasClass('open');
+        picker.toggleClass('open', open);
+        $(this).attr('aria-expanded', open ? 'true' : 'false');
+        if (open) {
+            $('#cluster-ambient-sound-search').val('');
+            renderAmbientSoundOptions('');
+            $('#cluster-ambient-sound-search').focus();
+        }
+    });
+    $('#cluster-ambient-sound-search').on('input', function () { renderAmbientSoundOptions($(this).val()); });
+    $('#cluster-ambient-sound-options').on('click', '.map-sound-option', function () {
+        var cluster = activeCluster();
+        if (!cluster) return;
+        cluster.ambientSoundId = id($(this).data('sound-id'));
+        markDirty();
+        renderAmbientSoundPicker();
+    });
+    $('#cluster-ambient-volume').on('input change', function () {
+        var cluster = activeCluster();
+        if (!cluster) return;
+        var volume = Math.max(0, Math.min(100, parseInt($(this).val(), 10) || 0));
+        cluster.ambientVolume = volume;
+        $('#cluster-ambient-volume-value').text(volume + '%');
+        markDirty();
+    });
+    $(document).on('click', function (event) {
+        if ($(event.target).closest('#cluster-ambient-sound-picker').length) return;
+        $('#cluster-ambient-sound-picker').removeClass('open');
+        $('#cluster-ambient-sound-toggle').attr('aria-expanded', 'false');
     });
     $('#cluster-start').on('change', function () {
         var cluster = activeCluster();

@@ -91,6 +91,12 @@ try {
             $title = $referencingRoom ? $referencingRoom['title'] : $referencingObject['title'];
             throw new RuntimeException('Remove this sound from the saved logic for “' . $title . '” before deleting it.');
         }
+        $clusterReference = $pdo->prepare('SELECT name FROM room_clusters WHERE ambient_sound_id = ? LIMIT 1');
+        $clusterReference->execute(array($id));
+        $referencingCluster = $clusterReference->fetch();
+        if ($referencingCluster) {
+            throw new RuntimeException('Remove this sound from the ambient audio for cluster “' . $referencingCluster['name'] . '” before deleting it.');
+        }
         $pdo->prepare('DELETE FROM sounds WHERE id = ?')->execute(array($id));
         $localPath = nightlatch_sound_local_path($sound['asset_path']);
         if ($localPath !== '' && is_file($localPath)) @unlink($localPath);
@@ -99,7 +105,7 @@ try {
 
     throw new RuntimeException('Unsupported sound library action.');
 } catch (PDOException $exception) {
-    nightlatch_json(array('ok' => false, 'error' => 'The sound library could not be updated. Confirm that database update 004 has been applied.'), 500);
+    nightlatch_json(array('ok' => false, 'error' => 'The sound library could not be updated. Confirm that database updates 004 and 005 have been applied.'), 500);
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);
 }

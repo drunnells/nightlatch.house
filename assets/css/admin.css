@@ -564,6 +564,10 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .map-mini-empty p { margin: 9px 0 0; font-size: 10px; }
 .map-settings { margin-top: 20px; padding-top: 17px; border-top: 1px solid var(--line); }
 .map-settings label, .map-inspector label { margin-top: 12px; }
+.map-sound-picker .logic-picker-search { margin: 0; }
+.map-volume-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.map-volume-label output { color: var(--gold-light); font-family: monospace; font-size: 10px; }
+#cluster-ambient-volume { height: 24px; padding: 0; accent-color: var(--gold); }
 .map-check { margin-top: 15px !important; padding: 9px; border: 1px solid #3b463f; background: #141a16; }
 .map-add-room { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .map-add-room > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }

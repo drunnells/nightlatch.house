@@ -1,14 +1,17 @@
 <?php
 require dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/map-topology.php';
+require_once dirname(__DIR__) . '/app/sounds.php';
 nightlatch_require_admin();
 
 $topology = array('rooms' => array(), 'clusters' => array(), 'nodes' => array(), 'connections' => array(), 'gateways' => array());
+$sounds = array();
 $error = '';
+$soundError = '';
 try {
     $topology = nightlatch_load_topology(nightlatch_db(), true);
 } catch (Throwable $exception) {
-    $error = 'The map data could not be loaded. Apply database/updates/003_room_clusters_and_gateways.sql, then reload this page.';
+    $error = 'The map data could not be loaded. Apply database updates 003 and 005, then reload this page.';
     try {
         $roomRows = nightlatch_db()->query('SELECT * FROM rooms ORDER BY title')->fetchAll();
         foreach ($roomRows as $row) {
@@ -18,6 +21,11 @@ try {
         // The Rooms page provides the base-schema troubleshooting path.
     }
 }
+try {
+    $sounds = nightlatch_sound_catalog(nightlatch_db());
+} catch (Throwable $exception) {
+    $soundError = 'Ambient sounds could not be loaded. Apply database update 004, then reload this page.';
+}
 
 $pageTitle = 'Map · Nightlatch Room Forge';
 require __DIR__ . '/_header.php';
@@ -26,12 +34,25 @@ require __DIR__ . '/_header.php';
     <aside class="map-sidebar">
         <div class="map-panel-heading"><div><span class="eyebrow">House graph</span><h1>Clusters</h1></div><button type="button" class="icon-button gold" id="add-cluster" title="Create cluster"><i class="fa-solid fa-plus"></i></button></div>
         <?php if ($error): ?><div class="nl-alert compact"><?php echo nightlatch_h($error); ?></div><?php endif; ?>
+        <?php if ($soundError): ?><div class="nl-alert compact"><?php echo nightlatch_h($soundError); ?></div><?php endif; ?>
         <div id="cluster-list" class="cluster-list"></div>
         <section id="cluster-settings" class="map-settings" hidden>
             <div class="map-section-heading"><h2>Cluster settings</h2><button type="button" class="icon-button danger" id="delete-cluster" title="Delete cluster"><i class="fa-solid fa-trash"></i></button></div>
             <label for="cluster-name">Name</label><input id="cluster-name" placeholder="East Wing">
             <label for="cluster-slug">Slug</label><input id="cluster-slug" placeholder="east-wing">
             <label for="cluster-description">Designer notes</label><textarea id="cluster-description" rows="3"></textarea>
+            <label for="cluster-ambient-sound">Ambient sound</label>
+            <div class="logic-inventory-picker map-sound-picker" id="cluster-ambient-sound-picker">
+                <input type="hidden" id="cluster-ambient-sound" value="">
+                <button type="button" class="logic-picker-toggle" id="cluster-ambient-sound-toggle" aria-haspopup="listbox" aria-expanded="false"><span><strong id="cluster-ambient-sound-name">No ambient sound</strong><small id="cluster-ambient-sound-detail">Silence in this cluster</small></span><i class="fa-solid fa-chevron-down"></i></button>
+                <div class="logic-picker-menu">
+                    <label class="logic-picker-search" for="cluster-ambient-sound-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="cluster-ambient-sound-search" placeholder="Search sounds by name or slug"></label>
+                    <div class="logic-picker-options" id="cluster-ambient-sound-options" role="listbox"></div>
+                </div>
+            </div>
+            <label class="map-volume-label" for="cluster-ambient-volume"><span>Ambient volume</span><output id="cluster-ambient-volume-value" for="cluster-ambient-volume">35%</output></label>
+            <input type="range" id="cluster-ambient-volume" min="0" max="100" step="1" value="35">
+            <p class="hint">The selected sound loops while the player explores this cluster. Sound effects continue on their own audio channel.</p>
             <label class="check-row map-check"><input type="checkbox" id="cluster-start"><span>Starting cluster</span></label>
             <label for="cluster-entry-room">Entry room</label><select id="cluster-entry-room"></select>
             <label for="cluster-return-mode">Gateway return</label><select id="cluster-return-mode"><option value="behind">Behind-you control</option><option value="door">Entry-room door region</option></select>
@@ -79,6 +100,6 @@ require __DIR__ . '/_header.php';
         </div>
     </aside>
 </div>
-<script>window.NL_MAP_BOOTSTRAP = <?php echo json_encode($topology, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
+<script>window.NL_MAP_BOOTSTRAP = <?php echo json_encode($topology, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_MAP_SOUNDS = <?php echo json_encode($sounds, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/map-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

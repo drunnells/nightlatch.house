@@ -101,6 +101,7 @@ require __DIR__ . '/_header.php';
     </aside>
 </div>
 <audio id="debug-sound-player" preload="none"></audio>
+<audio id="debug-ambient-player" preload="auto" loop></audio>
 <script>window.NL_DEBUG_ROOM = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_ROOMS = <?php echo json_encode($rooms, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_OBJECTS = <?php echo json_encode($objects, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_SOUNDS = <?php echo json_encode($sounds, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_DEBUG_TOPOLOGY = <?php echo json_encode($topology, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/play-debug.js')); ?>"></script>

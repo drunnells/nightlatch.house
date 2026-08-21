@@ -70,7 +70,7 @@ function nightlatch_topology_room_index($rooms)
     return $index;
 }
 
-function nightlatch_validate_topology($topology, $rooms)
+function nightlatch_validate_topology($topology, $rooms, $sounds = null)
 {
     if (!is_array($topology)) {
         throw new RuntimeException('Map topology must be an object.');
@@ -80,6 +80,15 @@ function nightlatch_validate_topology($topology, $rooms)
     $nodes = isset($topology['nodes']) && is_array($topology['nodes']) ? $topology['nodes'] : array();
     $connections = isset($topology['connections']) && is_array($topology['connections']) ? $topology['connections'] : array();
     $gateways = isset($topology['gateways']) && is_array($topology['gateways']) ? $topology['gateways'] : array();
+    $soundIndex = null;
+    if (is_array($sounds)) {
+        $soundIndex = array();
+        foreach ($sounds as $sound) {
+            if (!is_array($sound)) continue;
+            $soundId = nightlatch_topology_id(isset($sound['id']) ? $sound['id'] : '');
+            if ($soundId !== '') $soundIndex[$soundId] = true;
+        }
+    }
 
     if (count($clusters) > 250 || count($nodes) > 2000 || count($connections) > 5000 || count($gateways) > 250) {
         throw new RuntimeException('The map exceeds the supported authoring limits.');
@@ -107,6 +116,18 @@ function nightlatch_validate_topology($topology, $rooms)
         if (strlen($name) > 160 || strlen($slug) > 190) {
             throw new RuntimeException('A cluster name or slug is too long.');
         }
+        $ambientSoundId = nightlatch_topology_id(isset($cluster['ambientSoundId']) ? $cluster['ambientSoundId'] : '');
+        if ($ambientSoundId !== '' && (!ctype_digit($ambientSoundId) || (int) $ambientSoundId < 1)) {
+            throw new RuntimeException('Cluster “' . $name . '” has an invalid ambient sound.');
+        }
+        if ($ambientSoundId !== '' && is_array($soundIndex) && !isset($soundIndex[$ambientSoundId])) {
+            throw new RuntimeException('The ambient sound selected for cluster “' . $name . '” no longer exists.');
+        }
+        $ambientVolumeValue = isset($cluster['ambientVolume']) ? $cluster['ambientVolume'] : 35;
+        $ambientVolume = filter_var($ambientVolumeValue, FILTER_VALIDATE_INT);
+        if ($ambientVolume === false || $ambientVolume < 0 || $ambientVolume > 100) {
+            throw new RuntimeException('The ambient volume for cluster “' . $name . '” must be between 0 and 100.');
+        }
         $returnMode = isset($cluster['gatewayReturnMode']) ? $cluster['gatewayReturnMode'] : 'behind';
         if (!in_array($returnMode, array('behind', 'door'), true)) {
             throw new RuntimeException('A cluster Gateway return must use a door region or a behind-you control.');
@@ -119,6 +140,8 @@ function nightlatch_validate_topology($topology, $rooms)
             'name' => $name,
             'slug' => $slug,
             'description' => isset($cluster['description']) ? trim((string) $cluster['description']) : '',
+            'ambientSoundId' => $ambientSoundId,
+            'ambientVolume' => (int) $ambientVolume,
             'entryRoomId' => nightlatch_topology_id(isset($cluster['entryRoomId']) ? $cluster['entryRoomId'] : ''),
             'gatewayReturnMode' => $returnMode,
             'gatewayReturnRegionId' => nightlatch_topology_id(isset($cluster['gatewayReturnRegionId']) ? $cluster['gatewayReturnRegionId'] : ''),
@@ -318,6 +341,8 @@ function nightlatch_load_topology(PDO $pdo, $includeLegacyConnections)
             'name' => $row['name'],
             'slug' => $row['slug'],
             'description' => $row['description'],
+            'ambientSoundId' => isset($row['ambient_sound_id']) && $row['ambient_sound_id'] !== null ? (int) $row['ambient_sound_id'] : '',
+            'ambientVolume' => isset($row['ambient_volume']) ? (int) $row['ambient_volume'] : 35,
             'entryRoomId' => (int) $row['entry_room_id'],
             'gatewayReturnMode' => $row['gateway_return_mode'],
             'gatewayReturnRegionId' => $row['gateway_return_region_id'],
@@ -522,7 +547,8 @@ function nightlatch_persist_topology(PDO $pdo, $topology, $adminId)
     foreach ($roomRows as $row) {
         $rooms[] = nightlatch_room_payload($row);
     }
-    $topology = nightlatch_validate_topology($topology, $rooms);
+    $soundRows = $pdo->query('SELECT id FROM sounds')->fetchAll();
+    $topology = nightlatch_validate_topology($topology, $rooms, $soundRows);
     $ownsTransaction = !$pdo->inTransaction();
     if ($ownsTransaction) {
         $pdo->beginTransaction();
@@ -537,12 +563,12 @@ function nightlatch_persist_topology(PDO $pdo, $topology, $adminId)
         foreach ($topology['clusters'] as $cluster) {
             $clientId = (string) $cluster['id'];
             if (isset($existingIds[$clientId])) {
-                $stmt = $pdo->prepare('UPDATE room_clusters SET name = ?, slug = ?, description = ?, entry_room_id = ?, gateway_return_mode = ?, gateway_return_region_id = ?, is_start = ?, updated_by = ? WHERE id = ?');
-                $stmt->execute(array($cluster['name'], $cluster['slug'], $cluster['description'], (int) $cluster['entryRoomId'], $cluster['gatewayReturnMode'], $cluster['gatewayReturnRegionId'] ?: null, $cluster['isStart'] ? 1 : 0, $adminId, (int) $clientId));
+                $stmt = $pdo->prepare('UPDATE room_clusters SET name = ?, slug = ?, description = ?, ambient_sound_id = ?, ambient_volume = ?, entry_room_id = ?, gateway_return_mode = ?, gateway_return_region_id = ?, is_start = ?, updated_by = ? WHERE id = ?');
+                $stmt->execute(array($cluster['name'], $cluster['slug'], $cluster['description'], $cluster['ambientSoundId'] !== '' ? (int) $cluster['ambientSoundId'] : null, $cluster['ambientVolume'], (int) $cluster['entryRoomId'], $cluster['gatewayReturnMode'], $cluster['gatewayReturnRegionId'] ?: null, $cluster['isStart'] ? 1 : 0, $adminId, (int) $clientId));
                 $databaseId = (int) $clientId;
             } else {
-                $stmt = $pdo->prepare('INSERT INTO room_clusters (name, slug, description, entry_room_id, gateway_return_mode, gateway_return_region_id, is_start, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-                $stmt->execute(array($cluster['name'], $cluster['slug'], $cluster['description'], (int) $cluster['entryRoomId'], $cluster['gatewayReturnMode'], $cluster['gatewayReturnRegionId'] ?: null, $cluster['isStart'] ? 1 : 0, $adminId, $adminId));
+                $stmt = $pdo->prepare('INSERT INTO room_clusters (name, slug, description, ambient_sound_id, ambient_volume, entry_room_id, gateway_return_mode, gateway_return_region_id, is_start, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt->execute(array($cluster['name'], $cluster['slug'], $cluster['description'], $cluster['ambientSoundId'] !== '' ? (int) $cluster['ambientSoundId'] : null, $cluster['ambientVolume'], (int) $cluster['entryRoomId'], $cluster['gatewayReturnMode'], $cluster['gatewayReturnRegionId'] ?: null, $cluster['isStart'] ? 1 : 0, $adminId, $adminId));
                 $databaseId = (int) $pdo->lastInsertId();
             }
             $clusterIdMap[$clientId] = $databaseId;

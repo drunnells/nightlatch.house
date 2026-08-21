@@ -14,6 +14,7 @@
     var clusterByRoomId = {};
     var connectionByExit = {};
     var gatewayByRoomId = {};
+    var soundById = {};
     var soundBySlug = {};
     var regions = room.data.regions || [];
     var state;
@@ -27,9 +28,14 @@
     var objectModalBody = document.getElementById('object-modal-body');
     var objectCanvas = document.getElementById('object-play-canvas');
     var soundPlayer = document.getElementById('debug-sound-player');
+    var ambientPlayer = document.getElementById('debug-ambient-player');
+    var ambientPending = false;
 
     objects.forEach(function (object) { objectBySlug[object.slug] = object; });
-    sounds.forEach(function (sound) { soundBySlug[sound.slug] = sound; });
+    sounds.forEach(function (sound) {
+        soundById[String(sound.id)] = sound;
+        soundBySlug[sound.slug] = sound;
+    });
     rooms.forEach(function (candidate) {
         roomById[String(candidate.id)] = candidate;
         roomBySlug[candidate.slug] = candidate;
@@ -98,6 +104,7 @@
         navigationStack = [];
         soundPlayer.pause();
         soundPlayer.removeAttribute('src');
+        stopAmbientSound();
         document.getElementById('room-description-card').hidden = true;
         document.getElementById('object-description-card').hidden = true;
         $('#toggle-room-description, #toggle-object-description').attr('aria-expanded', 'false');
@@ -145,6 +152,60 @@
                 logEvent('Sound: ' + sound.name, false, 'The browser could not play this sound.', 'audio');
             });
         });
+    }
+
+    function stopAmbientSound() {
+        ambientPending = false;
+        ambientPlayer.pause();
+        ambientPlayer.removeAttribute('src');
+        ambientPlayer.removeAttribute('data-sound-id');
+    }
+
+    function tryPlayAmbientSound() {
+        if (!ambientPlayer.getAttribute('src')) return;
+        var expectedSoundId = ambientPlayer.getAttribute('data-sound-id');
+        var playPromise;
+        try {
+            playPromise = ambientPlayer.play();
+        } catch (_error) {
+            ambientPending = true;
+            return;
+        }
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.then(function () {
+                if (ambientPlayer.getAttribute('data-sound-id') === expectedSoundId) ambientPending = false;
+            }).catch(function () {
+                if (ambientPlayer.getAttribute('data-sound-id') === expectedSoundId) ambientPending = true;
+            });
+        } else {
+            ambientPending = false;
+        }
+    }
+
+    function syncAmbientSound(candidateRoom) {
+        var clusterId = clusterByRoomId[String(candidateRoom.id)];
+        var cluster = clusterById[clusterId] || null;
+        var soundId = cluster && cluster.ambientSoundId ? String(cluster.ambientSoundId) : '';
+        var sound = soundId ? soundById[soundId] : null;
+        if (!sound || !sound.assetUrl) {
+            stopAmbientSound();
+            return;
+        }
+        var volume = parseInt(cluster.ambientVolume, 10);
+        if (isNaN(volume)) volume = 35;
+        ambientPlayer.volume = Math.max(0, Math.min(100, volume)) / 100;
+        ambientPlayer.loop = true;
+        if (ambientPlayer.getAttribute('data-sound-id') !== soundId) {
+            ambientPlayer.pause();
+            ambientPlayer.src = sound.assetUrl;
+            ambientPlayer.setAttribute('data-sound-id', soundId);
+            ambientPlayer.currentTime = 0;
+        }
+        if (ambientPlayer.paused) tryPlayAmbientSound();
+    }
+
+    function resumePendingAmbientSound() {
+        if (ambientPending && ambientPlayer.getAttribute('src')) tryPlayAmbientSound();
     }
 
     function resolveRoomTarget(target) {
@@ -195,6 +256,7 @@
         if (!nextRoom) return;
         room = nextRoom;
         regions = room.data.regions || [];
+        syncAmbientSound(room);
         ensureGatewayAssignments(room);
         closeObject(false);
         closeInventory();
@@ -534,9 +596,11 @@
     $('#toggle-object-description').on('click', function () { setDescriptionOpen('object', $(this).attr('aria-expanded') !== 'true'); });
     $('[data-close-description]').on('click', function () { setDescriptionOpen($(this).attr('data-close-description'), false); });
     $(document).on('keydown', function (event) {
+        resumePendingAmbientSound();
         if (event.key !== 'Escape') return;
         if (activeObject) closeObject(true); else closeInventory();
     });
+    document.addEventListener('pointerdown', resumePendingAmbientSound, true);
 
     $('[data-add-state]').on('click', function () {
         var type = $(this).data('add-state');

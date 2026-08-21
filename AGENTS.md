@@ -57,6 +57,7 @@ The S3 config shape currently includes:
 - The admin tool should allow CRUD operations for rooms, inspectable objects, inventory metadata, and the data needed to assemble rooms into playable maps.
 - Rooms are grouped into clusters. Connections inside a cluster are authored statically through the top-level Map editor.
 - Every cluster has one entry room and a Gateway return behavior: either a persistent behind-you control or a selected Door / exit region in the entry room.
+- Each cluster may select one saved sound-library asset as looping ambient audio and stores its playback volume from 0 to 100.
 - A Gateway room owns a finite set of Gateway exit regions, an eligible pool of destination clusters, and a destination count. On first entry during a play-through, distinct clusters are randomly paired with shuffled Gateway exits and that assignment remains stable for the run.
 - Static connections stay inside a cluster. Cross-cluster travel uses Gateway assignments to enter the selected cluster's entry room.
 - A future player game run should persist current location, arrival context, and Gateway assignments. Anonymous runs may use an opaque browser/server token; signed-in runs should attach to the player's Firebase identity without making assignments global to every run owned by that player.
@@ -96,6 +97,7 @@ The S3 config shape currently includes:
 - A player may always use the paired door or behind-you path through which they arrived unless the connection is one-way; other exits must be unlocked before use.
 - Keep room and object rules declarative in saved content data so the editor debugger and eventual player can use the same semantics.
 - The debug-play page is an authoring tool. It should fit the complete room into the available viewport, traverse canonical static connections, present named behind-you and Gateway return controls, keep randomized Gateway assignments stable until reset, and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, arrival behavior, Gateway assignments, and the event log.
+- Debug-play ambience uses a dedicated looping audio player so interaction sound effects do not interrupt it. It continues between rooms in the same cluster and changes or stops when the active cluster changes.
 
 ## Generated Image Workflow
 

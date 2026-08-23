@@ -278,6 +278,24 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .overlay-preview { display: none; width: 100%; max-height: 150px; margin-top: 9px; object-fit: contain; border: 1px solid var(--line); background: #080b0c; }
 .overlay-preview.visible { display: block; }
 .region-logic-editor { margin: 20px -8px 0; }
+.logic-behavior-manager { margin: 0 8px 12px; padding: 9px; border: 1px solid #3b443d; background: #101514; }
+.logic-behavior-heading, .logic-behavior-trigger-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.logic-behavior-heading > div { min-width: 0; }
+.logic-behavior-heading strong, .logic-behavior-trigger-heading strong { display: block; color: #d8d3c6; font-family: Cinzel, serif; font-size: 11px; }
+.logic-behavior-heading small { display: block; margin-top: 2px; color: #74807d; font-size: 8px; line-height: 1.4; }
+.logic-behavior-heading .btn-ghost { min-height: 28px; flex: 0 0 auto; padding: 5px 7px; font-size: 8px; }
+.logic-behavior-tabs { display: grid; gap: 5px; margin-top: 8px; }
+.logic-behavior-tab { width: 100%; min-height: 43px; padding: 7px 8px; display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 6px; color: #9ba6a3; text-align: left; border: 1px solid #303b39; background: #0b1011; cursor: pointer; }
+.logic-behavior-tab:hover, .logic-behavior-tab.active { color: var(--gold-light); border-color: #746636; background: #181912; }
+.logic-behavior-tab > i { color: #8b7c46; font-size: 10px; text-align: center; }
+.logic-behavior-tab strong, .logic-behavior-tab small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logic-behavior-tab strong { font-size: 9px; }
+.logic-behavior-tab small { margin-top: 2px; color: #71807d; font-size: 8px; }
+.logic-behavior-trigger { margin: 0 8px 12px; padding: 10px; border: 1px solid #614d2f; background: #17150f; }
+.logic-behavior-trigger > label { margin-top: 9px; }
+.logic-behavior-trigger input, .logic-behavior-trigger select { font-size: 9px; }
+.logic-behavior-trigger .hint { margin-bottom: 0; }
+.logic-trigger-state { align-items: end; }
 .logic-editor-intro { display: flex; flex-direction: column; gap: 3px; margin: 0 8px 10px; }
 .logic-editor-intro strong { color: #d8d3c6; font-family: Cinzel, serif; font-size: 13px; }
 .logic-editor-intro small, .logic-branch-header small { color: #73807d; font-size: 9px; }

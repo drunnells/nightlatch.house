@@ -41,16 +41,37 @@ function nightlatch_collect_action_flag_keys($actions, &$uses)
     }
 }
 
+function nightlatch_collect_logic_flag_keys($logic, &$uses)
+{
+    if (!is_array($logic) || !isset($logic['branches']) || !is_array($logic['branches'])) {
+        return;
+    }
+    foreach ($logic['branches'] as $branch) {
+        if (!is_array($branch)) continue;
+        nightlatch_collect_condition_flag_keys(isset($branch['when']) ? $branch['when'] : array(), $uses);
+        nightlatch_collect_action_flag_keys(isset($branch['actions']) ? $branch['actions'] : array(), $uses);
+    }
+    nightlatch_collect_action_flag_keys(isset($logic['elseActions']) ? $logic['elseActions'] : array(), $uses);
+}
+
 function nightlatch_region_flag_uses($region)
 {
     $uses = array();
     if (isset($region['logic']['branches']) && is_array($region['logic']['branches'])) {
-        foreach ($region['logic']['branches'] as $branch) {
-            if (!is_array($branch)) continue;
-            nightlatch_collect_condition_flag_keys(isset($branch['when']) ? $branch['when'] : array(), $uses);
-            nightlatch_collect_action_flag_keys(isset($branch['actions']) ? $branch['actions'] : array(), $uses);
+        nightlatch_collect_logic_flag_keys($region['logic'], $uses);
+        $automaticBehaviors = isset($region['automaticBehaviors']) && is_array($region['automaticBehaviors']) ? $region['automaticBehaviors'] : array();
+        foreach ($automaticBehaviors as $behavior) {
+            if (!is_array($behavior)) continue;
+            $trigger = isset($behavior['trigger']) && is_array($behavior['trigger']) ? $behavior['trigger'] : array();
+            if (isset($trigger['type'], $trigger['source']) && $trigger['type'] === 'state_change' && $trigger['source'] === 'flag') {
+                $key = trim(isset($trigger['key']) ? (string) $trigger['key'] : '');
+                if ($key !== '') {
+                    if (!isset($uses[$key])) $uses[$key] = array();
+                    $uses[$key]['trigger'] = true;
+                }
+            }
+            nightlatch_collect_logic_flag_keys(isset($behavior['logic']) ? $behavior['logic'] : array(), $uses);
         }
-        nightlatch_collect_action_flag_keys(isset($region['logic']['elseActions']) ? $region['logic']['elseActions'] : array(), $uses);
         return $uses;
     }
 

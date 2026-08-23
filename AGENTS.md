@@ -62,6 +62,14 @@ The S3 config shape currently includes:
 - Static connections stay inside a cluster. Cross-cluster travel uses Gateway assignments to enter the selected cluster's entry room.
 - A future player game run should persist current location, arrival context, and Gateway assignments. Anonymous runs may use an opaque browser/server token; signed-in runs should attach to the player's Firebase identity without making assignments global to every run owned by that player.
 
+## Narrative Planning Source
+
+- The current Obsidian Narrative Canvas project is `/Users/drunnells/Documents/Obsidian/NH - Master Story Map-2026-08-22 201543/NH - Master Story Map-2026-08-22 201543.ncanvas`.
+- Read the saved `.ncanvas` file directly when current story-map context is needed; an additional JSON export is unnecessary. Its serialized canvas data is nested under `project`, including `project.nodes` and `project.nodeTypes`.
+- Treat Narrative Canvas as planning input only. There is no automatic synchronization into the game, so transferring approved story, room, object, puzzle, or topology information remains a deliberate manual implementation step.
+- Read-only inspection is safe while Obsidian is open. Do not edit the `.ncanvas` file behind Obsidian because its autosave and external-change protection may create conflicts; make narrative changes through Narrative Canvas unless the user explicitly coordinates an offline file repair.
+- Narrative Canvas display labels and serialized identifiers differ for custom types. Use exact internal type IDs and `customFields` keys from `project.nodeTypes`; do not infer storage keys from author-facing labels.
+
 ## Identity and Authentication
 
 - Admin accounts are stored in MySQL and authenticated by the PHP admin application.
@@ -80,6 +88,10 @@ The S3 config shape currently includes:
 - A successful room result may open an object viewer. In debug play, the viewer is a closable modal nested over the room canvas and sized to 80% of the displayed room image's width and height.
 - A region may be an interaction or a door/exit.
 - Version 2 region data stores a `logic` object containing ordered `IF` / `ELSE IF` branches and final `ELSE` results. The first matching branch runs.
+- `logic` remains the region's player-click behavior. A region may also store up to 25 independent `automaticBehaviors`, each with its own name, trigger, and the same ordered branch logic.
+- Automatic behaviors may watch an actual change to one flag or inventory item. Room regions may also run when their room is entered, and object regions may run when their object viewer opens.
+- State-change results are coalesced per action list, unchanged values emit no event, and chained automatic behaviors run through a guarded deterministic queue. A remote behavior applies overlays and door state to its owning room/object-qualified region key.
+- Persistent automatic results may run for inactive content, but messages, sounds, and object viewers are presented only when the behavior's owning room or object is active.
 - Conditions are recursive groups that match `all` (AND) or `any` (OR) child conditions. They may inspect string-valued flags or inventory ownership and may be nested at most three group levels deep.
 - An empty condition group is an unconditional match. Blank condition keys must not pass at runtime.
 - Branch results are ordered actions. Supported actions show player messages, show/replace or clear the region overlay, set or clear flags, grant or remove items, unlock a door, open an object viewer, replace a selected room/object player description, or play a selected saved sound.
@@ -90,7 +102,7 @@ The S3 config shape currently includes:
 - Flag keys and object-examination targets use the same searchable picker pattern. New flag keys may be created from the flag picker; saved flag names and their room/object region associations are derived from content JSON in `app/content-variables.php` and shown in the top-level Flags catalog.
 - Legacy `condition` / `success` / `failure` regions must be normalized into the branch format when loaded and written as version 2 data on the next save.
 - Shared evaluation behavior belongs in `assets/js/room-rules.js`; shared admin rule-builder behavior belongs in `assets/js/logic-editor.js`; server-side shape and limit validation belongs in `app/interactive-logic.php`.
-- Current region rules run when the player clicks a region. Future room-entry or state-change triggers should reuse the same evaluator instead of creating separate condition semantics.
+- Click and automatic behaviors reuse the evaluator in `assets/js/room-rules.js`; do not create separate condition or result semantics for new trigger types.
 - Canonical room topology is stored separately from room interaction JSON. Legacy `door.targetRoom` values may be imported, and canonical topology is mirrored back into door metadata for compatibility.
 - Static door connections identify a source room/region, destination room, and return behavior. Returns may use a paired destination door, a contextual behind-you control, or an explicit one-way connection.
 - Gateway exits have no static target. They resolve through the current run's saved Gateway assignment and enter the destination cluster's configured entry room.

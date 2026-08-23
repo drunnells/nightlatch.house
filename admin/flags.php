@@ -18,7 +18,7 @@ require __DIR__ . '/_header.php';
 ?>
 <section class="page-wrap">
     <div class="page-heading">
-        <div><div class="eyebrow">Shared runtime state</div><h1>Flags</h1><p>Find reusable flag names and every saved room or object region that reads, sets, or clears them.</p></div>
+        <div><div class="eyebrow">Shared runtime state</div><h1>Flags</h1><p>Find reusable flag names and every saved room or object region that watches, reads, sets, or clears them.</p></div>
     </div>
     <?php if ($error): ?><div class="alert nl-alert"><?php echo nightlatch_h($error); ?></div><?php endif; ?>
     <div class="stats-grid flag-stats">
@@ -46,6 +46,7 @@ require __DIR__ . '/_header.php';
                             $isRoom = $reference['contentKind'] === 'room';
                             $editUrl = $isRoom ? 'room-edit.php?id=' . $reference['contentId'] : 'object-edit.php?id=' . $reference['contentId'];
                             $usageLabels = array_map(function ($usage) {
+                                if ($usage === 'trigger') return 'Watches';
                                 return $usage === 'condition' ? 'Reads' : ($usage === 'set' ? 'Sets' : 'Clears');
                             }, $reference['usages']);
                             ?>
@@ -57,7 +58,7 @@ require __DIR__ . '/_header.php';
         </div>
         <div class="flag-no-results" id="flag-no-results" hidden><i class="fa-solid fa-flag"></i><p>No saved flags match that search.</p></div>
     <?php elseif (!$error): ?>
-        <div class="empty-state"><div class="empty-icon"><i class="fa-regular fa-flag"></i></div><h2>No flags yet</h2><p>Add a flag condition or a set/clear flag result to a room or object region, then save it.</p></div>
+        <div class="empty-state"><div class="empty-icon"><i class="fa-regular fa-flag"></i></div><h2>No flags yet</h2><p>Add a flag trigger, condition, or set/clear result to a room or object region, then save it.</p></div>
     <?php endif; ?>
 </section>
 <?php if ($flags): ?><script src="<?php echo nightlatch_h(nightlatch_asset('js/flags.js')); ?>"></script><?php endif; ?>

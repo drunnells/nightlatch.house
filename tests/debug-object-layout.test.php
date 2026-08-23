@@ -31,6 +31,9 @@ if (strpos($debugMarkup, 'id="back-room"') === false
     || strpos($debugScript, 'navigateToRoom') === false
     || strpos($debugScript, 'returnToPreviousRoom') === false
     || strpos($debugScript, 'playEvaluationSounds') === false
+    || strpos($debugScript, 'dispatchStateChanges') === false
+    || strpos($debugScript, 'runActivationBehaviors') === false
+    || strpos($debugScript, 'maximumRuns: 100') === false
     || strpos($debugScript, 'syncAmbientSound') === false
     || strpos($debugScript, 'renderDescriptions') === false) {
     fwrite(STDERR, "Debug room traversal and return navigation are incomplete.\n");

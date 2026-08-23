@@ -124,6 +124,27 @@ var legacyLogic = rules.normalizeLogic({
 assert.strictEqual(legacyLogic.branches[0].actions.length, 3, 'legacy success fields become actions');
 assert.strictEqual(legacyLogic.elseActions[0].text, 'Legacy failure', 'legacy failure messages become ELSE actions');
 
+var automaticBehaviors = rules.normalizeAutomaticBehaviors({
+    automaticBehaviors: [{
+        id: 'behavior-generator',
+        name: 'Generator response',
+        trigger: { type: 'state_change', source: 'flag', key: 'generator_power' },
+        logic: {
+            branches: [{
+                when: { type: 'group', match: 'all', children: [{ type: 'condition', source: 'flag', key: 'generator_power', operator: 'equals', value: 'on' }] },
+                actions: [{ type: 'set_overlay', asset: '../generator-on.png' }]
+            }],
+            elseActions: [{ type: 'clear_overlay' }]
+        }
+    }]
+});
+assert.strictEqual(automaticBehaviors.length, 1, 'regions retain independently authored automatic behaviors');
+assert.strictEqual(automaticBehaviors[0].trigger.key, 'generator_power', 'state-change trigger keys are normalized');
+var automaticState = freshState();
+automaticState.flags.generator_power = 'on';
+rules.runLogic(automaticBehaviors[0].logic, automaticState, { overlayKey: 'room:boiler:generator' });
+assert.strictEqual(automaticState.overlays['room:boiler:generator'], '../generator-on.png', 'automatic logic can apply an overlay to its owning scoped region');
+
 var sequenceProbe = rules.defaultLogic();
 var nextSequence = parseInt(sequenceProbe.branches[0].when.id.split('-').pop(), 10) + 1;
 var loadedBranchId = 'branch-' + nextSequence;
@@ -161,6 +182,21 @@ assert.strictEqual(state.items.disposable, undefined);
 assert.deepStrictEqual(removalEffects.examineObjects, ['old-box']);
 assert.strictEqual(state.descriptions['room:foyer'], 'The fireplace casts long shadows.', 'description results replace player-facing text in session state');
 assert.deepStrictEqual(removalEffects.sounds, ['fireplace-lighting'], 'sound results report the selected sound for playback');
+assert.deepStrictEqual(removalEffects.changes.map(function (change) { return change.source + ':' + change.key; }), ['flag:temporary', 'item:disposable'], 'state-mutating results report changed flag and item keys');
+
+var unchangedState = freshState();
+unchangedState.flags.steady = 'yes';
+var unchangedEffects = rules.applyActions([{ type: 'set_flag', key: 'steady', value: 'yes' }], unchangedState);
+assert.strictEqual(unchangedEffects.changes.length, 0, 'setting an existing value does not emit a state-change event');
+var coalescedEffects = rules.applyActions([
+    { type: 'set_flag', key: 'temporary_transition', value: 'yes' },
+    { type: 'clear_flag', key: 'temporary_transition' }
+], unchangedState);
+assert.strictEqual(coalescedEffects.changes.length, 0, 'state changes that cancel within one result list are coalesced');
+
+var scopedDoorState = freshState();
+rules.applyActions([{ type: 'unlock_door' }], scopedDoorState, { regionId: 'exit', regionKind: 'door', doorKey: 'room:boiler:exit' });
+assert.strictEqual(rules.canExit({ id: 'exit', kind: 'door' }, scopedDoorState, '', 'room:boiler:exit'), true, 'door state may use a room-qualified region key');
 
 state.items.puzzle_box = '1';
 state.items.nonportable_prop = '1';

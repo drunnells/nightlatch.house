@@ -8,9 +8,11 @@
         var expandedGenerators = {};
         var expandedOverlayLibraries = {};
         var generationMessages = {};
+        var activeBehaviorId = 'click';
         var maxBranches = 10;
         var maxConditions = 25;
         var maxActions = 25;
+        var maxAutomaticBehaviors = 25;
 
         function esc(value) {
             return $('<div>').text(value === undefined || value === null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -22,6 +24,21 @@
 
         function changed() {
             if (options.onChange) options.onChange(region);
+        }
+
+        function activeBehavior() {
+            if (!region || activeBehaviorId === 'click') return null;
+            return (region.automaticBehaviors || []).find(function (behavior) { return behavior.id === activeBehaviorId; }) || null;
+        }
+
+        function activeLogic() {
+            var behavior = activeBehavior();
+            return behavior ? behavior.logic : (region ? region.logic : null);
+        }
+
+        function allLogics() {
+            if (!region) return [];
+            return [region.logic].concat((region.automaticBehaviors || []).map(function (behavior) { return behavior.logic; }));
         }
 
         function findNode(expression, id, parent, depth) {
@@ -36,12 +53,15 @@
         }
 
         function findBranch(id) {
-            if (!region || !region.logic) return null;
-            return region.logic.branches.find(function (branch) { return branch.id === id; }) || null;
+            var logic = activeLogic();
+            if (!logic) return null;
+            return logic.branches.find(function (branch) { return branch.id === id; }) || null;
         }
 
         function actionList(branchId) {
-            if (branchId === 'else') return region.logic.elseActions;
+            var logic = activeLogic();
+            if (!logic) return [];
+            if (branchId === 'else') return logic.elseActions;
             var branch = findBranch(branchId);
             return branch ? branch.actions : [];
         }
@@ -188,13 +208,15 @@
                 if (typeof entry === 'string') addOverlayToLibrary(entry, '', 'saved');
                 else if (entry && typeof entry === 'object') addOverlayToLibrary(entry.asset, entry.prompt, entry.source);
             });
-            region.logic.branches.forEach(function (branch) {
-                branch.actions.forEach(function (action) {
+            allLogics().forEach(function (logic) {
+                logic.branches.forEach(function (branch) {
+                    branch.actions.forEach(function (action) {
+                        if (action.type === 'set_overlay') addOverlayToLibrary(action.asset, action.prompt, 'saved');
+                    });
+                });
+                logic.elseActions.forEach(function (action) {
                     if (action.type === 'set_overlay') addOverlayToLibrary(action.asset, action.prompt, 'saved');
                 });
-            });
-            region.logic.elseActions.forEach(function (action) {
-                if (action.type === 'set_overlay') addOverlayToLibrary(action.asset, action.prompt, 'saved');
             });
         }
 
@@ -326,27 +348,111 @@
                 renderGroup(branch.when, 0, true) + '<div class="section-rule then"><span>THEN</span></div>' + renderActions(branch.actions, branch.id) + '</section>';
         }
 
+        function triggerSummary(behavior) {
+            var trigger = behavior.trigger || {};
+            if (trigger.type === 'room_enter') return 'When the player enters this room';
+            if (trigger.type === 'object_open') return 'When the object viewer opens';
+            var source = trigger.source === 'item' ? 'Item' : 'Flag';
+            return source + ' changes' + (trigger.key ? ': ' + trigger.key : '');
+        }
+
+        function renderBehaviorNavigation() {
+            var html = '<section class="logic-behavior-manager"><div class="logic-behavior-heading"><div><strong>Region behaviors</strong><small>A region can respond to clicks and automatic game events.</small></div><button type="button" class="btn-ghost logic-add-behavior"' + ((region.automaticBehaviors || []).length >= maxAutomaticBehaviors ? ' disabled' : '') + '><i class="fa-solid fa-plus"></i> Automatic</button></div><div class="logic-behavior-tabs">';
+            html += '<button type="button" class="logic-behavior-tab' + (activeBehaviorId === 'click' ? ' active' : '') + '" data-behavior-id="click"><i class="fa-solid fa-hand-pointer"></i><span><strong>Player click</strong><small>When this region is clicked</small></span></button>';
+            (region.automaticBehaviors || []).forEach(function (behavior) {
+                html += '<button type="button" class="logic-behavior-tab' + (activeBehaviorId === behavior.id ? ' active' : '') + '" data-behavior-id="' + esc(behavior.id) + '"><i class="fa-solid fa-bolt"></i><span><strong>' + esc(behavior.name) + '</strong><small>' + esc(triggerSummary(behavior)) + '</small></span></button>';
+            });
+            return html + '</div></section>';
+        }
+
+        function renderTriggerSettings(behavior) {
+            if (!behavior) return '';
+            var trigger = behavior.trigger || {};
+            var activationType = options.isObject ? 'object_open' : 'room_enter';
+            var activationLabel = options.isObject ? 'Object viewer opens' : 'Player enters room';
+            var html = '<section class="logic-behavior-trigger"><div class="logic-behavior-trigger-heading"><strong>Automatic trigger</strong><button type="button" class="logic-icon danger logic-remove-behavior" title="Delete automatic behavior"><i class="fa-solid fa-trash"></i></button></div>' +
+                '<label>Behavior name</label><input class="logic-behavior-name" maxlength="190" value="' + esc(behavior.name) + '" placeholder="Generator-powered machinery">' +
+                '<label>Run this behavior when</label><select class="logic-trigger-type"><option value="state_change"' + (trigger.type === 'state_change' ? ' selected' : '') + '>A flag or inventory item changes</option><option value="' + activationType + '"' + (trigger.type === activationType ? ' selected' : '') + '>' + activationLabel + '</option></select>';
+            if (trigger.type === 'state_change') {
+                html += '<div class="two-cols logic-trigger-state"><div><label>State type</label><select class="logic-trigger-source"><option value="flag"' + (trigger.source === 'flag' ? ' selected' : '') + '>Flag</option><option value="item"' + (trigger.source === 'item' ? ' selected' : '') + '>Inventory item</option></select></div><div><label>Watch</label>' + (trigger.source === 'item' ? inventoryPicker(trigger.key) : flagPicker(trigger.key)) + '</div></div>' +
+                    '<p class="hint">Runs only when this value actually changes. Persistent results apply remotely; messages, sounds, and viewers appear only while this room or object is active.</p>';
+            } else {
+                html += '<p class="hint">Runs every time this ' + (options.isObject ? 'object is opened' : 'room becomes active') + '.</p>';
+            }
+            return html + '</section>';
+        }
+
         function render() {
             if (!region) {
                 container.empty();
                 return;
             }
-            var html = '<div class="logic-editor-intro"><strong>Interaction logic</strong><small>Branches run from top to bottom; the first match wins.</small></div>';
-            region.logic.branches.forEach(function (branch, index) { html += renderBranch(branch, index, region.logic.branches.length); });
+            var behavior = activeBehavior();
+            var logic = activeLogic();
+            if (!logic) return;
+            var html = renderBehaviorNavigation() + renderTriggerSettings(behavior) + '<div class="logic-editor-intro"><strong>' + (behavior ? esc(behavior.name) : 'Click interaction') + ' logic</strong><small>Branches run from top to bottom; the first match wins.</small></div>';
+            logic.branches.forEach(function (branch, index) { html += renderBranch(branch, index, logic.branches.length); });
             html += '<button type="button" class="btn-ghost btn-block logic-add-branch"><i class="fa-solid fa-code-branch"></i> Add ELSE IF</button>' +
-                '<section class="logic-branch logic-else" data-branch-id="else"><header class="logic-branch-header"><span class="logic-branch-label">ELSE</span><small>Runs when no branch matches</small></header>' + renderActions(region.logic.elseActions, 'else') + '</section>';
+                '<section class="logic-branch logic-else" data-branch-id="else"><header class="logic-branch-header"><span class="logic-branch-label">ELSE</span><small>Runs when no branch matches</small></header>' + renderActions(logic.elseActions, 'else') + '</section>';
             container.html(html);
         }
 
         function setRegion(nextRegion) {
             region = nextRegion || null;
+            activeBehaviorId = 'click';
             if (region) {
                 region.logic = rules.normalizeLogic(region);
                 if (!region.logic.branches.length) region.logic.branches = rules.defaultLogic().branches;
+                region.automaticBehaviors = rules.normalizeAutomaticBehaviors(region);
                 syncOverlayLibrary();
             }
             render();
         }
+
+        container.on('click', '.logic-behavior-tab', function () {
+            activeBehaviorId = String($(this).attr('data-behavior-id') || 'click');
+            render();
+        });
+
+        container.on('click', '.logic-add-behavior', function () {
+            if (!region || region.automaticBehaviors.length >= maxAutomaticBehaviors) return notify('A region may contain at most ' + maxAutomaticBehaviors + ' automatic behaviors.', true);
+            var behavior = rules.defaultAutomaticBehavior('state_change');
+            region.automaticBehaviors.push(behavior);
+            activeBehaviorId = behavior.id;
+            changed(); render();
+        });
+
+        container.on('click', '.logic-remove-behavior', function () {
+            var behavior = activeBehavior();
+            if (!behavior || !window.confirm('Delete this automatic behavior?')) return;
+            region.automaticBehaviors = region.automaticBehaviors.filter(function (candidate) { return candidate.id !== behavior.id; });
+            activeBehaviorId = 'click';
+            changed(); render();
+        });
+
+        container.on('input', '.logic-behavior-name', function () {
+            var behavior = activeBehavior();
+            if (!behavior) return;
+            behavior.name = $(this).val();
+            changed();
+            container.find('.logic-behavior-tab[data-behavior-id="' + behavior.id + '"] strong').text(behavior.name || 'Automatic behavior');
+            container.find('.logic-editor-intro strong').text((behavior.name || 'Automatic behavior') + ' logic');
+        });
+
+        container.on('change', '.logic-trigger-type', function () {
+            var behavior = activeBehavior();
+            if (!behavior) return;
+            behavior.trigger = rules.normalizeTrigger({ type: $(this).val(), source: behavior.trigger.source, key: behavior.trigger.key });
+            changed(); render();
+        });
+
+        container.on('change', '.logic-trigger-source', function () {
+            var behavior = activeBehavior();
+            if (!behavior || behavior.trigger.type !== 'state_change') return;
+            behavior.trigger.source = $(this).val() === 'item' ? 'item' : 'flag';
+            behavior.trigger.key = '';
+            changed(); render();
+        });
 
         container.on('change', '.logic-group-match', function () {
             var groupElement = $(this).closest('.logic-group');
@@ -423,8 +529,13 @@
                 options.flags.push({ key: value, references: [] });
                 options.flags.sort(function (first, second) { return first.key.localeCompare(second.key); });
             }
+            var triggerElement = picker.closest('.logic-behavior-trigger');
             var conditionElement = picker.closest('.logic-condition');
-            if (conditionElement.length) {
+            if (triggerElement.length) {
+                var behavior = activeBehavior();
+                if (!behavior || behavior.trigger.type !== 'state_change') return;
+                behavior.trigger.key = value;
+            } else if (conditionElement.length) {
                 var branch = findBranch(picker.closest('.logic-branch').data('branch-id'));
                 var found = branch && findNode(branch.when, conditionElement.data('node-id'));
                 if (!found) return;
@@ -485,25 +596,28 @@
         });
 
         container.on('click', '.logic-add-branch', function () {
-            if (region.logic.branches.length >= maxBranches) return notify('A region may contain at most ' + maxBranches + ' IF / ELSE IF branches.', true);
-            region.logic.branches.push(rules.defaultLogic().branches[0]);
+            var logic = activeLogic();
+            if (logic.branches.length >= maxBranches) return notify('A behavior may contain at most ' + maxBranches + ' IF / ELSE IF branches.', true);
+            logic.branches.push(rules.defaultLogic().branches[0]);
             changed(); render();
         });
 
         container.on('click', '.logic-remove-branch', function () {
             var id = $(this).closest('.logic-branch').data('branch-id');
-            region.logic.branches = region.logic.branches.filter(function (branch) { return branch.id !== id; });
+            var logic = activeLogic();
+            logic.branches = logic.branches.filter(function (branch) { return branch.id !== id; });
             changed(); render();
         });
 
         container.on('click', '.logic-move-branch', function () {
             var branchElement = $(this).closest('.logic-branch');
             var id = branchElement.data('branch-id');
-            var index = region.logic.branches.findIndex(function (branch) { return branch.id === id; });
+            var logic = activeLogic();
+            var index = logic.branches.findIndex(function (branch) { return branch.id === id; });
             var target = $(this).data('direction') === 'up' ? index - 1 : index + 1;
-            if (index < 0 || target < 0 || target >= region.logic.branches.length) return;
-            var moved = region.logic.branches.splice(index, 1)[0];
-            region.logic.branches.splice(target, 0, moved);
+            if (index < 0 || target < 0 || target >= logic.branches.length) return;
+            var moved = logic.branches.splice(index, 1)[0];
+            logic.branches.splice(target, 0, moved);
             changed(); render();
         });
 

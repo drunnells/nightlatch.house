@@ -37,6 +37,7 @@
             kind: 'interaction',
             bounds: bounds,
             logic: window.NLRoomRules.defaultLogic(),
+            automaticBehaviors: [],
             overlayLibrary: [],
             door: { targetRoom: '', unlocked: false, connectionMode: 'static', returnMode: 'behind', targetRegionId: '' }
         };
@@ -49,6 +50,7 @@
         fresh.kind = region.kind || fresh.kind;
         fresh.bounds = $.extend({}, fresh.bounds, region.bounds || {});
         fresh.logic = window.NLRoomRules.normalizeLogic(region);
+        fresh.automaticBehaviors = window.NLRoomRules.normalizeAutomaticBehaviors(region);
         fresh.overlayLibrary = Array.isArray(region.overlayLibrary) ? region.overlayLibrary.slice() : [];
         fresh.door = $.extend({}, fresh.door, region.door || {});
         return fresh;
@@ -211,10 +213,12 @@
         region.name = $('#region-name').val().trim() || 'Untitled region';
         region.kind = isObject ? 'interaction' : $('#region-kind').val();
         if (previousKind === 'door' && region.kind !== 'door') {
-            region.logic.branches.forEach(function (branch) {
-                branch.actions = branch.actions.filter(function (action) { return action.type !== 'unlock_door'; });
+            [region.logic].concat((region.automaticBehaviors || []).map(function (behavior) { return behavior.logic; })).forEach(function (logic) {
+                logic.branches.forEach(function (branch) {
+                    branch.actions = branch.actions.filter(function (action) { return action.type !== 'unlock_door'; });
+                });
+                logic.elseActions = logic.elseActions.filter(function (action) { return action.type !== 'unlock_door'; });
             });
-            region.logic.elseActions = region.logic.elseActions.filter(function (action) { return action.type !== 'unlock_door'; });
             gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== String(region.id); });
         }
         var reservedReturn = !isObject && region.kind === 'door' && gatewayReturnDoor(region.id);

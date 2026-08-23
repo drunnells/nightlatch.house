@@ -53,6 +53,27 @@
         };
     }
 
+    function normalizeTrigger(trigger) {
+        trigger = trigger || {};
+        var type = trigger.type;
+        if (type !== 'room_enter' && type !== 'object_open') type = 'state_change';
+        var normalized = { type: type };
+        if (type === 'state_change') {
+            normalized.source = trigger.source === 'item' ? 'item' : 'flag';
+            normalized.key = trigger.key || '';
+        }
+        return normalized;
+    }
+
+    function defaultAutomaticBehavior(triggerType) {
+        return {
+            id: uid('behavior'),
+            name: 'Automatic behavior',
+            trigger: normalizeTrigger({ type: triggerType || 'state_change' }),
+            logic: defaultLogic()
+        };
+    }
+
     function normalizeExpression(expression) {
         if (!expression || expression.source === 'always') return conditionGroup('all', [], expression && expression.id);
         if (expression.type === 'group') {
@@ -124,6 +145,20 @@
         };
     }
 
+    function normalizeAutomaticBehavior(behavior) {
+        behavior = behavior || {};
+        return {
+            id: logicId('behavior', behavior.id),
+            name: behavior.name || 'Automatic behavior',
+            trigger: normalizeTrigger(behavior.trigger),
+            logic: normalizeLogic({ logic: behavior.logic })
+        };
+    }
+
+    function normalizeAutomaticBehaviors(region) {
+        return (region && Array.isArray(region.automaticBehaviors) ? region.automaticBehaviors : []).map(normalizeAutomaticBehavior);
+    }
+
     function stateBucket(state, source) {
         state = state || {};
         if (source === 'item') return state.items || {};
@@ -166,8 +201,8 @@
         return trace;
     }
 
-    function evaluateRegion(region, state) {
-        var logic = normalizeLogic(region);
+    function evaluateLogic(rawLogic, state) {
+        var logic = normalizeLogic({ logic: rawLogic });
         var testedBranches = [];
         for (var index = 0; index < logic.branches.length; index += 1) {
             var branch = logic.branches[index];
@@ -203,6 +238,10 @@
         };
     }
 
+    function evaluateRegion(region, state) {
+        return evaluateLogic(normalizeLogic(region), state);
+    }
+
     function ensureState(state) {
         state.flags = state.flags || {};
         state.items = state.items || {};
@@ -221,18 +260,45 @@
     function applyActions(actions, state, options) {
         options = options || {};
         state = ensureState(state || {});
-        var result = { messages: [], examineObjects: [], sounds: [], applied: [] };
+        var result = { messages: [], examineObjects: [], sounds: [], applied: [], changes: [] };
+        var changedState = {};
+
+        function rememberChange(source, key, bucket) {
+            var changeKey = source + ':' + key;
+            if (!changedState[changeKey]) {
+                changedState[changeKey] = {
+                    source: source,
+                    key: key,
+                    previousExists: Object.prototype.hasOwnProperty.call(bucket, key),
+                    previousValue: bucket[key]
+                };
+            }
+        }
+
         (actions || []).forEach(function (rawAction) {
             var action = normalizeAction(rawAction);
             var overlayKey = options.overlayKey || options.regionId;
+            var doorKey = options.doorKey || options.regionId;
             if (action.type === 'message' && action.text) result.messages.push(action.text);
             if (action.type === 'set_overlay' && action.asset && overlayKey) state.overlays[overlayKey] = action.asset;
             if (action.type === 'clear_overlay' && overlayKey) delete state.overlays[overlayKey];
-            if (action.type === 'set_flag' && action.key) state.flags[action.key] = action.value;
-            if (action.type === 'clear_flag' && action.key) delete state.flags[action.key];
-            if (action.type === 'grant_item' && action.key) state.items[action.key] = '1';
-            if (action.type === 'remove_item' && action.key) delete state.items[action.key];
-            if (action.type === 'unlock_door' && options.regionId && options.regionKind === 'door') state.unlockedDoors[options.regionId] = true;
+            if (action.type === 'set_flag' && action.key) {
+                rememberChange('flag', action.key, state.flags);
+                state.flags[action.key] = action.value;
+            }
+            if (action.type === 'clear_flag' && action.key) {
+                rememberChange('flag', action.key, state.flags);
+                delete state.flags[action.key];
+            }
+            if (action.type === 'grant_item' && action.key) {
+                rememberChange('item', action.key, state.items);
+                state.items[action.key] = '1';
+            }
+            if (action.type === 'remove_item' && action.key) {
+                rememberChange('item', action.key, state.items);
+                delete state.items[action.key];
+            }
+            if (action.type === 'unlock_door' && doorKey && options.regionKind === 'door') state.unlockedDoors[doorKey] = true;
             if (action.type === 'examine_object' && action.objectSlug) result.examineObjects.push(action.objectSlug);
             if (action.type === 'set_description') {
                 var targetKey = descriptionKey(action.targetKind, action.targetSlug);
@@ -241,8 +307,23 @@
             if (action.type === 'play_sound' && action.soundSlug) result.sounds.push(action.soundSlug);
             result.applied.push(action.type);
         });
+        Object.keys(changedState).forEach(function (changeKey) {
+            var change = changedState[changeKey];
+            var bucket = stateBucket(state, change.source);
+            change.exists = Object.prototype.hasOwnProperty.call(bucket, change.key);
+            change.value = bucket[change.key];
+            if (change.previousExists !== change.exists || (change.exists && String(change.previousValue) !== String(change.value))) {
+                result.changes.push(change);
+            }
+        });
         result.message = result.messages.join('\n');
         return result;
+    }
+
+    function runLogic(logic, state, options) {
+        var evaluation = evaluateLogic(logic, state);
+        evaluation.effects = applyActions(evaluation.actions, state, options || {});
+        return evaluation;
     }
 
     function runRegion(region, state, options) {
@@ -251,9 +332,7 @@
             if (!options.regionId) options.regionId = region.id;
             if (!options.regionKind) options.regionKind = region.kind;
         }
-        var evaluation = evaluateRegion(region, state);
-        evaluation.effects = applyActions(evaluation.actions, state, options);
-        return evaluation;
+        return runLogic(normalizeLogic(region), state, options);
     }
 
     function applySuccess(region, state, options) {
@@ -266,9 +345,9 @@
         return state;
     }
 
-    function canExit(region, state, entryRegionId) {
+    function canExit(region, state, entryRegionId, doorKey) {
         if (region.kind !== 'door') return false;
-        return region.id === entryRegionId || !!state.unlockedDoors[region.id];
+        return region.id === entryRegionId || !!state.unlockedDoors[doorKey || region.id] || (!!doorKey && !!state.unlockedDoors[region.id]);
     }
 
     function shuffledValues(values, random) {
@@ -315,14 +394,20 @@
         conditionNode: conditionNode,
         conditionGroup: conditionGroup,
         defaultLogic: defaultLogic,
+        defaultAutomaticBehavior: defaultAutomaticBehavior,
         normalizeExpression: normalizeExpression,
         normalizeAction: normalizeAction,
         normalizeLogic: normalizeLogic,
+        normalizeTrigger: normalizeTrigger,
+        normalizeAutomaticBehavior: normalizeAutomaticBehavior,
+        normalizeAutomaticBehaviors: normalizeAutomaticBehaviors,
         descriptionKey: descriptionKey,
         conditionPasses: conditionPasses,
         conditionTrace: conditionTrace,
+        evaluateLogic: evaluateLogic,
         evaluateRegion: evaluateRegion,
         applyActions: applyActions,
+        runLogic: runLogic,
         runRegion: runRegion,
         applySuccess: applySuccess,
         canExit: canExit,

@@ -125,6 +125,39 @@ function nightlatch_validate_region_logic($logic, $contentKind, $regionKind)
     nightlatch_validate_logic_actions(isset($logic['elseActions']) ? $logic['elseActions'] : array(), $contentKind, $regionKind);
 }
 
+function nightlatch_validate_automatic_behaviors($behaviors, $contentKind, $regionKind)
+{
+    if (!is_array($behaviors) || count($behaviors) > 25) {
+        throw new RuntimeException('A region may contain at most 25 automatic behaviors.');
+    }
+    foreach ($behaviors as $behavior) {
+        if (!is_array($behavior)) {
+            throw new RuntimeException('Every automatic behavior must be an object.');
+        }
+        nightlatch_logic_string(isset($behavior['id']) ? $behavior['id'] : '', 190, 'Automatic behavior ID');
+        nightlatch_logic_string(isset($behavior['name']) ? $behavior['name'] : '', 190, 'Automatic behavior name');
+        $trigger = isset($behavior['trigger']) ? $behavior['trigger'] : array();
+        if (!is_array($trigger)) {
+            throw new RuntimeException('Every automatic behavior must contain a trigger.');
+        }
+        $triggerType = isset($trigger['type']) ? $trigger['type'] : '';
+        $allowedTypes = $contentKind === 'object'
+            ? array('state_change', 'object_open')
+            : array('state_change', 'room_enter');
+        if (!in_array($triggerType, $allowedTypes, true)) {
+            throw new RuntimeException('Unsupported automatic behavior trigger for this content type.');
+        }
+        if ($triggerType === 'state_change') {
+            $source = isset($trigger['source']) ? $trigger['source'] : '';
+            if (!in_array($source, array('flag', 'item'), true)) {
+                throw new RuntimeException('State-change triggers may watch only flags or inventory items.');
+            }
+            nightlatch_logic_string(isset($trigger['key']) ? $trigger['key'] : '', 190, 'State-change trigger key');
+        }
+        nightlatch_validate_region_logic(isset($behavior['logic']) ? $behavior['logic'] : array(), $contentKind, $regionKind);
+    }
+}
+
 function nightlatch_validate_interactive_data($data, $contentKind)
 {
     if (!is_array($data)) {
@@ -148,6 +181,9 @@ function nightlatch_validate_interactive_data($data, $contentKind)
         }
         if (isset($region['logic'])) {
             nightlatch_validate_region_logic($region['logic'], $contentKind, $regionKind);
+        }
+        if (isset($region['automaticBehaviors'])) {
+            nightlatch_validate_automatic_behaviors($region['automaticBehaviors'], $contentKind, $regionKind);
         }
         if (isset($region['overlayLibrary'])) {
             if (!is_array($region['overlayLibrary']) || count($region['overlayLibrary']) > 100) {

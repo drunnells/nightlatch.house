@@ -30,6 +30,10 @@
     var soundPlayer = document.getElementById('debug-sound-player');
     var ambientPlayer = document.getElementById('debug-ambient-player');
     var ambientPending = false;
+    var automaticBehaviorEntries = [];
+    var stateBehaviorIndex = { flag: {}, item: {} };
+    var activationBehaviorIndex = {};
+    var regionLabelsByStateKey = {};
 
     objects.forEach(function (object) { objectBySlug[object.slug] = object; });
     sounds.forEach(function (sound) {
@@ -44,6 +48,40 @@
     (topology.nodes || []).forEach(function (node) { clusterByRoomId[String(node.roomId)] = String(node.clusterId); });
     (topology.connections || []).forEach(function (connection) { connectionByExit[String(connection.sourceRoomId) + ':' + connection.sourceRegionId] = connection; });
     (topology.gateways || []).forEach(function (gateway) { gatewayByRoomId[String(gateway.roomId)] = gateway; });
+
+    function regionStateKey(contentKind, content, region) {
+        return contentKind + ':' + content.slug + ':' + region.id;
+    }
+
+    function automaticEntryKey(entry) {
+        return entry.contentKind + ':' + entry.content.slug + ':' + entry.region.id + ':' + entry.behavior.id;
+    }
+
+    function indexContentBehaviors(contentKind, content) {
+        (content.data.regions || []).forEach(function (region) {
+            var stateKey = regionStateKey(contentKind, content, region);
+            regionLabelsByStateKey[stateKey] = content.title + ' · ' + region.name;
+            region.automaticBehaviors = window.NLRoomRules.normalizeAutomaticBehaviors(region);
+            region.automaticBehaviors.forEach(function (behavior) {
+                var entry = { contentKind: contentKind, content: content, region: region, behavior: behavior, stateKey: stateKey };
+                entry.key = automaticEntryKey(entry);
+                automaticBehaviorEntries.push(entry);
+                var trigger = behavior.trigger || {};
+                if (trigger.type === 'state_change' && trigger.key) {
+                    var sourceIndex = stateBehaviorIndex[trigger.source] || stateBehaviorIndex.flag;
+                    sourceIndex[trigger.key] = sourceIndex[trigger.key] || [];
+                    sourceIndex[trigger.key].push(entry);
+                } else if (trigger.type === 'room_enter' || trigger.type === 'object_open') {
+                    var activationKey = trigger.type + ':' + contentKind + ':' + content.slug;
+                    activationBehaviorIndex[activationKey] = activationBehaviorIndex[activationKey] || [];
+                    activationBehaviorIndex[activationKey].push(entry);
+                }
+            });
+        });
+    }
+
+    rooms.forEach(function (candidate) { indexContentBehaviors('room', candidate); });
+    objects.forEach(function (candidate) { indexContentBehaviors('object', candidate); });
 
     function ensureGatewayAssignments(candidateRoom) {
         var gateway = gatewayByRoomId[String(candidateRoom.id)];
@@ -98,7 +136,7 @@
         state = { flags: {}, items: {}, unlockedDoors: {}, overlays: {}, descriptions: {}, gatewayAssignments: {}, clusterGatewayReturns: {} };
         rooms.forEach(function (candidate) {
             (candidate.data.regions || []).forEach(function (region) {
-                if (region.kind === 'door' && region.door && region.door.unlocked) state.unlockedDoors[region.id] = true;
+                if (region.kind === 'door' && region.door && region.door.unlocked) state.unlockedDoors[regionStateKey('room', candidate, region)] = true;
             });
         });
         navigationStack = [];
@@ -110,8 +148,8 @@
         $('#toggle-room-description, #toggle-object-description').attr('aria-expanded', 'false');
         closeObject(false);
         closeInventory();
-        setActiveRoom(initialRoom, '');
         $('#event-log').html('<em>Session reset. Click a highlighted region.</em>');
+        setActiveRoom(initialRoom, '');
         $('.player-message').removeClass('visible');
     }
 
@@ -272,6 +310,8 @@
         updateBackButton();
         renderGatewayReturnActions();
         renderAll();
+        runActivationBehaviors('room_enter', 'room', room);
+        renderAll();
         fitRoomToStage();
     }
 
@@ -345,7 +385,7 @@
         var doors = Object.keys(state.unlockedDoors).filter(function (key) { return state.unlockedDoors[key]; });
         $('#doors-state').html(doors.length ? doors.map(function (id) {
             var region = findRoomRegion(id);
-            return '<span>' + esc(region ? region.name : id) + '</span>';
+            return '<span>' + esc(regionLabelsByStateKey[id] || (region ? region.name : id)) + '</span>';
         }).join('') : '<p class="empty-mini">No extra doors unlocked</p>');
         renderGatewayAssignments();
     }
@@ -373,7 +413,8 @@
     function renderRoomOverlays() {
         var html = '';
         regions.forEach(function (region) {
-            if (state.overlays[region.id]) html += overlayImage(region, state.overlays[region.id], room.data.canvas);
+            var url = state.overlays[regionStateKey('room', room, region)] || state.overlays[region.id];
+            if (url) html += overlayImage(region, url, room.data.canvas);
         });
         $('#overlay-layer').html(html);
     }
@@ -462,6 +503,107 @@
         $('#event-log').prepend('<p><time>' + now + '</time>' + prefix + '<strong>' + esc(name) + '</strong><span class="' + statusClass + '">' + esc(statusText) + '</span> ' + esc(message) + (detail ? '<small class="logic-detail">' + esc(detail) + '</small>' : '') + '</p>');
     }
 
+    function behaviorIsActive(entry) {
+        if (entry.contentKind === 'room') return !activeObject && !!room && String(room.id) === String(entry.content.id);
+        return !!activeObject && activeObject.slug === entry.content.slug;
+    }
+
+    function behaviorActionOptions(entry) {
+        return {
+            regionId: entry.region.id,
+            regionKind: entry.region.kind,
+            overlayKey: entry.stateKey,
+            doorKey: entry.stateKey
+        };
+    }
+
+    function automaticEventMessage(event) {
+        if (event.type === 'room_enter') return 'Room-entry trigger fired.';
+        if (event.type === 'object_open') return 'Object-open trigger fired.';
+        var label = event.source === 'item' ? 'Item' : 'Flag';
+        var message = event.exists
+            ? label + ' “' + event.key + '” changed to “' + event.value + '”.'
+            : label + ' “' + event.key + '” was cleared.';
+        if (event.cause) message += ' Caused by ' + event.cause + '.';
+        return message;
+    }
+
+    function automaticTransaction() {
+        return { queue: [], seen: {}, runs: 0, maximumRuns: 100, stopped: false };
+    }
+
+    function enqueueStateChanges(transaction, changes, cause) {
+        (changes || []).forEach(function (change) {
+            transaction.queue.push({
+                type: 'state_change',
+                source: change.source,
+                key: change.key,
+                previousExists: change.previousExists,
+                previousValue: change.previousValue,
+                exists: change.exists,
+                value: change.value,
+                cause: cause || ''
+            });
+        });
+    }
+
+    function executeAutomaticBehavior(entry, event, transaction) {
+        var eventSignature = event.type === 'state_change'
+            ? event.source + ':' + event.key + ':' + (event.exists ? String(event.value) : '<cleared>')
+            : event.type;
+        var signature = entry.key + '|' + eventSignature;
+        if (transaction.seen[signature]) return;
+        if (transaction.runs >= transaction.maximumRuns) {
+            if (!transaction.stopped) {
+                transaction.stopped = true;
+                logEvent('Automatic behavior limit', false, 'Stopped after ' + transaction.maximumRuns + ' chained behavior runs. Check for a state-change cycle.', 'runtime');
+            }
+            return;
+        }
+        transaction.seen[signature] = true;
+        transaction.runs += 1;
+
+        var evaluation = window.NLRoomRules.runLogic(entry.behavior.logic, state, behaviorActionOptions(entry));
+        var isActive = behaviorIsActive(entry);
+        var eventMessage = automaticEventMessage(event);
+        if (evaluation.effects.message) eventMessage += ' ' + evaluation.effects.message;
+        logEvent(entry.region.name + ' · ' + entry.behavior.name, evaluation.conditionMatched, eventMessage, entry.content.title + ' · automatic', evaluation);
+        if (isActive) {
+            playEvaluationSounds(evaluation);
+            if (evaluation.effects.message) showMessage(evaluation.effects.message);
+            if (evaluation.effects.examineObjects.length) openObject(evaluation.effects.examineObjects[0], 'automatic behavior');
+        }
+        enqueueStateChanges(transaction, evaluation.effects.changes, entry.behavior.name);
+    }
+
+    function drainAutomaticStateQueue(transaction) {
+        while (transaction.queue.length && !transaction.stopped) {
+            var event = transaction.queue.shift();
+            var sourceIndex = stateBehaviorIndex[event.source] || {};
+            (sourceIndex[event.key] || []).forEach(function (entry) {
+                executeAutomaticBehavior(entry, event, transaction);
+            });
+        }
+    }
+
+    function dispatchStateChanges(changes, cause) {
+        if (!changes || !changes.length) return;
+        var transaction = automaticTransaction();
+        enqueueStateChanges(transaction, changes, cause);
+        drainAutomaticStateQueue(transaction);
+    }
+
+    function runActivationBehaviors(triggerType, contentKind, content) {
+        if (!content) return;
+        var key = triggerType + ':' + contentKind + ':' + content.slug;
+        var entries = activationBehaviorIndex[key] || [];
+        if (!entries.length) return;
+        var transaction = automaticTransaction();
+        var event = { type: triggerType, cause: content.title };
+        entries.forEach(function (entry) { executeAutomaticBehavior(entry, event, transaction); });
+        drainAutomaticStateQueue(transaction);
+    }
+
     function openObject(slug, source) {
         var object = objectBySlug[slug];
         if (!object) return false;
@@ -477,6 +619,8 @@
         renderDescriptions();
         document.getElementById('object-modal').hidden = false;
         document.body.classList.add('object-modal-open');
+        runActivationBehaviors('object_open', 'object', object);
+        renderAll();
         window.requestAnimationFrame(function () {
             fitObjectToModal();
             document.getElementById('close-object').focus();
@@ -509,8 +653,10 @@
     }
 
     function clickRoomRegion(region) {
-        var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id });
+        var stateKey = regionStateKey('room', room, region);
+        var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id, regionKind: region.kind, overlayKey: stateKey, doorKey: stateKey });
         playEvaluationSounds(evaluation);
+        dispatchStateChanges(evaluation.effects.changes, room.title + ' · ' + region.name);
         var pass = evaluation.conditionMatched;
         var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
         var destination = null;
@@ -518,7 +664,7 @@
         if (region.kind === 'door') {
             var gatewayAssignment = gatewayAssignmentForExit(room, region.id);
             var gatewayReturn = activeGatewayReturnForRoom(room, region.id);
-            var canExit = !!gatewayReturn || window.NLRoomRules.canExit(region, state, $('#entry-region').val());
+            var canExit = !!gatewayReturn || window.NLRoomRules.canExit(region, state, $('#entry-region').val(), stateKey);
             if (!canExit) {
                 pass = false;
                 if (!evaluation.effects.message) message = 'This door has not been unlocked. You can only leave through the door you entered.';
@@ -544,10 +690,7 @@
             }
         }
 
-        renderState();
-        renderRoomOverlays();
-        renderInventory();
-        renderDescriptions();
+        renderAll();
         var openedObject = false;
         if (evaluation.effects.examineObjects.length) {
             var objectSlug = evaluation.effects.examineObjects[0];
@@ -567,12 +710,10 @@
         var object = activeObject;
         var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id, overlayKey: objectOverlayKey(object, region) });
         playEvaluationSounds(evaluation);
+        dispatchStateChanges(evaluation.effects.changes, object.title + ' · ' + region.name);
         var pass = evaluation.conditionMatched;
         var message = evaluation.effects.message || (pass ? 'The interaction succeeds.' : (evaluation.actions.length ? 'The alternate result runs.' : 'Nothing happens.'));
-        renderState();
-        renderObjectOverlays();
-        renderInventory();
-        renderDescriptions();
+        renderAll();
         showMessage(message);
         logEvent(region.name, pass, message, object.title, evaluation);
     }
@@ -602,32 +743,61 @@
     });
     document.addEventListener('pointerdown', resumePendingAmbientSound, true);
 
+    function manualStateChange(type, key, exists, value) {
+        var bucket = state[type];
+        var previousExists = Object.prototype.hasOwnProperty.call(bucket, key);
+        var previousValue = bucket[key];
+        if (exists) bucket[key] = value; else delete bucket[key];
+        var changed = previousExists !== exists || (exists && String(previousValue) !== String(value));
+        if (changed) {
+            dispatchStateChanges([{
+                source: type === 'items' ? 'item' : 'flag',
+                key: key,
+                previousExists: previousExists,
+                previousValue: previousValue,
+                exists: exists,
+                value: value
+            }], 'debug state editor');
+        }
+        renderAll();
+    }
+
     $('[data-add-state]').on('click', function () {
         var type = $(this).data('add-state');
         var base = type === 'flags' ? 'new_flag' : 'new_item';
         var key = base;
         var n = 2;
         while (Object.prototype.hasOwnProperty.call(state[type], key)) key = base + '_' + n++;
-        state[type][key] = type === 'items' ? '1' : '';
-        renderAll();
+        manualStateChange(type, key, true, type === 'items' ? '1' : '');
     });
     $('.debug-console').on('change', '.state-value', function () {
         var type = $(this).closest('.console-section').find('h3').text().toLowerCase();
-        state[type][$(this).data('key')] = $(this).val();
-        renderInventory();
+        manualStateChange(type, $(this).data('key'), true, $(this).val());
     }).on('change', '.state-key', function () {
         var type = $(this).closest('.console-section').find('h3').text().toLowerCase();
         var oldKey = $(this).data('original');
         var newKey = $(this).val().trim();
         if (newKey && newKey !== oldKey) {
-            state[type][newKey] = state[type][oldKey];
+            var value = state[type][oldKey];
+            var previousNewExists = Object.prototype.hasOwnProperty.call(state[type], newKey);
+            var previousNewValue = state[type][newKey];
             delete state[type][oldKey];
+            state[type][newKey] = value;
+            var renameChanges = [{
+                source: type === 'items' ? 'item' : 'flag', key: oldKey,
+                previousExists: true, previousValue: value, exists: false, value: undefined
+            }, {
+                source: type === 'items' ? 'item' : 'flag', key: newKey,
+                previousExists: previousNewExists, previousValue: previousNewValue, exists: true, value: value
+            }].filter(function (change) {
+                return change.previousExists !== change.exists || (change.exists && String(change.previousValue) !== String(change.value));
+            });
+            dispatchStateChanges(renameChanges, 'debug state rename');
             renderAll();
         }
     }).on('click', '.state-delete', function () {
         var type = $(this).closest('.console-section').find('h3').text().toLowerCase();
-        delete state[type][$(this).data('key')];
-        renderAll();
+        manualStateChange(type, $(this).data('key'), false, undefined);
     });
 
     roomImage.addEventListener('load', fitRoomToStage);

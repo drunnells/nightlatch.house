@@ -34,6 +34,19 @@ $data = array(
             )),
             'elseActions' => array(array('id' => 'clear', 'type' => 'clear_overlay')),
         ),
+        'automaticBehaviors' => array(array(
+            'id' => 'generator-response',
+            'name' => 'Generator response',
+            'trigger' => array('type' => 'state_change', 'source' => 'flag', 'key' => 'generator_power'),
+            'logic' => array(
+                'version' => 1,
+                'branches' => array(array(
+                    'when' => array('type' => 'group', 'match' => 'all', 'children' => array()),
+                    'actions' => array(array('type' => 'set_overlay', 'asset' => '../generator-on.png', 'prompt' => '')),
+                )),
+                'elseActions' => array(),
+            ),
+        )),
     )),
 );
 
@@ -44,6 +57,36 @@ $invalid['regions'][0]['logic']['branches'][0]['actions'][] = array('type' => 's
 try {
     nightlatch_validate_interactive_data($invalid, 'room');
     fwrite(STDERR, "A description result accepted an invalid content type.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+$invalid = $data;
+$invalid['regions'][0]['automaticBehaviors'][0]['trigger'] = array('type' => 'object_open');
+try {
+    nightlatch_validate_interactive_data($invalid, 'room');
+    fwrite(STDERR, "A room accepted an object-open automatic trigger.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+$invalid = $data;
+$invalid['regions'][0]['automaticBehaviors'][0]['trigger'] = array('type' => 'state_change', 'source' => 'overlay', 'key' => 'generator_power');
+try {
+    nightlatch_validate_interactive_data($invalid, 'room');
+    fwrite(STDERR, "An automatic behavior accepted an unsupported state source.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+$invalid = $data;
+$invalid['regions'][0]['automaticBehaviors'] = array_fill(0, 26, $data['regions'][0]['automaticBehaviors'][0]);
+try {
+    nightlatch_validate_interactive_data($invalid, 'room');
+    fwrite(STDERR, "A region accepted too many automatic behaviors.\n");
     exit(1);
 } catch (RuntimeException $exception) {
     // Expected.

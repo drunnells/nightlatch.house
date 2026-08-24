@@ -102,6 +102,7 @@ The S3 config shape currently includes:
 - Flag keys and object-examination targets use the same searchable picker pattern. New flag keys may be created from the flag picker; saved flag names and their room/object region associations are derived from content JSON in `app/content-variables.php` and shown in the top-level Flags catalog.
 - Legacy `condition` / `success` / `failure` regions must be normalized into the branch format when loaded and written as version 2 data on the next save.
 - Shared evaluation behavior belongs in `assets/js/room-rules.js`; shared admin rule-builder behavior belongs in `assets/js/logic-editor.js`; server-side shape and limit validation belongs in `app/interactive-logic.php`.
+- Shared region movement and resize constraints belong in `assets/js/region-bounds.js`; room and object editors must keep edited bounds inside the content canvas.
 - Click and automatic behaviors reuse the evaluator in `assets/js/room-rules.js`; do not create separate condition or result semantics for new trigger types.
 - Canonical room topology is stored separately from room interaction JSON. Legacy `door.targetRoom` values may be imported, and canonical topology is mirrored back into door metadata for compatibility.
 - Static door connections identify a source room/region, destination room, and return behavior. Returns may use a paired destination door, a contextual behind-you control, or an explicit one-way connection.
@@ -175,6 +176,7 @@ The S3 config shape currently includes:
   - `php tests/sound-library.test.php`
   - `php tests/sounds-editor-render.test.php`
   - `node tests/room-rules.test.js`
+  - `node tests/region-bounds.test.js`
 - Run `node --check` on changed browser JavaScript files.
 - Run `git diff --check` before handing off changes.
 - Do not make a live Gemini generation request during routine verification because it consumes external API usage. Use the request-builder and image-processing tests unless the user explicitly asks for a live generation test.

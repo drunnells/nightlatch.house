@@ -17,12 +17,15 @@
     var drawing = false;
     var drawStart = null;
     var draftRect = null;
+    var transformGesture = null;
     var zoom = 1;
     var fieldLock = false;
     var svg = document.getElementById('region-layer');
     var image = document.getElementById('room-image');
     var roomCanvas = document.getElementById('room-canvas');
     var canvasStage = document.getElementById('canvas-stage');
+    var moveHandle = document.getElementById('region-move-handle');
+    var resizeHandle = document.getElementById('region-resize-handle');
     var zoomFrame = null;
     var logicEditor = null;
 
@@ -174,6 +177,54 @@
                 '<span class="region-number">' + (index + 1) + '</span><span><strong>' + esc(region.name) + '</strong><small><i class="fa-solid ' + (region.kind === 'door' ? 'fa-door-open' : 'fa-hand-pointer') + '"></i> ' + (region.kind === 'door' ? 'Door / exit' : 'Interaction') + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
         });
         $('#region-list').html(html);
+        positionRegionHandles();
+    }
+
+    function updateBoundsReadout(region) {
+        if (!region) return;
+        $('#region-bounds').text('x ' + Math.round(region.bounds.x) + ' · y ' + Math.round(region.bounds.y) + ' · w ' + Math.round(region.bounds.width) + ' · h ' + Math.round(region.bounds.height));
+    }
+
+    function positionRegionHandles() {
+        var region = selected();
+        var visible = !!region && !drawing;
+        $(moveHandle).prop('hidden', !visible);
+        $(resizeHandle).prop('hidden', !visible);
+        if (!visible) return;
+        $(moveHandle).css({
+            left: (region.bounds.x / canvas.width * 100) + '%',
+            top: (region.bounds.y / canvas.height * 100) + '%'
+        });
+        $(resizeHandle).css({
+            left: ((region.bounds.x + region.bounds.width) / canvas.width * 100) + '%',
+            top: ((region.bounds.y + region.bounds.height) / canvas.height * 100) + '%'
+        });
+    }
+
+    function updateRegionGeometry(region) {
+        Array.prototype.forEach.call(svg.querySelectorAll('[data-id]'), function (element) {
+            if (element.getAttribute('data-id') !== String(region.id)) return;
+            if (element.tagName.toLowerCase() === 'rect') {
+                element.setAttribute('x', region.bounds.x);
+                element.setAttribute('y', region.bounds.y);
+                element.setAttribute('width', region.bounds.width);
+                element.setAttribute('height', region.bounds.height);
+            } else if (element.tagName.toLowerCase() === 'text') {
+                element.setAttribute('x', region.bounds.x + 12);
+                element.setAttribute('y', region.bounds.y + 28);
+            }
+        });
+        updateBoundsReadout(region);
+        positionRegionHandles();
+    }
+
+    function sameBounds(left, right) {
+        return left.x === right.x && left.y === right.y && left.width === right.width && left.height === right.height;
+    }
+
+    function setRegionBounds(region, bounds) {
+        region.bounds = bounds;
+        updateRegionGeometry(region);
     }
 
     function selectRegion(id) {
@@ -201,7 +252,7 @@
         $('#door-gateway-exit').prop('checked', gatewayExitSelected(region.id));
         $('#static-door-fields').toggle(!gatewayExitSelected(region.id) && !reservedReturn);
         if (logicEditor) logicEditor.setRegion(region);
-        $('#region-bounds').text('x ' + Math.round(region.bounds.x) + ' · y ' + Math.round(region.bounds.y) + ' · w ' + Math.round(region.bounds.width) + ' · h ' + Math.round(region.bounds.height));
+        updateBoundsReadout(region);
         fieldLock = false;
     }
 
@@ -257,6 +308,7 @@
         roomCanvas.classList.add('drawing');
         $('#draw-instruction').addClass('visible');
         $('#draw-region, #add-region').addClass('active');
+        positionRegionHandles();
     }
 
     function stopDrawing() {
@@ -269,8 +321,75 @@
         renderRegions();
     }
 
+    function beginRegionTransform(mode, event) {
+        var region = selected();
+        if (!region || drawing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        transformGesture = {
+            mode: mode,
+            pointerId: event.pointerId,
+            start: canvasPoint(event),
+            original: $.extend({}, region.bounds),
+            region: region,
+            changed: false
+        };
+        roomCanvas.classList.add('region-transforming');
+        $(document).on('pointermove.regionTransform', continueRegionTransform);
+        $(document).on('pointerup.regionTransform pointercancel.regionTransform', function (finishEvent) {
+            finishRegionTransform(finishEvent.type !== 'pointercancel', finishEvent);
+        });
+    }
+
+    function continueRegionTransform(event) {
+        if (!transformGesture || (event.pointerId !== undefined && event.pointerId !== transformGesture.pointerId)) return;
+        event.preventDefault();
+        var point = canvasPoint(event);
+        var deltaX = point.x - transformGesture.start.x;
+        var deltaY = point.y - transformGesture.start.y;
+        var nextBounds = transformGesture.mode === 'move'
+            ? window.NLRegionBounds.move(transformGesture.original, deltaX, deltaY, canvas)
+            : window.NLRegionBounds.resize(transformGesture.original, deltaX, deltaY, canvas);
+        if (sameBounds(transformGesture.region.bounds, nextBounds)) return;
+        transformGesture.changed = true;
+        setRegionBounds(transformGesture.region, nextBounds);
+    }
+
+    function finishRegionTransform(commit, event) {
+        if (!transformGesture || (event && event.pointerId !== undefined && event.pointerId !== transformGesture.pointerId)) return;
+        var gesture = transformGesture;
+        transformGesture = null;
+        $(document).off('.regionTransform');
+        roomCanvas.classList.remove('region-transforming');
+        if (!commit && gesture.changed) setRegionBounds(gesture.region, gesture.original);
+        renderRegions();
+        updateBoundsReadout(gesture.region);
+        if (commit && gesture.changed) markDirty();
+    }
+
+    function nudgeRegion(mode, event) {
+        var region = selected();
+        if (!region || ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(event.key) === -1) return;
+        event.preventDefault();
+        var step = event.shiftKey ? 10 : 1;
+        var deltaX = event.key === 'ArrowLeft' ? -step : (event.key === 'ArrowRight' ? step : 0);
+        var deltaY = event.key === 'ArrowUp' ? -step : (event.key === 'ArrowDown' ? step : 0);
+        var nextBounds = mode === 'move'
+            ? window.NLRegionBounds.move(region.bounds, deltaX, deltaY, canvas)
+            : window.NLRegionBounds.resize(region.bounds, deltaX, deltaY, canvas);
+        if (sameBounds(region.bounds, nextBounds)) return;
+        setRegionBounds(region, nextBounds);
+        markDirty();
+    }
+
     $('#draw-region, #add-region').on('click', function () { drawing ? stopDrawing() : startDrawing(); });
-    $(document).on('keydown', function (event) { if (event.key === 'Escape') stopDrawing(); });
+    $(document).on('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        if (transformGesture) finishRegionTransform(false);
+        else if (drawing) stopDrawing();
+    });
+    $(moveHandle).on('pointerdown', function (event) { beginRegionTransform('move', event); }).on('keydown', function (event) { nudgeRegion('move', event); });
+    $(resizeHandle).on('pointerdown', function (event) { beginRegionTransform('resize', event); }).on('keydown', function (event) { nudgeRegion('resize', event); });
     $(svg).on('pointerdown', function (event) {
         if (drawing) {
             event.preventDefault();

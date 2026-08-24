@@ -13,6 +13,8 @@ $html = ob_get_clean();
 $requiredIds = array(
     'room-editor',
     'region-layer',
+    'region-move-handle',
+    'region-resize-handle',
     'object-portable',
     'inventory-key',
     'player-description',
@@ -80,9 +82,20 @@ if (strpos($objectEditorMarkup, 'json_encode($objectOptions') === false
     fwrite(STDERR, "Object editor is missing inventory object choices.\n");
     exit(1);
 }
+if (strpos($objectEditorMarkup, "nightlatch_asset('js/region-bounds.js')") === false
+    || strpos($editorScript, "beginRegionTransform('move'") === false
+    || strpos($editorScript, "beginRegionTransform('resize'") === false
+    || strpos($styles, '.region-transform-handle.move') === false
+    || strpos($styles, '.region-transform-handle.resize') === false) {
+    fwrite(STDERR, "Object editor is missing region move or resize controls.\n");
+    exit(1);
+}
 $roomEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/room-edit.php');
 if ($roomEditorMarkup === false
     || strpos($roomEditorMarkup, 'id="region-logic-editor"') === false
+    || strpos($roomEditorMarkup, 'id="region-move-handle"') === false
+    || strpos($roomEditorMarkup, 'id="region-resize-handle"') === false
+    || strpos($roomEditorMarkup, "nightlatch_asset('js/region-bounds.js')") === false
     || strpos($roomEditorMarkup, 'window.NL_EDITOR_OBJECTS') === false
     || strpos($roomEditorMarkup, "nightlatch_asset('js/logic-editor.js')") === false
     || strpos($roomEditorMarkup, "nightlatch_asset('js/image-area-editor.js')") === false) {

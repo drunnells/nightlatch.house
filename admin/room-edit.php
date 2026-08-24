@@ -114,7 +114,7 @@ require __DIR__ . '/_header.php';
         <?php if ($error): ?><div class="nl-alert compact"><?php echo nightlatch_h($error); ?></div><?php endif; ?>
         <div class="editor-panel active" data-panel-content="regions">
             <div class="sidebar-heading"><div><span class="eyebrow">Interaction map</span><h2>Clickable regions</h2></div><button id="add-region" class="icon-button gold" title="Draw a region"><i class="fa-solid fa-plus"></i></button></div>
-            <p class="hint">Choose “Draw region,” then drag a rectangle over the room image.</p>
+            <p class="hint">Draw a new region, or select an existing one and use its corner handles to move or resize it.</p>
             <button class="draw-callout" id="draw-region"><i class="fa-solid fa-pen-ruler"></i><span><strong>Draw region</strong><small>Drag over the image</small></span></button>
             <div class="region-list" id="region-list"></div>
         </div>
@@ -164,6 +164,8 @@ require __DIR__ . '/_header.php';
             <div class="room-canvas" id="room-canvas">
                 <img id="room-image" src="<?php echo nightlatch_h($room['backgroundAsset']); ?>" alt="Room background">
                 <svg id="region-layer" viewBox="0 0 1600 900" preserveAspectRatio="none" aria-label="Room interaction regions"></svg>
+                <button type="button" class="region-transform-handle move" id="region-move-handle" title="Drag to move region" aria-label="Drag to move selected region" hidden><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
+                <button type="button" class="region-transform-handle resize" id="region-resize-handle" title="Drag to resize region" aria-label="Drag to resize selected region" hidden><i class="fa-solid fa-up-right-and-down-left-from-center"></i></button>
                 <div class="draw-instruction" id="draw-instruction"><i class="fa-solid fa-crosshairs"></i> Drag to mark a clickable area · Esc to cancel</div>
             </div>
         </div>
@@ -190,6 +192,7 @@ require __DIR__ . '/_header.php';
 <script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOMS = <?php echo json_encode($roomOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_SOUNDS = <?php echo json_encode($soundOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CLUSTERS = <?php echo json_encode($clusterOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_GATEWAY = <?php echo json_encode($roomGateway, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOM_CLUSTER_ID = <?php echo json_encode($roomClusterId); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/region-bounds.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/image-area-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

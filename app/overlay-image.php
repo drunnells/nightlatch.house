@@ -125,6 +125,59 @@ function nightlatch_region_source_box($bounds, $canvas, $imageWidth, $imageHeigh
     );
 }
 
+function nightlatch_capture_region_overlay($sourceBytes, $bounds, $canvas)
+{
+    if (!extension_loaded('gd')) {
+        throw new RuntimeException('Capturing a region overlay requires the PHP GD extension on the web server.');
+    }
+    $source = imagecreatefromstring($sourceBytes);
+    if (!$source) {
+        throw new RuntimeException('The background must be a PNG, JPG, or WebP image that PHP GD can read.');
+    }
+
+    $sourceBox = nightlatch_region_source_box($bounds, $canvas, imagesx($source), imagesy($source));
+    $imageOptions = nightlatch_generated_image_options();
+    $targetWidth = min($imageOptions['maximumWidth'], $sourceBox['width']);
+    $targetHeight = max(1, (int) round($sourceBox['height'] * ($targetWidth / $sourceBox['width'])));
+    $target = imagecreatetruecolor($targetWidth, $targetHeight);
+    if (!$target) {
+        nightlatch_destroy_image($source);
+        throw new RuntimeException('The captured region overlay could not be prepared.');
+    }
+
+    imagealphablending($target, false);
+    imagesavealpha($target, true);
+    $transparent = imagecolorallocatealpha($target, 0, 0, 0, 127);
+    imagefill($target, 0, 0, $transparent);
+    imagecopyresampled(
+        $target,
+        $source,
+        0,
+        0,
+        $sourceBox['x'],
+        $sourceBox['y'],
+        $targetWidth,
+        $targetHeight,
+        $sourceBox['width'],
+        $sourceBox['height']
+    );
+
+    ob_start();
+    $encoded = imagepng($target, null, 6);
+    $bytes = ob_get_clean();
+    nightlatch_destroy_image($target);
+    nightlatch_destroy_image($source);
+    if (!$encoded || $bytes === false || $bytes === '') {
+        throw new RuntimeException('The captured region overlay could not be encoded.');
+    }
+
+    return array(
+        'bytes' => $bytes,
+        'width' => $targetWidth,
+        'height' => $targetHeight,
+    );
+}
+
 function nightlatch_create_overlay_template($sourceImage, $sourceBox, $spec)
 {
     $template = imagecreatetruecolor($spec['templateWidth'], $spec['templateHeight']);

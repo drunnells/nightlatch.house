@@ -177,6 +177,12 @@ require __DIR__ . '/_header.php';
             <div class="inspector-heading"><div><span class="eyebrow">Selected region</span><h2 id="inspector-title">Region</h2></div><button id="delete-region" class="icon-button danger" title="Delete region"><i class="fa-solid fa-trash"></i></button></div>
             <label for="region-name">Name</label><input id="region-name" placeholder="Locked cabinet">
             <label for="region-kind">Region type</label><select id="region-kind"><option value="interaction">Interaction</option><option value="door">Door / exit</option></select>
+            <div class="region-overlay-capture">
+                <div class="region-overlay-capture-heading"><span><i class="fa-solid fa-camera-retro"></i> Saved appearance</span><small id="captured-overlay-count">0 captured</small></div>
+                <p>Freeze the selected pixels before editing the background. The snapshot can later be reused by a Show / replace overlay result for this region.</p>
+                <button type="button" class="btn-ghost btn-block" id="capture-region-overlay"><i class="fa-solid fa-crop-simple"></i> Capture current region</button>
+                <div class="captured-overlay-summary" id="captured-overlay-summary"><span>No captured appearances yet.</span></div>
+            </div>
             <div class="region-logic-editor" id="region-logic-editor"></div>
             <div id="door-fields">
                 <label class="check-row map-check" id="door-gateway-row"><input id="door-gateway-exit" type="checkbox"><span><strong>Gateway exit</strong><small>This door receives a random eligible cluster instead of a static room.</small></span></label>

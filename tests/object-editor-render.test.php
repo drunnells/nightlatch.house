@@ -15,6 +15,8 @@ $requiredIds = array(
     'region-layer',
     'region-move-handle',
     'region-resize-handle',
+    'capture-region-overlay',
+    'captured-overlay-summary',
     'object-portable',
     'inventory-key',
     'player-description',
@@ -90,11 +92,23 @@ if (strpos($objectEditorMarkup, "nightlatch_asset('js/region-bounds.js')") === f
     fwrite(STDERR, "Object editor is missing region move or resize controls.\n");
     exit(1);
 }
+$captureEndpoint = file_get_contents(dirname(__DIR__) . '/admin/api/capture-region-overlay.php');
+if ($captureEndpoint === false
+    || strpos($captureEndpoint, 'nightlatch_capture_region_overlay') === false
+    || strpos($editorScript, "fetch('api/capture-region-overlay.php'") === false
+    || strpos($editorScript, "source: 'captured'") === false
+    || strpos($logicScript, "entry.source === 'captured'") === false
+    || strpos($styles, '.region-overlay-capture') === false) {
+    fwrite(STDERR, "Object editor is missing current-region overlay capture.\n");
+    exit(1);
+}
 $roomEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/room-edit.php');
 if ($roomEditorMarkup === false
     || strpos($roomEditorMarkup, 'id="region-logic-editor"') === false
     || strpos($roomEditorMarkup, 'id="region-move-handle"') === false
     || strpos($roomEditorMarkup, 'id="region-resize-handle"') === false
+    || strpos($roomEditorMarkup, 'id="capture-region-overlay"') === false
+    || strpos($roomEditorMarkup, 'id="captured-overlay-summary"') === false
     || strpos($roomEditorMarkup, "nightlatch_asset('js/region-bounds.js')") === false
     || strpos($roomEditorMarkup, 'window.NL_EDITOR_OBJECTS') === false
     || strpos($roomEditorMarkup, "nightlatch_asset('js/logic-editor.js')") === false

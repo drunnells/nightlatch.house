@@ -185,6 +185,28 @@
         $('#region-bounds').text('x ' + Math.round(region.bounds.x) + ' · y ' + Math.round(region.bounds.y) + ' · w ' + Math.round(region.bounds.width) + ' · h ' + Math.round(region.bounds.height));
     }
 
+    function capturedOverlays(region) {
+        return (region && Array.isArray(region.overlayLibrary) ? region.overlayLibrary : []).filter(function (entry) {
+            return entry && typeof entry === 'object' && entry.source === 'captured' && entry.asset;
+        });
+    }
+
+    function renderCapturedOverlaySummary() {
+        var entries = capturedOverlays(selected());
+        $('#captured-overlay-count').text(entries.length + ' captured');
+        if (!entries.length) {
+            $('#captured-overlay-summary').html('<span>No captured appearances yet.</span>');
+            return;
+        }
+        var recent = entries.slice(-4).reverse();
+        var html = '<div class="captured-overlay-thumbnails">';
+        recent.forEach(function (entry) {
+            html += '<img src="' + esc(entry.asset) + '" alt="Captured region appearance" title="' + esc(String(entry.asset).split('/').pop()) + '">';
+        });
+        html += '</div><strong>' + entries.length + ' snapshot' + (entries.length === 1 ? '' : 's') + ' available in overlay results.</strong>';
+        $('#captured-overlay-summary').html(html);
+    }
+
     function positionRegionHandles() {
         var region = selected();
         var visible = !!region && !drawing;
@@ -252,6 +274,7 @@
         $('#door-gateway-exit').prop('checked', gatewayExitSelected(region.id));
         $('#static-door-fields').toggle(!gatewayExitSelected(region.id) && !reservedReturn);
         if (logicEditor) logicEditor.setRegion(region);
+        renderCapturedOverlaySummary();
         updateBoundsReadout(region);
         fieldLock = false;
     }
@@ -625,6 +648,38 @@
     function uploadAsset(file, onSuccess, loadingElement) {
         uploadAssetPromise(file, loadingElement).then(onSuccess).catch(function (error) { toast(error.message, true); });
     }
+
+    $('#capture-region-overlay').on('click', function () {
+        var captureRegion = selected();
+        if (!captureRegion) return;
+        var button = $(this);
+        button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Capturing region…');
+        fetch('api/capture-region-overlay.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
+            body: JSON.stringify({
+                backgroundAsset: image.getAttribute('src'),
+                assetType: editor.assetType,
+                canvas: canvas,
+                bounds: captureRegion.bounds
+            })
+        }).then(function (response) { return response.json(); }).then(function (result) {
+            if (!result.ok) throw new Error(result.error || 'The region appearance could not be captured.');
+            if (!Array.isArray(captureRegion.overlayLibrary)) captureRegion.overlayLibrary = [];
+            if (captureRegion.overlayLibrary.length >= 100) captureRegion.overlayLibrary.shift();
+            captureRegion.overlayLibrary.push({ asset: result.url, prompt: '', source: 'captured' });
+            markDirty();
+            if (selected() === captureRegion) {
+                renderCapturedOverlaySummary();
+                if (logicEditor) logicEditor.refresh();
+            }
+            toast('Current region saved to the overlay library');
+        }).catch(function (error) {
+            toast(error.message, true);
+        }).finally(function () {
+            button.prop('disabled', false).html('<i class="fa-solid fa-crop-simple"></i> Capture current region');
+        });
+    });
 
     logicEditor = window.NLLogicEditor.create({
         root: '#region-logic-editor',

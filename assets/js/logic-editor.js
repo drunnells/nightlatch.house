@@ -223,14 +223,15 @@
         function overlayName(entry) {
             if (entry.prompt) return entry.prompt;
             var pieces = String(entry.asset || '').split('/');
-            return pieces[pieces.length - 1] || 'Saved overlay';
+            var filename = pieces[pieces.length - 1] || 'Saved overlay';
+            return entry.source === 'captured' ? 'Captured appearance · ' + filename : filename;
         }
 
         function overlayLibraryMarkup(action) {
             var entries = Array.isArray(region.overlayLibrary) ? region.overlayLibrary.slice().reverse() : [];
             var expanded = !!expandedOverlayLibraries[action.id];
             var html = '<button type="button" class="overlay-library-toggle" aria-expanded="' + (expanded ? 'true' : 'false') + '"' + (!entries.length ? ' disabled' : '') + '><i class="fa-solid fa-clock-rotate-left"></i><span>Reuse a region overlay' + (entries.length ? ' <small>' + entries.length + '</small>' : '') + '</span><i class="fa-solid fa-chevron-down"></i></button>' +
-                '<div class="overlay-library' + (expanded ? ' visible' : '') + '"><p class="hint">Previously uploaded, generated, or selected overlays for this region.</p><div class="overlay-library-grid">';
+                '<div class="overlay-library' + (expanded ? ' visible' : '') + '"><p class="hint">Previously captured, uploaded, generated, or selected overlays for this region.</p><div class="overlay-library-grid">';
             entries.forEach(function (entry) {
                 var selected = action.asset === entry.asset;
                 html += '<button type="button" class="logic-overlay-choice' + (selected ? ' selected' : '') + '" data-asset="' + esc(entry.asset) + '" title="' + esc(overlayName(entry)) + '"><img src="' + esc(entry.asset) + '" alt=""><span>' + esc(overlayName(entry)) + '</span>' + (selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';

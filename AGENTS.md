@@ -97,7 +97,8 @@ The S3 config shape currently includes:
 - Branch results are ordered actions. Supported actions show player messages, show/replace or clear the region overlay, set or clear flags, grant or remove items, unlock a door, open an object viewer, replace a selected room/object player description, or play a selected saved sound.
 - Overlay removal is explicit: `clear_overlay` deletes the current region-scoped overlay. A new overlay replaces the previous overlay for that region.
 - Each `set_overlay` result owns its asset and optional generation prompt so overlays may be uploaded or generated independently in IF, ELSE IF, or ELSE branches.
-- Each region keeps an `overlayLibrary` of up to 100 previously linked, uploaded, or generated overlays so authors can visually reuse the same artwork across branches without duplicating files.
+- Each region keeps an `overlayLibrary` of up to 100 previously captured, linked, uploaded, or generated overlays so authors can visually reuse the same artwork across branches without duplicating files.
+- Authors may capture a selected region's current pixels into its `overlayLibrary` before editing the background. Captures are stored as PNG files with transparency preserved and remain reusable after the source image changes.
 - Inventory conditions and grant/remove results store stable inventory keys, but the editor authors them through a searchable picker of saved portable objects rather than free-text keys.
 - Flag keys and object-examination targets use the same searchable picker pattern. New flag keys may be created from the flag picker; saved flag names and their room/object region associations are derived from content JSON in `app/content-variables.php` and shown in the top-level Flags catalog.
 - Legacy `condition` / `success` / `failure` regions must be normalized into the branch format when loaded and written as version 2 data on the next save.

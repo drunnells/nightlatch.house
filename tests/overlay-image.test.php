@@ -119,6 +119,53 @@ if (extension_loaded('gd')) {
         fwrite(STDERR, "Edited region was not composited into a full JPEG background correctly.\n");
         exit(1);
     }
+
+    $captureSource = imagecreatetruecolor(400, 200);
+    imagealphablending($captureSource, false);
+    imagesavealpha($captureSource, true);
+    $captureTransparent = imagecolorallocatealpha($captureSource, 0, 0, 0, 127);
+    imagefill($captureSource, 0, 0, $captureTransparent);
+    $captureRed = imagecolorallocatealpha($captureSource, 210, 25, 20, 0);
+    imagefilledrectangle($captureSource, 140, 70, 259, 129, $captureRed);
+    ob_start();
+    imagepng($captureSource);
+    $captureSourceBytes = ob_get_clean();
+    nightlatch_destroy_image($captureSource);
+
+    $captured = nightlatch_capture_region_overlay(
+        $captureSourceBytes,
+        array('x' => 100, 'y' => 50, 'width' => 200, 'height' => 100),
+        array('width' => 400, 'height' => 200)
+    );
+    $capturedInfo = getimagesizefromstring($captured['bytes']);
+    $capturedImage = imagecreatefromstring($captured['bytes']);
+    $capturedCorner = imagecolorat($capturedImage, 5, 5);
+    $capturedCenter = imagecolorat($capturedImage, 100, 50);
+    $capturedAlpha = ($capturedCorner >> 24) & 0x7F;
+    $capturedRed = ($capturedCenter >> 16) & 0xFF;
+    nightlatch_destroy_image($capturedImage);
+    if (!$capturedInfo || $capturedInfo[0] !== 200 || $capturedInfo[1] !== 100 || $capturedInfo[2] !== IMAGETYPE_PNG
+        || $captured['width'] !== 200 || $captured['height'] !== 100 || $capturedAlpha < 120 || $capturedRed < 180) {
+        fwrite(STDERR, "Captured region overlays did not preserve their crop, format, or transparency.\n");
+        exit(1);
+    }
+
+    $largeCaptureSource = imagecreatetruecolor(1200, 120);
+    $largeCaptureBlue = imagecolorallocate($largeCaptureSource, 20, 50, 180);
+    imagefill($largeCaptureSource, 0, 0, $largeCaptureBlue);
+    ob_start();
+    imagepng($largeCaptureSource);
+    $largeCaptureSourceBytes = ob_get_clean();
+    nightlatch_destroy_image($largeCaptureSource);
+    $largeCaptured = nightlatch_capture_region_overlay(
+        $largeCaptureSourceBytes,
+        array('x' => 0, 'y' => 0, 'width' => 1200, 'height' => 120),
+        array('width' => 1200, 'height' => 120)
+    );
+    if ($largeCaptured['width'] !== 1024 || $largeCaptured['height'] !== 102) {
+        fwrite(STDERR, "Captured region overlays were not capped to the generated-image width limit.\n");
+        exit(1);
+    }
 }
 
 fwrite(STDOUT, "overlay-image tests passed\n");

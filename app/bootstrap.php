@@ -45,6 +45,8 @@ function nightlatch_config()
     return $config;
 }
 
+require_once __DIR__ . '/storage.php';
+
 function nightlatch_db()
 {
     static $pdo = null;
@@ -148,15 +150,14 @@ function nightlatch_asset($relativePath)
 
 function nightlatch_room_payload($row)
 {
-    $data = nightlatch_interactive_content_data($row['room_data']);
+    $data = nightlatch_resolve_interactive_asset_urls(nightlatch_interactive_content_data($row['room_data']));
     return array(
         'id' => (int) $row['id'],
         'title' => $row['title'],
         'slug' => $row['slug'],
         'description' => $row['description'],
         'playerDescription' => isset($row['player_description']) ? $row['player_description'] : '',
-        'status' => $row['status'],
-        'backgroundAsset' => $row['background_asset'],
+        'backgroundAsset' => nightlatch_storage_public_url($row['background_asset']),
         'backgroundPrompt' => $row['background_prompt'],
         'data' => $data,
         'updatedAt' => $row['updated_at'],
@@ -165,15 +166,14 @@ function nightlatch_room_payload($row)
 
 function nightlatch_object_payload($row)
 {
-    $data = nightlatch_interactive_content_data($row['object_data']);
+    $data = nightlatch_resolve_interactive_asset_urls(nightlatch_interactive_content_data($row['object_data']));
     return array(
         'id' => (int) $row['id'],
         'title' => $row['title'],
         'slug' => $row['slug'],
         'description' => $row['description'],
         'playerDescription' => isset($row['player_description']) ? $row['player_description'] : '',
-        'status' => $row['status'],
-        'backgroundAsset' => $row['background_asset'],
+        'backgroundAsset' => nightlatch_storage_public_url($row['background_asset']),
         'backgroundPrompt' => $row['background_prompt'],
         'portable' => !empty($row['portable']),
         'inventoryKey' => isset($row['inventory_key']) ? $row['inventory_key'] : '',

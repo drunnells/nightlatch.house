@@ -28,7 +28,7 @@ require __DIR__ . '/_header.php';
         </div>
         <div class="stats-grid sound-stats">
             <div class="stat-card"><i class="fa-solid fa-volume-high"></i><span><strong><?php echo count($sounds); ?></strong>Saved sounds</span></div>
-            <div class="stat-card"><i class="fa-solid fa-hard-drive"></i><span><strong><?php echo nightlatch_h(number_format($totalBytes / 1048576, 1)); ?> MB</strong>Local audio</span></div>
+            <div class="stat-card"><i class="fa-solid fa-cloud"></i><span><strong><?php echo nightlatch_h(number_format($totalBytes / 1048576, 1)); ?> MB</strong>Stored audio</span></div>
             <div class="stat-card"><i class="fa-solid fa-list-check"></i><span><strong>Searchable</strong>Rule picker</span></div>
         </div>
         <?php if ($sounds): ?>

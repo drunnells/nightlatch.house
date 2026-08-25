@@ -8,7 +8,6 @@ $payload = nightlatch_object_payload(array(
     'slug' => 'puzzle-box',
     'description' => 'A portable puzzle.',
     'player_description' => 'An ornate box with a stubborn lid.',
-    'status' => 'development',
     'background_asset' => '../assets/graphics/objects/demo-object.svg',
     'background_prompt' => '',
     'portable' => '1',

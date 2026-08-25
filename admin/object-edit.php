@@ -11,7 +11,6 @@ $object = array(
     'slug' => '',
     'description' => '',
     'playerDescription' => '',
-    'status' => 'development',
     'backgroundAsset' => '../assets/graphics/objects/demo-object.svg',
     'backgroundPrompt' => '',
     'portable' => false,
@@ -110,8 +109,7 @@ require __DIR__ . '/_header.php';
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="5"><?php echo nightlatch_h($object['description']); ?></textarea>
             <label class="check-row portable-setting"><input id="object-portable" type="checkbox"<?php echo !empty($object['portable']) ? ' checked' : ''; ?>><span>Player can carry this object</span></label>
             <div id="inventory-key-fields"><label for="inventory-key">Inventory key</label><input id="inventory-key" value="<?php echo nightlatch_h($object['inventoryKey']); ?>" placeholder="defaults-to-object-slug"><p class="hint">Grant this key from a successful room or object region to put the object in the player inventory.</p></div>
-            <label for="room-status">Lifecycle</label><select id="room-status"><option value="development"<?php echo $object['status'] === 'development' ? ' selected' : ''; ?>>Development · local draft</option><option value="staging" disabled<?php echo $object['status'] === 'staging' ? ' selected' : ''; ?>>Staging · S3 publishing required</option><option value="production" disabled<?php echo $object['status'] === 'production' ? ' selected' : ''; ?>>Production · S3 publishing required</option></select>
-            <p class="hint">Room-bound objects open only from regions that reference them. Portable objects also appear in inventory while their inventory key is owned.</p>
+            <p class="hint">Saved artwork and overlays are stored in DigitalOcean Spaces. Room-bound objects open only from regions that reference them; portable objects also appear in inventory while owned.</p>
             <?php if ($id): ?><button class="danger-button" id="delete-room"><i class="fa-solid fa-trash"></i> Delete object</button><?php endif; ?>
         </div>
     </section>

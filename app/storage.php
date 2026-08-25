@@ -1,0 +1,433 @@
+<?php
+
+/**
+ * DigitalOcean Spaces / S3-compatible storage helpers.
+ *
+ * Saved content stores object keys. Browser payloads resolve those keys through
+ * the configured CDN base URL, while server-side image tools download objects
+ * into request-scoped temporary files when GD needs a local path.
+ */
+
+function nightlatch_storage_settings()
+{
+    $config = function_exists('nightlatch_config') ? nightlatch_config() : array();
+    $s3 = isset($config['s3']) && is_array($config['s3']) ? $config['s3'] : array();
+    return array(
+        'endpoint' => rtrim(isset($s3['s3_endpoint']) ? trim((string) $s3['s3_endpoint']) : '', '/'),
+        'objectBaseUrl' => rtrim(isset($s3['s3_object_baseurl']) ? trim((string) $s3['s3_object_baseurl']) : '', '/'),
+        'bucket' => isset($s3['s3_bucket']) ? trim((string) $s3['s3_bucket']) : '',
+        'region' => isset($s3['s3_region']) ? trim((string) $s3['s3_region']) : '',
+        'accessKey' => isset($s3['s3_key']) ? trim((string) $s3['s3_key']) : '',
+        'secretKey' => isset($s3['s3_secret']) ? trim((string) $s3['s3_secret']) : '',
+        'acl' => isset($s3['s3_acl']) ? trim((string) $s3['s3_acl']) : 'public-read',
+    );
+}
+
+function nightlatch_require_storage_settings()
+{
+    $settings = nightlatch_storage_settings();
+    foreach (array('endpoint', 'objectBaseUrl', 'bucket', 'region', 'accessKey', 'secretKey') as $key) {
+        if ($settings[$key] === '' || strpos($settings[$key], 'replace-with-') === 0) {
+            throw new RuntimeException('DigitalOcean Spaces storage is not configured. Complete the s3 settings in the private config.');
+        }
+    }
+    if (strtolower((string) parse_url($settings['endpoint'], PHP_URL_SCHEME)) !== 'https'
+        || (string) parse_url($settings['endpoint'], PHP_URL_HOST) === '') {
+        throw new RuntimeException('The configured S3 endpoint must be a complete HTTPS URL.');
+    }
+    if (!function_exists('curl_init')) throw new RuntimeException('DigitalOcean Spaces storage requires PHP cURL.');
+    return $settings;
+}
+
+function nightlatch_storage_validate_key($key)
+{
+    $key = ltrim((string) $key, '/');
+    if ($key === '' || strlen($key) > 900 || strpos($key, "\0") !== false || strpos('/' . $key . '/', '/../') !== false) {
+        throw new RuntimeException('The stored asset key is invalid.');
+    }
+    if (!preg_match('#^(rooms|objects|sounds)/[A-Za-z0-9._~!$&\'()*+,;=:@%/-]+$#', $key)) {
+        throw new RuntimeException('The stored asset key is invalid.');
+    }
+    return $key;
+}
+
+function nightlatch_storage_is_key($value)
+{
+    if (!is_string($value) || !preg_match('#^(rooms|objects|sounds)/#', $value)) return false;
+    try {
+        nightlatch_storage_validate_key($value);
+        return true;
+    } catch (Throwable $exception) {
+        return false;
+    }
+}
+
+function nightlatch_storage_encode_key($key)
+{
+    $segments = explode('/', nightlatch_storage_validate_key($key));
+    foreach ($segments as $index => $segment) {
+        $segments[$index] = rawurlencode(rawurldecode($segment));
+    }
+    return implode('/', $segments);
+}
+
+function nightlatch_storage_key_from_reference($reference, $settings = null)
+{
+    $reference = trim((string) $reference);
+    if ($reference === '') return '';
+    if (nightlatch_storage_is_key($reference)) return nightlatch_storage_validate_key($reference);
+
+    if ($settings === null) $settings = nightlatch_storage_settings();
+    $base = isset($settings['objectBaseUrl']) ? rtrim((string) $settings['objectBaseUrl'], '/') : '';
+    if ($base === '') return '';
+
+    $referenceParts = parse_url($reference);
+    $baseParts = parse_url($base);
+    if (!is_array($referenceParts) || !is_array($baseParts)
+        || empty($referenceParts['host']) || empty($baseParts['host'])
+        || strtolower($referenceParts['host']) !== strtolower($baseParts['host'])) {
+        return '';
+    }
+    $referencePath = isset($referenceParts['path']) ? rawurldecode($referenceParts['path']) : '';
+    $basePath = isset($baseParts['path']) ? rtrim(rawurldecode($baseParts['path']), '/') : '';
+    if ($basePath !== '' && strpos($referencePath, $basePath . '/') !== 0) return '';
+    $key = ltrim(substr($referencePath, strlen($basePath)), '/');
+    return nightlatch_storage_is_key($key) ? nightlatch_storage_validate_key($key) : '';
+}
+
+function nightlatch_storage_public_url($reference, $settings = null)
+{
+    $reference = trim((string) $reference);
+    if ($reference === '' || !nightlatch_storage_is_key($reference)) return $reference;
+    if ($settings === null) $settings = nightlatch_storage_settings();
+    $base = isset($settings['objectBaseUrl']) ? rtrim((string) $settings['objectBaseUrl'], '/') : '';
+    if ($base === '') {
+        throw new RuntimeException('The S3 CDN base URL is not configured.');
+    }
+    return $base . '/' . nightlatch_storage_encode_key($reference);
+}
+
+function nightlatch_storage_request_target($key, $settings)
+{
+    $parts = parse_url($settings['endpoint']);
+    if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+        throw new RuntimeException('The configured S3 endpoint is invalid.');
+    }
+    $host = $parts['host'];
+    if (strpos(strtolower($host), strtolower($settings['bucket']) . '.') !== 0) {
+        $host = $settings['bucket'] . '.' . $host;
+    }
+    $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
+    $hostHeader = $host . $port;
+    $basePath = isset($parts['path']) ? '/' . trim($parts['path'], '/') : '';
+    if ($basePath === '/') $basePath = '';
+    $canonicalUri = $basePath . '/' . nightlatch_storage_encode_key($key);
+    return array(
+        'host' => $hostHeader,
+        'canonicalUri' => $canonicalUri,
+        'url' => $parts['scheme'] . '://' . $hostHeader . $canonicalUri,
+    );
+}
+
+function nightlatch_storage_request($method, $key, $body, $contentType)
+{
+    $settings = nightlatch_require_storage_settings();
+    $key = nightlatch_storage_validate_key($key);
+    $method = strtoupper((string) $method);
+    $body = (string) $body;
+    $target = nightlatch_storage_request_target($key, $settings);
+    $amzDate = gmdate('Ymd\THis\Z');
+    $shortDate = substr($amzDate, 0, 8);
+    $payloadHash = hash('sha256', $body);
+    $headersToSign = array(
+        'host' => $target['host'],
+        'x-amz-content-sha256' => $payloadHash,
+        'x-amz-date' => $amzDate,
+    );
+    if ($method === 'PUT' && $settings['acl'] !== '') {
+        $headersToSign['x-amz-acl'] = $settings['acl'];
+    }
+    ksort($headersToSign);
+    $canonicalHeaders = '';
+    foreach ($headersToSign as $name => $value) {
+        $canonicalHeaders .= $name . ':' . trim($value) . "\n";
+    }
+    $signedHeaders = implode(';', array_keys($headersToSign));
+    $canonicalRequest = $method . "\n" . $target['canonicalUri'] . "\n\n"
+        . $canonicalHeaders . "\n" . $signedHeaders . "\n" . $payloadHash;
+    $scope = $shortDate . '/' . $settings['region'] . '/s3/aws4_request';
+    $stringToSign = "AWS4-HMAC-SHA256\n" . $amzDate . "\n" . $scope . "\n" . hash('sha256', $canonicalRequest);
+    $dateKey = hash_hmac('sha256', $shortDate, 'AWS4' . $settings['secretKey'], true);
+    $regionKey = hash_hmac('sha256', $settings['region'], $dateKey, true);
+    $serviceKey = hash_hmac('sha256', 's3', $regionKey, true);
+    $signingKey = hash_hmac('sha256', 'aws4_request', $serviceKey, true);
+    $signature = hash_hmac('sha256', $stringToSign, $signingKey);
+    $authorization = 'AWS4-HMAC-SHA256 Credential=' . $settings['accessKey'] . '/' . $scope
+        . ', SignedHeaders=' . $signedHeaders . ', Signature=' . $signature;
+
+    $headers = array(
+        'Authorization: ' . $authorization,
+        'Host: ' . $target['host'],
+        'x-amz-content-sha256: ' . $payloadHash,
+        'x-amz-date: ' . $amzDate,
+    );
+    if ($method === 'PUT' && $settings['acl'] !== '') $headers[] = 'x-amz-acl: ' . $settings['acl'];
+    if ($contentType !== '') $headers[] = 'Content-Type: ' . $contentType;
+
+    $curl = curl_init($target['url']);
+    curl_setopt_array($curl, array(
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 180,
+        CURLOPT_HTTPHEADER => $headers,
+    ));
+    if ($method === 'PUT') curl_setopt($curl, CURLOPT_POSTFIELDS, $body);
+    $responseBody = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($curl);
+    curl_close($curl);
+    if ($responseBody === false || $curlError !== '') {
+        throw new RuntimeException('The asset storage service could not be reached.');
+    }
+    return array('status' => $status, 'body' => $responseBody);
+}
+
+function nightlatch_storage_put_bytes($key, $bytes, $mimeType)
+{
+    $result = nightlatch_storage_request('PUT', $key, $bytes, $mimeType);
+    if ($result['status'] < 200 || $result['status'] >= 300) {
+        throw new RuntimeException('The asset could not be uploaded to DigitalOcean Spaces (HTTP ' . $result['status'] . ').');
+    }
+    return nightlatch_storage_validate_key($key);
+}
+
+function nightlatch_storage_get_bytes($key)
+{
+    $result = nightlatch_storage_request('GET', $key, '', '');
+    if ($result['status'] < 200 || $result['status'] >= 300) {
+        throw new RuntimeException('The saved asset could not be downloaded from DigitalOcean Spaces (HTTP ' . $result['status'] . ').');
+    }
+    return $result['body'];
+}
+
+function nightlatch_storage_delete($key)
+{
+    $result = nightlatch_storage_request('DELETE', $key, '', '');
+    if (($result['status'] < 200 || $result['status'] >= 300) && $result['status'] !== 404) {
+        throw new RuntimeException('The asset could not be deleted from DigitalOcean Spaces (HTTP ' . $result['status'] . ').');
+    }
+}
+
+function nightlatch_local_content_asset_file($assetUrl, $assetType)
+{
+    if (!in_array($assetType, array('rooms', 'objects'), true)) {
+        throw new RuntimeException('The image asset type is invalid.');
+    }
+    if (!is_string($assetUrl)) {
+        throw new RuntimeException('The background asset is invalid.');
+    }
+    $urlPath = parse_url($assetUrl, PHP_URL_PATH);
+    if (!is_string($urlPath) || $urlPath === '') return '';
+    $urlPath = str_replace('\\', '/', rawurldecode($urlPath));
+    $marker = '/assets/graphics/' . $assetType . '/';
+    $searchPath = '/' . ltrim($urlPath, '/');
+    $position = strpos($searchPath, $marker);
+    if ($position === false) return '';
+    $relative = substr($searchPath, $position + strlen($marker));
+    if ($relative === '' || strpos('/' . $relative . '/', '/../') !== false || strpos($relative, "\0") !== false) {
+        throw new RuntimeException('The background path is invalid.');
+    }
+    $assetRoot = realpath(NIGHTLATCH_ROOT . '/assets/graphics/' . $assetType);
+    if (!$assetRoot) throw new RuntimeException('The asset directory could not be found on this server.');
+    $candidate = realpath($assetRoot . '/' . $relative);
+    if (!$candidate || strpos($candidate, $assetRoot . DIRECTORY_SEPARATOR) !== 0 || !is_file($candidate)) return '';
+    return $candidate;
+}
+
+function nightlatch_local_content_asset_path($assetUrl, $assetType)
+{
+    $localPath = nightlatch_local_content_asset_file($assetUrl, $assetType);
+    if ($localPath !== '') return $localPath;
+
+    $key = nightlatch_storage_key_from_reference($assetUrl);
+    $requiredPrefix = $assetType . '/';
+    if ($key === '' || strpos($key, $requiredPrefix) !== 0) {
+        throw new RuntimeException('The background must be a saved ' . rtrim($assetType, 's') . ' image.');
+    }
+    $bytes = nightlatch_storage_get_bytes($key);
+    if ($bytes === '' || strlen($bytes) > 30 * 1024 * 1024) {
+        throw new RuntimeException('The saved image is empty or too large to edit safely.');
+    }
+    $temporaryPath = tempnam(sys_get_temp_dir(), 'nightlatch-image-');
+    if ($temporaryPath === false || file_put_contents($temporaryPath, $bytes, LOCK_EX) === false) {
+        throw new RuntimeException('A temporary image file could not be prepared.');
+    }
+    register_shutdown_function(function () use ($temporaryPath) {
+        if (is_file($temporaryPath)) @unlink($temporaryPath);
+    });
+    return $temporaryPath;
+}
+
+function nightlatch_asset_mime_type($path)
+{
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = (string) $finfo->file($path);
+    $allowed = array(
+        'image/png', 'image/jpeg', 'image/webp', 'image/svg+xml',
+        'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave',
+        'audio/ogg', 'application/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/webm',
+    );
+    if (!in_array($mime, $allowed, true)) throw new RuntimeException('The local asset type is not supported for storage.');
+    return $mime;
+}
+
+function nightlatch_storage_unique_key($root, $slug, $category, $sourcePath)
+{
+    $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
+    if ($extension === 'jpeg') $extension = 'jpg';
+    if (!preg_match('/^[a-z0-9]{2,5}$/', $extension)) $extension = 'bin';
+    return nightlatch_storage_validate_key(
+        $root . '/' . nightlatch_slug($slug) . '/' . $category . '/'
+        . gmdate('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.' . $extension
+    );
+}
+
+function nightlatch_promote_content_reference($reference, $assetType, $slug, $category, &$replacements, &$localFiles)
+{
+    $reference = trim((string) $reference);
+    if ($reference === '') return '';
+    if (isset($replacements[$reference])) return $replacements[$reference];
+    $key = nightlatch_storage_key_from_reference($reference);
+    if ($key !== '') {
+        if (strpos($key, $assetType . '/') !== 0) throw new RuntimeException('The saved image belongs to a different content type.');
+        return $key;
+    }
+    $localPath = nightlatch_local_content_asset_file($reference, $assetType);
+    if ($localPath === '') throw new RuntimeException('Every saved image must be a local editor asset or a configured Spaces asset.');
+    $mime = nightlatch_asset_mime_type($localPath);
+    if (strpos($mime, 'image/') !== 0) throw new RuntimeException('Room and object graphics must be image files.');
+    $bytes = file_get_contents($localPath);
+    if ($bytes === false) throw new RuntimeException('A local image could not be read for upload.');
+    $key = nightlatch_storage_unique_key($assetType, $slug, $category, $localPath);
+    nightlatch_storage_put_bytes($key, $bytes, $mime);
+    $replacements[$reference] = $key;
+    $localFiles[$localPath] = true;
+    return $key;
+}
+
+function nightlatch_transform_interactive_assets($value, $assetType, $slug, &$replacements, &$localFiles, $insideOverlayLibrary = false)
+{
+    if (!is_array($value)) return $value;
+    $result = array();
+    foreach ($value as $key => $child) {
+        $isOverlayLibrary = $insideOverlayLibrary || $key === 'overlayLibrary';
+        if (($key === 'asset' && is_string($child)) || ($insideOverlayLibrary && is_int($key) && is_string($child))) {
+            $result[$key] = nightlatch_promote_content_reference($child, $assetType, $slug, 'overlays', $replacements, $localFiles);
+        } elseif (is_array($child)) {
+            $result[$key] = nightlatch_transform_interactive_assets($child, $assetType, $slug, $replacements, $localFiles, $isOverlayLibrary);
+        } else {
+            $result[$key] = $child;
+        }
+    }
+    return $result;
+}
+
+function nightlatch_promote_content_assets($backgroundAsset, $data, $assetType, $slug, &$replacements, &$localFiles)
+{
+    $backgroundKey = nightlatch_promote_content_reference($backgroundAsset, $assetType, $slug, 'backgrounds', $replacements, $localFiles);
+    $storedData = nightlatch_transform_interactive_assets($data, $assetType, $slug, $replacements, $localFiles);
+    return array('backgroundAsset' => $backgroundKey, 'data' => $storedData);
+}
+
+function nightlatch_resolve_interactive_asset_urls($value, $insideOverlayLibrary = false)
+{
+    if (!is_array($value)) return $value;
+    $result = array();
+    foreach ($value as $key => $child) {
+        $isOverlayLibrary = $insideOverlayLibrary || $key === 'overlayLibrary';
+        if (($key === 'asset' && is_string($child)) || ($insideOverlayLibrary && is_int($key) && is_string($child))) {
+            $result[$key] = nightlatch_storage_public_url($child);
+        } elseif (is_array($child)) {
+            $result[$key] = nightlatch_resolve_interactive_asset_urls($child, $isOverlayLibrary);
+        } else {
+            $result[$key] = $child;
+        }
+    }
+    return $result;
+}
+
+function nightlatch_collect_interactive_storage_keys($value, &$keys, $insideOverlayLibrary = false)
+{
+    if (!is_array($value)) return;
+    foreach ($value as $key => $child) {
+        $isOverlayLibrary = $insideOverlayLibrary || $key === 'overlayLibrary';
+        if (($key === 'asset' && is_string($child)) || ($insideOverlayLibrary && is_int($key) && is_string($child))) {
+            $storedKey = nightlatch_storage_key_from_reference($child);
+            if ($storedKey !== '') $keys[$storedKey] = true;
+        } elseif (is_array($child)) {
+            nightlatch_collect_interactive_storage_keys($child, $keys, $isOverlayLibrary);
+        }
+    }
+}
+
+function nightlatch_content_storage_keys($backgroundAsset, $data)
+{
+    $keys = array();
+    $backgroundKey = nightlatch_storage_key_from_reference($backgroundAsset);
+    if ($backgroundKey !== '') $keys[$backgroundKey] = true;
+    nightlatch_collect_interactive_storage_keys($data, $keys);
+    return array_keys($keys);
+}
+
+function nightlatch_cleanup_local_asset_files($localFiles)
+{
+    foreach (array_keys($localFiles) as $path) {
+        $normalized = str_replace('\\', '/', $path);
+        if ((strpos($normalized, '/assets/graphics/rooms/uploads/') !== false
+                || strpos($normalized, '/assets/graphics/rooms/generated/') !== false
+                || strpos($normalized, '/assets/graphics/objects/uploads/') !== false
+                || strpos($normalized, '/assets/graphics/objects/generated/') !== false
+                || strpos($normalized, '/assets/sounds/uploads/') !== false)
+            && is_file($path)) {
+            @unlink($path);
+        }
+    }
+}
+
+function nightlatch_delete_storage_keys($keys)
+{
+    foreach (array_unique($keys) as $key) {
+        try {
+            nightlatch_storage_delete($key);
+        } catch (Throwable $exception) {
+            error_log('Nightlatch asset cleanup failed for a saved storage key.');
+        }
+    }
+}
+
+function nightlatch_delete_unreferenced_content_storage_keys(PDO $pdo, $candidateKeys)
+{
+    $candidateKeys = array_values(array_unique($candidateKeys));
+    if (!$candidateKeys) return;
+    $referenced = array();
+    try {
+        foreach ($pdo->query('SELECT background_asset, room_data FROM rooms')->fetchAll() as $row) {
+            foreach (nightlatch_content_storage_keys($row['background_asset'], nightlatch_interactive_content_data($row['room_data'])) as $key) {
+                $referenced[$key] = true;
+            }
+        }
+        foreach ($pdo->query('SELECT background_asset, object_data FROM objects')->fetchAll() as $row) {
+            foreach (nightlatch_content_storage_keys($row['background_asset'], nightlatch_interactive_content_data($row['object_data'])) as $key) {
+                $referenced[$key] = true;
+            }
+        }
+    } catch (Throwable $exception) {
+        error_log('Nightlatch skipped asset cleanup because saved references could not be checked.');
+        return;
+    }
+    $unused = array();
+    foreach ($candidateKeys as $key) {
+        if (!isset($referenced[$key])) $unused[] = $key;
+    }
+    nightlatch_delete_storage_keys($unused);
+}

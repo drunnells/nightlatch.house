@@ -10,7 +10,7 @@ function nightlatch_sound_payload($row)
         'id' => (int) $row['id'],
         'name' => isset($row['name']) ? (string) $row['name'] : '',
         'slug' => isset($row['slug']) ? (string) $row['slug'] : '',
-        'assetUrl' => isset($row['asset_path']) ? (string) $row['asset_path'] : '',
+        'assetUrl' => isset($row['asset_path']) ? nightlatch_storage_public_url((string) $row['asset_path']) : '',
         'mimeType' => isset($row['mime_type']) ? (string) $row['mime_type'] : '',
         'fileSize' => isset($row['file_size']) ? (int) $row['file_size'] : 0,
         'originalFilename' => isset($row['original_filename']) ? (string) $row['original_filename'] : '',

@@ -50,6 +50,7 @@ The S3 config shape currently includes:
 - `s3_region`
 - `s3_key`
 - `s3_secret`
+- `s3_acl`
 
 ## Product Direction
 
@@ -118,7 +119,7 @@ The S3 config shape currently includes:
 
 - Room backgrounds and object close-up images may be uploaded or generated with the configured Google Gemini image model.
 - Object artwork may be cropped with a rectangle or point-by-point lasso. Lasso output is a transparent PNG outside the selected polygon, and existing object region bounds must be remapped or removed when they fall outside the crop.
-- Object generation may use a rectangular reference crop selected from a searchable thumbnail library of saved local raster room and object images. Validate and extract the selected reference area on the server before sending it to Gemini.
+- Object generation may use a rectangular reference crop selected from a searchable thumbnail library of saved raster room and object images. Validate and extract the selected reference area on the server before sending it to Gemini.
 - A branch-specific region overlay may be uploaded or generated from an image-editing prompt.
 - A saved region overlay may be selected as Gemini's exact reference for another edit. Preserve the original library entry, assign the new result to the active overlay action, and add that result to the same region library for reuse or further editing.
 - Authors may select a rectangular area of a room or object background, describe a precision edit, and review a full-image candidate. Cancel must leave the draft unchanged; Apply changes only the draft background reference, and the normal content Save persists it.
@@ -132,25 +133,21 @@ The S3 config shape currently includes:
 - PHP's GD extension is required for generated-image resizing, template composition, overlay extraction, and JPEG encoding.
 - Keep generated image sizing and quality values centralized in `app/image.php` rather than duplicating magic numbers.
 
-## Local Asset Storage
+## Asset Storage
 
-- Draft room backgrounds and overlays live under `assets/graphics/rooms`; object images and overlays live under `assets/graphics/objects`.
-- Uploaded sound-library files live under `assets/sounds/uploads`; their names, stable slugs, MIME types, and paths are stored in MySQL.
-- The web-server user must have write access to the `generated` and `uploads` directories under both image asset roots and to `assets/sounds/uploads`.
-- Keep generated and uploaded room/object files and uploaded sounds out of git while retaining the tracked `.gitkeep` files.
+- Local room/object uploads and generated graphics are temporary editor files under `assets/graphics/rooms` and `assets/graphics/objects` until their owning content is saved.
+- Saving a room or object uploads its background and every referenced overlay to the configured DigitalOcean Spaces bucket, stores canonical object keys in MySQL/content JSON, and removes promoted temporary files after the database commit succeeds.
+- Sound-library uploads go directly to Spaces. Their names, stable slugs, MIME types, object keys, and original metadata are stored in MySQL.
+- Browser payloads resolve stored object keys through `s3_object_baseurl`. Server-side GD/Gemini operations download saved images into request-scoped temporary files and remove them after the request.
+- The web-server user must have write access to the `generated` and `uploads` directories under both image asset roots and to the PHP temporary directory.
+- Keep generated and uploaded room/object temporary files and legacy uploaded sounds out of git while retaining the tracked `.gitkeep` files.
 - Do not solve write-permission problems with world-writable permissions. Prefer an appropriate web-server group, group write access, setgid directories, and the required SELinux writable-content context where applicable.
-- Treat uploaded and selected image paths as untrusted input. Validate MIME types, constrain local path resolution to the applicable room/object asset directory, and reject traversal outside it.
+- Treat uploaded files, object keys, and selected image paths as untrusted input. Validate MIME types, constrain local paths and storage prefixes to the applicable content type, and reject traversal or arbitrary remote URLs.
 
 ## Interactive Content Lifecycle
 
-- During admin editing, room/object files and draft assets may be stored locally on the server.
-- Finished interactive content should be published to S3 before it is considered available outside local development.
-- S3 is expected to contain both development and production published room assets/configurations.
-- Publishing status should be treated as data stored with each room or object.
-- Use these initial content statuses:
-  - `development`: local server only; editable draft state.
-  - `staging`: published to S3, available for development testing, and inserted into the dev database.
-  - `production`: published to S3 and available to real players by being inserted into the production database.
+- Room and object records do not carry development/staging/production lifecycle states. `dev` and `prod` describe application environments rather than individual content records.
+- The shared dev admin and database are the active authoring environment. A future production authoring or dev-to-prod synchronization workflow should be designed only when the production client requires it.
 
 ## Database Updates
 
@@ -177,6 +174,7 @@ The S3 config shape currently includes:
   - `php tests/map-topology.test.php`
   - `php tests/map-editor-render.test.php`
   - `php tests/sound-library.test.php`
+  - `php tests/storage.test.php`
   - `php tests/sounds-editor-render.test.php`
   - `node tests/room-rules.test.js`
   - `node tests/region-bounds.test.js`

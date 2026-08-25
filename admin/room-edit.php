@@ -12,7 +12,6 @@ $room = array(
     'slug' => '',
     'description' => '',
     'playerDescription' => '',
-    'status' => 'development',
     'backgroundAsset' => '../assets/graphics/rooms/demo-room.svg',
     'backgroundPrompt' => '',
     'data' => array(
@@ -137,8 +136,7 @@ require __DIR__ . '/_header.php';
             <label for="room-slug">Slug</label><input id="room-slug" value="<?php echo nightlatch_h($room['slug']); ?>" placeholder="created-from-title">
             <label for="player-description">Player description</label><textarea id="player-description" rows="5" placeholder="A dark, lonely room."><?php echo nightlatch_h($room['playerDescription']); ?></textarea><p class="hint">Hidden during play until the player chooses the eye control. Results may replace this text for the current session.</p>
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="6"><?php echo nightlatch_h($room['description']); ?></textarea>
-            <label for="room-status">Lifecycle</label><select id="room-status"><option value="development"<?php echo $room['status'] === 'development' ? ' selected' : ''; ?>>Development · local draft</option><option value="staging" disabled<?php echo $room['status'] === 'staging' ? ' selected' : ''; ?>>Staging · S3 publishing required</option><option value="production" disabled<?php echo $room['status'] === 'production' ? ' selected' : ''; ?>>Production · S3 publishing required</option></select>
-            <p class="hint">This first pass authors local development rooms. Staging and production will be enabled with the S3 publishing workflow.</p>
+            <p class="hint">Saved backgrounds and overlays are stored in DigitalOcean Spaces. Local files remain temporary until this room is saved.</p>
             <div class="node-note"><i class="fa-solid fa-circle-nodes"></i><p><strong>Cluster membership and connections live in the Map tab.</strong> This room is <?php echo $roomClusterId ? 'assigned to a cluster' : 'currently unassigned'; ?>.</p></div>
             <div class="gateway-room-settings" id="gateway-room-settings">
                 <label class="check-row map-check"><input type="checkbox" id="room-gateway-enabled"<?php echo !$roomClusterId ? ' disabled' : ''; ?>><span><strong>Gateway room</strong><small>Assign selected door regions to random cluster entry rooms for each play session.</small></span></label>

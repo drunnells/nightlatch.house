@@ -4,8 +4,8 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
 
 ## Local setup
 
-1. Copy `config/config.example.php` to the private `config/config.php` and fill in local MySQL and Gemini values.
-2. Apply `database/updates/001_admin_room_creator.sql`, `database/updates/002_interactive_objects.sql`, `database/updates/003_room_clusters_and_gateways.sql`, `database/updates/004_player_descriptions_and_sounds.sql`, and `database/updates/005_cluster_ambient_audio.sql` in order to the configured database.
+1. Copy `config/config.example.php` to the private `config/config.php` and fill in MySQL, Gemini, and DigitalOcean Spaces values. `s3_object_baseurl` should be the Space's CDN base URL.
+2. Apply the numbered files under `database/updates` in order to the configured database, including `006_spaces_asset_storage.sql`.
 3. Create the first admin account:
 
    ```bash
@@ -14,15 +14,15 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
 
 4. Serve this directory through PHP/Apache and open `/admin/login.php`.
 
-The real `config/config.php` must remain private and untracked. Room uploads and Gemini-generated drafts are also ignored by git; the checked-in demo SVG is only an editor placeholder.
+The real `config/config.php` must remain private and untracked. Room uploads and Gemini-generated drafts are temporary local files and are ignored by git; the checked-in demo SVG is only an editor placeholder.
 
-Region overlay generation requires PHP's GD extension. The web-server user must be able to write the `generated` and `uploads` directories under both `assets/graphics/rooms` and `assets/graphics/objects`, plus `assets/sounds/uploads`.
+Region overlay generation requires PHP's GD extension. The web-server user must be able to write the `generated` and `uploads` directories under both `assets/graphics/rooms` and `assets/graphics/objects`. PHP also requires cURL and write access to its temporary directory so saved Spaces images can be downloaded for GD operations.
 
 Gemini-generated backgrounds and overlays are stored as progressive JPEGs at quality 80 with a maximum width of 1024 pixels. Uploaded assets retain their original format so transparent PNG overlays remain supported.
 
 ## First-pass room format
 
-Each room is stored as a graph node with a lifecycle status (`development`, `staging`, or `production`), a background asset, its optional Gemini prompt, and versioned JSON room data. Click regions contain normalized image coordinates and declarative behavior:
+Each room is stored as a graph node with a Spaces-backed background asset, its optional Gemini prompt, and versioned JSON room data. Click regions contain normalized image coordinates and declarative behavior:
 
 - ordered `IF` / `ELSE IF` branches, with a final `ELSE` branch;
 - nested condition groups that match `ALL` (AND) or `ANY` (OR) flag and inventory checks;
@@ -43,7 +43,7 @@ The debug player lets a designer change flags and items, choose the room's arriv
 
 Rooms and objects keep player-facing descriptions separate from private designer notes. In debug play, an eye control reveals the current description. Interaction results may replace a selected room or object's description for the current session, allowing state changes such as lighting a fireplace to change what the player reads.
 
-The top-level **Sounds** tab stores reusable MP3, WAV, OGG, M4A, and WebM audio. Authors may upload up to 50 files at once, rename and preview them, then select their stable slugs from a **Play sound** result in either room or object logic. Uploaded audio lives under `assets/sounds/uploads` and is ignored by git apart from its tracked `.gitkeep`.
+The top-level **Sounds** tab stores reusable MP3, WAV, OGG, M4A, and WebM audio. Authors may upload up to 50 files at once, rename and preview them, then select their stable slugs from a **Play sound** result in either room or object logic. Sound uploads are stored directly in DigitalOcean Spaces and served through the configured CDN URL.
 
 ## Interactive objects and inventory
 
@@ -51,7 +51,7 @@ Objects are first-class interactive content records with their own close-up artw
 
 An object may be room-bound or portable. Portable objects have a unique inventory key. When that key exists in the session's item state—whether entered in the debugger or granted by a successful region—the object appears in the debug inventory and can be opened from there. Object overlays, flags, granted items, and inventory persist for the life of the debug session and reset with the existing reset control.
 
-The object authoring flow is available from **Objects** in the admin navigation. Create and save objects before selecting them from a room region. As with rooms, this first pass supports the `development` lifecycle while S3 publication remains future work.
+The object authoring flow is available from **Objects** in the admin navigation. Create and save objects before selecting them from a room region.
 
 Both room and object **Assets** panels can make a precision edit to a selected rectangular area of the current raster image. Gemini edits the selected crop, the server composites it into a new full-image candidate, and the modal lets the author compare the candidate with the original. Cancel leaves the draft unchanged. **Apply to draft** selects the candidate, and the editor's normal Save control persists the new background reference without overwriting the previous file.
 
@@ -64,6 +64,16 @@ The object editor's **Assets** panel provides two additional workflows:
 
 The debug object viewer is nested inside the rendered room canvas. Its backdrop covers the room, and its modal occupies 80% of the room image's displayed width and height rather than 80% of the browser window.
 
-The first pass intentionally saves rooms only in `development`. Staging and production controls remain visible but disabled until S3 publication and environment-specific database insertion are implemented, preventing a local-only draft from being mislabeled as published.
+Room and object uploads, generated backgrounds, and overlays remain local while they are unsaved. Saving promotes every referenced local file to DigitalOcean Spaces, stores canonical object keys in MySQL/content JSON, and serves the saved assets through the configured CDN. Image operations transparently download saved sources into request-scoped temporary files.
+
+## Migrating existing assets
+
+After configuring Spaces, run the existing-asset migration once from the project root:
+
+```bash
+php scripts/migrate-assets-to-spaces.php
+```
+
+The command uploads saved room backgrounds, object images, overlay-library/result assets, and sound-library files; rewrites their database references to Spaces object keys; and removes migrated temporary local files only after the database transaction commits. It is safe to run again because already-migrated object keys are skipped. Apply `database/updates/006_spaces_asset_storage.sql` as part of the normal numbered database updates to remove the obsolete room/object lifecycle columns.
 
 Player accounts are intentionally outside the admin schema so a future Firebase Auth integration can be introduced independently.

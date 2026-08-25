@@ -17,11 +17,7 @@ try {
         if (!$names || count($names) > 50) {
             throw new RuntimeException('Choose between 1 and 50 sound files per upload.');
         }
-        $directory = nightlatch_sound_upload_directory();
-        if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
-            throw new RuntimeException('The sound upload directory could not be created.');
-        }
-        $storedPaths = array();
+        $storedKeys = array();
         $inserted = array();
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         try {
@@ -39,24 +35,20 @@ try {
                 if ($extension === '') {
                     throw new RuntimeException('Sounds must be MP3, WAV, OGG, M4A, or WebM audio files.');
                 }
-                $filename = 'sound-' . date('Ymd-His') . '-' . bin2hex(random_bytes(6)) . '.' . $extension;
-                $localPath = $directory . '/' . $filename;
-                if (!move_uploaded_file($tmpNames[$index], $localPath)) {
-                    throw new RuntimeException('A sound file could not be stored.');
-                }
-                $storedPaths[] = $localPath;
                 $name = nightlatch_sound_name_from_filename($originalName);
                 $slug = nightlatch_unique_sound_slug($pdo, $name);
-                $assetPath = '../assets/sounds/uploads/' . $filename;
+                $bytes = file_get_contents($tmpNames[$index]);
+                if ($bytes === false) throw new RuntimeException('A sound file could not be read for upload.');
+                $assetPath = nightlatch_storage_unique_key('sounds', $slug, 'files', (string) $originalName);
+                nightlatch_storage_put_bytes($assetPath, $bytes, $mime);
+                $storedKeys[] = $assetPath;
                 $insert->execute(array($name, $slug, $assetPath, $mime, (int) $sizes[$index], substr((string) $originalName, 0, 255), $adminId, $adminId));
-                $inserted[] = array('id' => (int) $pdo->lastInsertId(), 'name' => $name, 'slug' => $slug, 'assetUrl' => $assetPath);
+                $inserted[] = array('id' => (int) $pdo->lastInsertId(), 'name' => $name, 'slug' => $slug, 'assetUrl' => nightlatch_storage_public_url($assetPath));
             }
             $pdo->commit();
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            foreach ($storedPaths as $storedPath) {
-                if (is_file($storedPath)) @unlink($storedPath);
-            }
+            nightlatch_delete_storage_keys($storedKeys);
             throw $exception;
         }
         nightlatch_json(array('ok' => true, 'sounds' => $inserted));
@@ -98,8 +90,13 @@ try {
             throw new RuntimeException('Remove this sound from the ambient audio for cluster “' . $referencingCluster['name'] . '” before deleting it.');
         }
         $pdo->prepare('DELETE FROM sounds WHERE id = ?')->execute(array($id));
-        $localPath = nightlatch_sound_local_path($sound['asset_path']);
-        if ($localPath !== '' && is_file($localPath)) @unlink($localPath);
+        $storageKey = nightlatch_storage_key_from_reference($sound['asset_path']);
+        if ($storageKey !== '') {
+            nightlatch_delete_storage_keys(array($storageKey));
+        } else {
+            $localPath = nightlatch_sound_local_path($sound['asset_path']);
+            if ($localPath !== '' && is_file($localPath)) @unlink($localPath);
+        }
         nightlatch_json(array('ok' => true));
     }
 

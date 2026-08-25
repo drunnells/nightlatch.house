@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/image.php';
+require_once __DIR__ . '/storage.php';
 
 /**
  * Image-template helpers for Gemini-generated region overlays.
@@ -55,44 +56,6 @@ function nightlatch_overlay_edit_prompt($userPrompt, $spec, $referenceKind = 're
 function nightlatch_local_room_asset_path($assetUrl)
 {
     return nightlatch_local_content_asset_path($assetUrl, 'rooms');
-}
-
-function nightlatch_local_content_asset_path($assetUrl, $assetType)
-{
-    if (!in_array($assetType, array('rooms', 'objects'), true)) {
-        throw new RuntimeException('The image asset type is invalid.');
-    }
-    if (!is_string($assetUrl)) {
-        throw new RuntimeException('The background must be a local image asset.');
-    }
-    $urlPath = parse_url($assetUrl, PHP_URL_PATH);
-    if (!is_string($urlPath) || $urlPath === '') {
-        throw new RuntimeException('The background must be a local image asset.');
-    }
-
-    $urlPath = str_replace('\\', '/', rawurldecode($urlPath));
-    $marker = '/assets/graphics/' . $assetType . '/';
-    $searchPath = '/' . ltrim($urlPath, '/');
-    $position = strpos($searchPath, $marker);
-    if ($position === false) {
-        throw new RuntimeException('The background must be stored under assets/graphics/' . $assetType . '.');
-    }
-
-    $relative = substr($searchPath, $position + strlen($marker));
-    if ($relative === '' || strpos("/{$relative}/", '/../') !== false || strpos($relative, "\0") !== false) {
-        throw new RuntimeException('The background path is invalid.');
-    }
-
-    $assetRoot = realpath(NIGHTLATCH_ROOT . '/assets/graphics/' . $assetType);
-    if (!$assetRoot) {
-        throw new RuntimeException('The asset directory could not be found on this server.');
-    }
-    $candidate = realpath($assetRoot . '/' . $relative);
-    if (!$candidate || strpos($candidate, $assetRoot . DIRECTORY_SEPARATOR) !== 0 || !is_file($candidate)) {
-        throw new RuntimeException('The background image could not be found on this server.');
-    }
-
-    return $candidate;
 }
 
 function nightlatch_region_source_box($bounds, $canvas, $imageWidth, $imageHeight)

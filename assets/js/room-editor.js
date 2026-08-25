@@ -513,7 +513,7 @@
     function markDirty() {
         $('#save-indicator').html('<i class="fa-solid fa-circle"></i> Unsaved changes').addClass('dirty');
     }
-    $('#room-title, #room-slug, #room-description, #player-description, #room-status, #gemini-prompt, #object-portable, #inventory-key').on('input change', markDirty);
+    $('#room-title, #room-slug, #room-description, #player-description, #gemini-prompt, #object-portable, #inventory-key').on('input change', markDirty);
 
     $('#room-gateway-enabled').on('change', function () {
         if (!roomClusterId && this.checked) {
@@ -558,7 +558,6 @@
             slug: $('#room-slug').val().trim(),
             description: $('#room-description').val(),
             playerDescription: $('#player-description').val(),
-            status: $('#room-status').val(),
             backgroundAsset: image.getAttribute('src'),
             backgroundPrompt: $('#gemini-prompt').val(),
             data: { version: 2, canvas: canvas, regions: regions }
@@ -593,6 +592,22 @@
             body: JSON.stringify(roomPayload())
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error || ('The ' + contentLabel + ' could not be saved.'));
+            var replacements = result.assetReplacements || {};
+            function replaceAssets(value) {
+                if (typeof value === 'string') return replacements[value] || value;
+                if (Array.isArray(value)) return value.map(replaceAssets);
+                if (value && typeof value === 'object') {
+                    Object.keys(value).forEach(function (key) { value[key] = replaceAssets(value[key]); });
+                }
+                return value;
+            }
+            regions = replaceAssets(regions);
+            if (result.backgroundAsset) {
+                image.onload = null;
+                image.src = result.backgroundAsset;
+            }
+            room.backgroundAsset = result.backgroundAsset || image.getAttribute('src');
+            room.data = { version: 2, canvas: canvas, regions: regions };
             room.id = result.id;
             $('#room-slug').val(result.slug);
             if (isObject) {
@@ -601,6 +616,8 @@
             }
             history.replaceState({}, '', editor.editUrl + '?id=' + result.id);
             if (editor.debugUrl) $('#debug-link').attr('href', editor.debugUrl + '?id=' + result.id);
+            renderRegions();
+            fillInspector();
             $('#save-indicator').html('<i class="fa-regular fa-circle-check"></i> Saved just now').removeClass('dirty');
             toast((isObject ? 'Object' : 'Room') + ' saved');
             return result;

@@ -48,6 +48,7 @@
      's3_region'             => '',
      's3_key'                => '',
      's3_secret'             => '',
+     's3_acl'                => 'public-read',
    ),
 
  );

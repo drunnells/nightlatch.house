@@ -8,7 +8,8 @@ try {
     foreach ($roomRows as $row) {
         $path = parse_url($row['background_asset'], PHP_URL_PATH);
         $extension = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
-        if (strpos('/' . ltrim((string) $path, '/'), '/assets/graphics/rooms/') === false
+        $storageKey = nightlatch_storage_key_from_reference($row['background_asset']);
+        if (($storageKey === '' && strpos('/' . ltrim((string) $path, '/'), '/assets/graphics/rooms/') === false)
             || !in_array($extension, array('png', 'jpg', 'jpeg', 'webp'), true)) {
             continue;
         }
@@ -16,7 +17,7 @@ try {
             'title' => $row['title'],
             'slug' => $row['slug'],
             'assetType' => 'rooms',
-            'backgroundAsset' => $row['background_asset'],
+            'backgroundAsset' => nightlatch_storage_public_url($row['background_asset']),
         );
     }
 
@@ -24,7 +25,8 @@ try {
     foreach ($objectRows as $row) {
         $path = parse_url($row['background_asset'], PHP_URL_PATH);
         $extension = strtolower(pathinfo((string) $path, PATHINFO_EXTENSION));
-        if (strpos('/' . ltrim((string) $path, '/'), '/assets/graphics/objects/') === false
+        $storageKey = nightlatch_storage_key_from_reference($row['background_asset']);
+        if (($storageKey === '' && strpos('/' . ltrim((string) $path, '/'), '/assets/graphics/objects/') === false)
             || !in_array($extension, array('png', 'jpg', 'jpeg', 'webp'), true)) {
             continue;
         }
@@ -32,7 +34,7 @@ try {
             'title' => $row['title'],
             'slug' => $row['slug'],
             'assetType' => 'objects',
-            'backgroundAsset' => $row['background_asset'],
+            'backgroundAsset' => nightlatch_storage_public_url($row['background_asset']),
         );
     }
 

@@ -422,8 +422,6 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 #play-regions.regions-hidden .play-region, #object-play-regions.regions-hidden .play-region { fill: transparent; stroke: transparent; }
 #overlay-layer { position: absolute; inset: 0; pointer-events: none; }
 #overlay-layer img { position: absolute; object-fit: fill; }
-.player-message { position: absolute; left: 50%; bottom: 6%; transform: translate(-50%, 15px); max-width: 76%; color: #eee8d9; background: rgba(7,9,9,.9); border: 1px solid #857044; padding: 12px 18px; text-align: center; white-space: pre-line; opacity: 0; transition: .2s; }
-.player-message.visible { transform: translate(-50%, 0); opacity: 1; }
 .player-description-card[hidden] { display: none; }
 .player-description-card { position: absolute; z-index: 7; top: 6%; left: 50%; width: min(620px, 82%); max-height: 70%; transform: translateX(-50%); overflow-y: auto; color: #e9e3d5; border: 1px solid #857044; background: rgba(8,11,11,.96); box-shadow: 0 20px 65px rgba(0,0,0,.72); }
 .player-description-card header { min-height: 39px; padding: 7px 9px 7px 13px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #cdbb88; border-bottom: 1px solid #433b28; background: #151713; font-size: 9px; text-transform: uppercase; letter-spacing: .09em; }
@@ -443,6 +441,17 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 #event-log .else { color: #d0a861; margin-right: 8px; }
 #event-log small.logic-detail { display: block; margin: 3px 0 7px 72px; color: #66726f; line-height: 1.45; }
 .debug-console { min-height: 0; overflow-y: auto; background: #111718; border-left: 1px solid var(--line); padding: 22px 18px; }
+.debug-message-panel { position: sticky; z-index: 9; top: 0; min-height: 108px; margin: -22px -18px 22px; padding: 16px 18px; background: #0b1112; border-bottom: 1px solid #51472e; box-shadow: 0 12px 30px rgba(0,0,0,.3); }
+.debug-message-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #cdb66f; font-size: 9px; text-transform: uppercase; letter-spacing: .09em; }
+.debug-message-heading i { margin-right: 6px; }
+.debug-message-heading small { color: #697572; font-size: 8px; }
+.debug-message-empty { margin: 13px 0 0; color: #64706e; font-size: 9px; line-height: 1.5; }
+.debug-message-empty[hidden] { display: none; }
+.player-message { display: none; margin-top: 11px; padding: 11px 12px; color: #eee8d9; background: #171812; border: 1px solid #857044; pointer-events: none; }
+.player-message.visible { display: block; animation: debug-message-in .18s ease-out; }
+.player-message-context { display: block; margin-bottom: 5px; color: #8f9a97; font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+.player-message-text { margin: 0; font-family: Cinzel, serif; font-size: 12px; line-height: 1.55; white-space: pre-line; }
+@keyframes debug-message-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .console-heading h2 { font-family: Cinzel, serif; font-size: 19px; }
 .console-heading p { font-size: 10px; line-height: 1.5; }
 .console-section { border-top: 1px solid var(--line-soft); margin-top: 20px; padding-top: 16px; }
@@ -502,7 +511,6 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .object-play-canvas > img { width: 100%; height: 100%; display: block; object-fit: fill; user-select: none; -webkit-user-drag: none; }
 #object-overlay-layer { position: absolute; inset: 0; pointer-events: none; }
 #object-overlay-layer img { position: absolute; object-fit: fill; }
-.object-play-canvas .player-message { z-index: 4; }
 .object-description-card { z-index: 6; }
 .portable-setting { margin-top: 18px !important; padding: 11px; border: 1px solid #3d4739; background: #151a14; }
 

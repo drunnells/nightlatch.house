@@ -65,7 +65,6 @@ require __DIR__ . '/_header.php';
                 <img id="room-image" src="<?php echo nightlatch_h($room['backgroundAsset']); ?>" alt="<?php echo nightlatch_h($room['title']); ?>">
                 <div id="overlay-layer"></div>
                 <svg id="play-regions" viewBox="0 0 <?php echo (int) $room['data']['canvas']['width']; ?> <?php echo (int) $room['data']['canvas']['height']; ?>" preserveAspectRatio="none"></svg>
-                <div class="player-message" id="player-message"></div>
                 <aside class="player-description-card" id="room-description-card" hidden><header><span><i class="fa-solid fa-eye"></i> Room description</span><button type="button" data-close-description="room" aria-label="Hide room description"><i class="fa-solid fa-xmark"></i></button></header><p id="room-player-description"></p></aside>
                 <div class="object-modal" id="object-modal" hidden role="dialog" aria-modal="true" aria-labelledby="object-modal-title">
                     <div class="object-modal-backdrop" data-close-object></div>
@@ -76,7 +75,6 @@ require __DIR__ . '/_header.php';
                                 <img id="object-image" alt="">
                                 <div id="object-overlay-layer"></div>
                                 <svg id="object-play-regions" preserveAspectRatio="none" aria-label="Object interaction regions"></svg>
-                                <div class="player-message" id="object-player-message"></div>
                                 <aside class="player-description-card object-description-card" id="object-description-card" hidden><header><span><i class="fa-solid fa-eye"></i> Object description</span><button type="button" data-close-description="object" aria-label="Hide object description"><i class="fa-solid fa-xmark"></i></button></header><p id="object-player-description"></p></aside>
                             </div>
                         </div>
@@ -91,6 +89,12 @@ require __DIR__ . '/_header.php';
         <div class="debug-logbar"><span><i class="fa-solid fa-terminal"></i> Event log</span><div id="event-log"><em>Session started. Click a highlighted region.</em></div></div>
     </section>
     <aside class="debug-console">
+        <section class="debug-message-panel" id="debug-message-panel" aria-live="polite" aria-atomic="true">
+            <div class="debug-message-heading"><span><i class="fa-solid fa-comment"></i> Player message</span><small>Preview</small></div>
+            <div class="player-message" id="player-message" aria-hidden="true"><span class="player-message-context">Room</span><p class="player-message-text"></p></div>
+            <div class="player-message" id="object-player-message" aria-hidden="true"><span class="player-message-context">Object</span><p class="player-message-text"></p></div>
+            <p class="debug-message-empty" id="player-message-empty">“Show player message” results appear here without covering the play area.</p>
+        </section>
         <div class="console-heading"><div class="eyebrow">Runtime inspector</div><h2>Session state</h2><p>Edit values here to exercise both sides of a puzzle rule.</p></div>
         <label for="entry-region">Entered through</label><select id="entry-region"><option value="">No entry door (start room)</option></select>
         <div class="console-section"><div class="console-section-heading"><h3>Flags</h3><button class="icon-button gold" data-add-state="flags"><i class="fa-solid fa-plus"></i></button></div><div id="flags-state"></div></div>

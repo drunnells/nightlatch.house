@@ -10,9 +10,17 @@ if ($debugMarkup === false || $styles === false) {
 $playCanvasPosition = strpos($debugMarkup, '<div class="play-canvas"');
 $objectModalPosition = strpos($debugMarkup, '<div class="object-modal"');
 $inventoryPosition = strpos($debugMarkup, '<aside class="inventory-panel"');
+$debugConsolePosition = strpos($debugMarkup, '<aside class="debug-console">');
+$roomMessagePosition = strpos($debugMarkup, 'id="player-message"');
+$objectMessagePosition = strpos($debugMarkup, 'id="object-player-message"');
 if ($playCanvasPosition === false || $objectModalPosition === false || $inventoryPosition === false
     || !($playCanvasPosition < $objectModalPosition && $objectModalPosition < $inventoryPosition)) {
     fwrite(STDERR, "The object modal is not nested with the room play canvas.\n");
+    exit(1);
+}
+if ($debugConsolePosition === false || $roomMessagePosition === false || $objectMessagePosition === false
+    || $roomMessagePosition < $debugConsolePosition || $objectMessagePosition < $debugConsolePosition) {
+    fwrite(STDERR, "Player messages must render in the debug console instead of over a play canvas.\n");
     exit(1);
 }
 if (strpos($styles, '.object-modal { position: absolute;') === false
@@ -35,7 +43,10 @@ if (strpos($debugMarkup, 'id="back-room"') === false
     || strpos($debugScript, 'runActivationBehaviors') === false
     || strpos($debugScript, 'maximumRuns: 100') === false
     || strpos($debugScript, 'syncAmbientSound') === false
-    || strpos($debugScript, 'renderDescriptions') === false) {
+    || strpos($debugScript, 'renderDescriptions') === false
+    || strpos($debugScript, 'syncPlayerMessagePanel') === false
+    || strpos($styles, '.player-message { display: none;') === false
+    || strpos($styles, 'pointer-events: none;') === false) {
     fwrite(STDERR, "Debug room traversal and return navigation are incomplete.\n");
     exit(1);
 }

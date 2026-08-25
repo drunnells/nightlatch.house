@@ -150,7 +150,7 @@
         closeInventory();
         $('#event-log').html('<em>Session reset. Click a highlighted region.</em>');
         setActiveRoom(initialRoom, '');
-        $('.player-message').removeClass('visible');
+        hidePlayerMessages();
     }
 
     function esc(value) { return $('<div>').text(value === undefined || value === null ? '' : value).html(); }
@@ -467,12 +467,25 @@
         return regions.find(function (region) { return region.id === id; });
     }
 
+    function syncPlayerMessagePanel() {
+        var hasMessage = $('.player-message.visible').length > 0;
+        $('#player-message-empty').prop('hidden', hasMessage);
+    }
+
+    function hidePlayerMessages(target) {
+        var messages = target ? $(target) : $('.player-message');
+        messages.removeClass('visible').attr('aria-hidden', 'true');
+        syncPlayerMessagePanel();
+    }
+
     function showMessage(message) {
         var target = activeObject ? $('#object-player-message') : $('#player-message');
-        $('.player-message').not(target).removeClass('visible');
-        target.text(message).addClass('visible');
+        hidePlayerMessages($('.player-message').not(target));
+        target.find('.player-message-text').text(message);
+        target.addClass('visible').attr('aria-hidden', 'false');
+        syncPlayerMessagePanel();
         window.clearTimeout(window.nlMessageTimer);
-        window.nlMessageTimer = window.setTimeout(function () { target.removeClass('visible'); }, 3600);
+        window.nlMessageTimer = window.setTimeout(function () { hidePlayerMessages(target); }, 3600);
     }
 
     function logicDetail(evaluation) {
@@ -637,7 +650,7 @@
         document.getElementById('object-description-card').hidden = true;
         $('#toggle-object-description').attr('aria-expanded', 'false');
         document.body.classList.remove('object-modal-open');
-        $('#object-player-message').removeClass('visible');
+        hidePlayerMessages('#object-player-message');
         playCanvas.focus();
         if (logClose !== false) logEvent(title, true, 'Closed object viewer and returned to the room.', 'viewer');
     }

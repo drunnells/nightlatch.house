@@ -110,7 +110,7 @@ The S3 config shape currently includes:
 - Gateway exits have no static target. They resolve through the current run's saved Gateway assignment and enter the destination cluster's configured entry room.
 - A player may always use the paired door or behind-you path through which they arrived unless the connection is one-way; other exits must be unlocked before use.
 - Keep room and object rules declarative in saved content data so the editor debugger and eventual player can use the same semantics.
-- The debug-play page is an authoring tool. It should fit the complete room into the available viewport, traverse canonical static connections, present named behind-you and Gateway return controls, keep randomized Gateway assignments stable until reset, and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, arrival behavior, Gateway assignments, and the event log.
+- The debug-play page is an authoring tool. It should fit the complete room into the available viewport, keep transient player messages in the desktop runtime inspector instead of over interaction canvases, traverse canonical static connections, present named behind-you and Gateway return controls, keep randomized Gateway assignments stable until reset, and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, arrival behavior, Gateway assignments, and the event log.
 - Debug-play ambience uses a dedicated looping audio player so interaction sound effects do not interrupt it. It continues between rooms in the same cluster and changes or stops when the active cluster changes.
 
 ## Generated Image Workflow

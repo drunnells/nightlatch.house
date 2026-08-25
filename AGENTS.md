@@ -1,6 +1,6 @@
 # Nightlatch House Agent Instructions
 
-Nightlatch House is a PHP 7.x project for a point-and-click puzzle adventure inspired by classic room-based puzzle games. The current phase focuses on authoring rooms, inspectable objects, inventory content, and their debug-play behavior. The game will be primarily HTML, CSS, and JavaScript, with graphics, animations, and sounds.
+Nightlatch House is a PHP 7.x project for a point-and-click puzzle adventure inspired by classic room-based puzzle games. The project includes both an admin authoring/debugging interface and the player web client. The game is primarily HTML, CSS, and JavaScript, with graphics, animations, and sounds.
 
 ## Project Conventions
 
@@ -8,6 +8,9 @@ Nightlatch House is a PHP 7.x project for a point-and-click puzzle adventure ins
 - Prefer simple, explicit PHP arrays for shared configuration structures.
 - Keep browser-facing gameplay code in HTML, CSS, and JavaScript unless the project establishes a different structure later.
 - Use Bootstrap, jQuery, and Font Awesome for the primary admin UI unless the project establishes a different admin stack later.
+- Treat player and admin debug-play behavior as two presentations of the same game rules. Every gameplay feature or behavior change must be implemented and verified in both interfaces where applicable; authoring controls and runtime inspection may remain admin-only.
+- Keep shared content loading in `app/play-catalog.php` and shared rule semantics in `assets/js/room-rules.js`. Do not create player-only or debugger-only condition, result, topology, object, inventory, automatic-behavior, description, overlay, or audio semantics.
+- Keep the public player catalog projection in `nightlatch_public_play_catalog()` aligned with every runtime feature. Send only fields the player needs; never expose designer notes, generation prompts, overlay libraries, original upload metadata, or map-editor layout data to the public client.
 - Searchable custom-picker selections and options must expose their complete label and secondary detail in a native hover tooltip when the visible text may be truncated.
 - Treat generated graphics, animation assets, and sound assets as first-class game content. Do not rename or reorganize them casually.
 - Game design tooling may use generative AI providers, including Google Gemini and OpenAI.
@@ -55,14 +58,16 @@ The S3 config shape currently includes:
 ## Product Direction
 
 - Nightlatch House will become a point-and-click puzzle adventure.
-- The current development focus is the admin room/object creator and its debug-play tooling, not the production player-facing game client.
+- The root `index.php` is the player web client shown when a visitor opens the domain. A new run begins in the entry room of the one cluster marked as the starting cluster; an existing anonymous browser run resumes its saved room and state.
+- The player client must remain polished and playable on mobile and desktop. Keep transient messages outside room/object interaction canvases, preserve the complete content image in the available viewport, provide keyboard and touch access, and use focused drawers or dialogs for descriptions, inventory, objects, and game controls.
+- Anonymous player progress currently persists in browser local storage, including current location, arrival context, flags, inventory, overlays, descriptions, unlocked doors, navigation history, and Gateway assignments. A future server-backed run may replace this without changing authored gameplay semantics.
 - The admin tool should allow CRUD operations for rooms, inspectable objects, inventory metadata, and the data needed to assemble rooms into playable maps.
 - Rooms are grouped into clusters. Connections inside a cluster are authored statically through the top-level Map editor.
 - Every cluster has one entry room and a Gateway return behavior: either a persistent behind-you control or a selected Door / exit region in the entry room.
 - Each cluster may select one saved sound-library asset as looping ambient audio and stores its playback volume from 0 to 100.
 - A Gateway room owns a finite set of Gateway exit regions, an eligible pool of destination clusters, and a destination count. On first entry during a play-through, distinct clusters are randomly paired with shuffled Gateway exits and that assignment remains stable for the run.
 - Static connections stay inside a cluster. Cross-cluster travel uses Gateway assignments to enter the selected cluster's entry room.
-- A future player game run should persist current location, arrival context, and Gateway assignments. Anonymous runs may use an opaque browser/server token; signed-in runs should attach to the player's Firebase identity without making assignments global to every run owned by that player.
+- A future server-backed player run should use an opaque browser/server token for anonymous play. Signed-in runs should attach to the player's Firebase identity without making assignments global to every run owned by that player.
 
 ## Narrative Planning Source
 
@@ -114,6 +119,7 @@ The S3 config shape currently includes:
 - Keep room and object rules declarative in saved content data so the editor debugger and eventual player can use the same semantics.
 - The debug-play page is an authoring tool. It should fit the complete room into the available viewport, keep transient player messages in the desktop runtime inspector instead of over interaction canvases, traverse canonical static connections, present named behind-you and Gateway return controls, keep randomized Gateway assignments stable until reset, and let designers inspect matched branches, condition traces, executed results, messages, overlays, flags, items, inventory objects, unlocked doors, arrival behavior, Gateway assignments, and the event log.
 - Debug-play ambience uses a dedicated looping audio player so interaction sound effects do not interrupt it. It continues between rooms in the same cluster and changes or stops when the active cluster changes.
+- The player client and debug-play page must load the same authored catalog through `app/play-catalog.php`. The player uses `assets/js/play-player.js` for presentation and anonymous-run persistence while reusing `assets/js/room-rules.js` for evaluation; the debugger keeps its author-only state controls and event trace.
 
 ## Generated Image Workflow
 
@@ -171,6 +177,7 @@ The S3 config shape currently includes:
   - `php tests/object-editor-render.test.php`
   - `php tests/object-crop.test.php`
   - `php tests/debug-object-layout.test.php`
+  - `php tests/player-client-render.test.php`
   - `php tests/interactive-logic.test.php`
   - `php tests/content-variables.test.php`
   - `php tests/map-topology.test.php`

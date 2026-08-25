@@ -1,6 +1,6 @@
 # Nightlatch House
 
-Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first pass is the **Room Forge**, a dark admin interface for authoring rooms, drawing click regions, defining flag/item rules, and testing those rules in a debug player.
+Nightlatch House is a PHP 7.x point-and-click puzzle project. It includes the **Room Forge**, a dark admin interface for authoring and debugging game content, and a responsive player web client served from the domain root.
 
 ## Local setup
 
@@ -12,7 +12,7 @@ Nightlatch House is a PHP 7.x point-and-click puzzle project. The current first 
    php scripts/create-admin.php admin@example.com "Display Name" "a-long-temporary-password"
    ```
 
-4. Serve this directory through PHP/Apache and open `/admin/login.php`.
+4. Serve this directory through PHP/Apache. Open `/` for the player client and `/admin/login.php` for the Room Forge.
 
 The real `config/config.php` must remain private and untracked. Room uploads and Gemini-generated drafts are temporary local files and are ignored by git; the checked-in demo SVG is only an editor placeholder.
 
@@ -40,6 +40,8 @@ A room may be marked as a **Gateway room**. Its selected Gateway exit regions do
 The Room editor uses the same topology through a searchable target picker labeled by room and cluster. Direct room targets remain available for static exits in the same cluster; cross-cluster exits must be configured as Gateways.
 
 The debug player lets a designer change flags and items, choose the room's arrival door, traverse canonical connections, use named behind-you and Gateway returns, and inspect the event log. It displays randomized Gateway assignments in the runtime inspector and preserves them until **Reset state**, which starts a fresh debug session and rerolls the assignments. Cluster ambience loops on a dedicated channel, continues between rooms in the same cluster, and changes or stops when travel enters a different cluster.
+
+The player client begins a new run in the entry room of the cluster marked **Start** on the Map. It uses the same authored room, object, topology, automatic-behavior, sound, and rule data as debug play. Anonymous progress is saved in the browser and resumes on the next visit; **Start over** in the game menu clears that run and rerolls Gateway assignments. Player messages occupy a reserved tray outside the room or object canvas, while descriptions, inventory, and game controls use responsive drawers and dialogs.
 
 Rooms and objects keep player-facing descriptions separate from private designer notes. In debug play, an eye control reveals the current description. Interaction results may replace a selected room or object's description for the current session, allowing state changes such as lighting a fireplace to change what the player reads.
 

@@ -1,7 +1,6 @@
 <?php
 require dirname(__DIR__) . '/app/bootstrap.php';
-require_once dirname(__DIR__) . '/app/map-topology.php';
-require_once dirname(__DIR__) . '/app/sounds.php';
+require_once dirname(__DIR__) . '/app/play-catalog.php';
 nightlatch_require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -22,15 +21,11 @@ try {
         $rooms[] = nightlatch_room_payload($roomRow);
     }
     try {
-        $loadedTopology = nightlatch_load_topology(nightlatch_db(), true);
-        nightlatch_apply_topology_to_rooms($loadedTopology['rooms'], $loadedTopology['connections'], $loadedTopology['gateways']);
-        $rooms = $loadedTopology['rooms'];
-        $topology = array(
-            'clusters' => $loadedTopology['clusters'],
-            'nodes' => $loadedTopology['nodes'],
-            'connections' => $loadedTopology['connections'],
-            'gateways' => $loadedTopology['gateways'],
-        );
+        $catalog = nightlatch_load_play_catalog(nightlatch_db());
+        $rooms = $catalog['rooms'];
+        $objects = $catalog['objects'];
+        $sounds = $catalog['sounds'];
+        $topology = $catalog['topology'];
         foreach ($rooms as $candidateRoom) {
             if ((int) $candidateRoom['id'] === $id) {
                 $room = $candidateRoom;
@@ -40,14 +35,18 @@ try {
     } catch (Throwable $ignored) {
         // Legacy direct room targets remain debuggable until update 003 is applied.
     }
-    $objectRows = nightlatch_db()->query('SELECT * FROM objects ORDER BY title')->fetchAll();
-    foreach ($objectRows as $objectRow) {
-        $objects[] = nightlatch_object_payload($objectRow);
+    if (!$objects) {
+        $objectRows = nightlatch_db()->query('SELECT * FROM objects ORDER BY title')->fetchAll();
+        foreach ($objectRows as $objectRow) {
+            $objects[] = nightlatch_object_payload($objectRow);
+        }
     }
-    try {
-        $sounds = nightlatch_sound_catalog(nightlatch_db());
-    } catch (Throwable $ignored) {
-        $sounds = array();
+    if (!$sounds) {
+        try {
+            $sounds = nightlatch_sound_catalog(nightlatch_db());
+        } catch (Throwable $ignored) {
+            $sounds = array();
+        }
     }
 } catch (Throwable $exception) { $error = $exception->getMessage(); }
 

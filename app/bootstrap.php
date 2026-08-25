@@ -140,12 +140,12 @@ function nightlatch_h($value)
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-function nightlatch_asset($relativePath)
+function nightlatch_asset($relativePath, $publicPrefix = '../assets/')
 {
     $relativePath = ltrim($relativePath, '/');
     $filesystemPath = NIGHTLATCH_ROOT . '/assets/' . $relativePath;
     $version = is_file($filesystemPath) ? filemtime($filesystemPath) : 1;
-    return '../assets/' . $relativePath . '?v=' . $version;
+    return rtrim($publicPrefix, '/') . '/' . $relativePath . '?v=' . $version;
 }
 
 function nightlatch_room_payload($row)

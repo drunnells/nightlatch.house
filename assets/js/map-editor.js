@@ -21,6 +21,12 @@
     var dirty = false;
 
     function esc(value) { return $('<div>').text(value === undefined || value === null ? '' : value).html(); }
+    function escAttr(value) { return esc(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+    function pickerTooltip(label, detail) {
+        label = String(label === undefined || label === null ? '' : label);
+        detail = String(detail === undefined || detail === null ? '' : detail);
+        return detail && detail !== label ? label + '\n' + detail : label;
+    }
     function id(value) { return String(value === undefined || value === null ? '' : value); }
     function slug(value) { return String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
     function roomById(roomId) { return state.rooms.find(function (room) { return id(room.id) === id(roomId); }) || null; }
@@ -63,12 +69,12 @@
         if (!cluster) return;
         query = String(query || '').trim().toLowerCase();
         var selectedId = id(cluster.ambientSoundId);
-        var html = '<button type="button" class="logic-picker-option map-sound-option" data-sound-id=""><span><strong>No ambient sound</strong><small>Silence in this cluster</small></span>' + (!selectedId ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+        var html = '<button type="button" class="logic-picker-option map-sound-option" title="No ambient sound&#10;Silence in this cluster" data-sound-id=""><span><strong>No ambient sound</strong><small>Silence in this cluster</small></span>' + (!selectedId ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
         var matches = sounds.filter(function (sound) {
             return !query || String(sound.name + ' ' + sound.slug + ' ' + (sound.originalFilename || '')).toLowerCase().indexOf(query) !== -1;
         });
         matches.forEach(function (sound) {
-            html += '<button type="button" class="logic-picker-option map-sound-option" data-sound-id="' + esc(sound.id) + '"><span><strong>' + esc(sound.name) + '</strong><small>' + esc(sound.slug) + '</small></span>' + (selectedId === id(sound.id) ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            html += '<button type="button" class="logic-picker-option map-sound-option" title="' + escAttr(pickerTooltip(sound.name, sound.slug)) + '" data-sound-id="' + esc(sound.id) + '"><span><strong>' + esc(sound.name) + '</strong><small>' + esc(sound.slug) + '</small></span>' + (selectedId === id(sound.id) ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
         });
         if (!matches.length) html += '<p class="logic-picker-empty">' + (sounds.length ? 'No sounds match that search.' : 'Upload sounds from the Sounds tab first.') + '</p>';
         $('#cluster-ambient-sound-options').html(html);
@@ -79,12 +85,14 @@
         if (!cluster) return;
         var sound = soundById[id(cluster.ambientSoundId)] || null;
         var selectedId = id(cluster.ambientSoundId);
+        var selectedName = sound ? sound.name : (selectedId ? 'Unavailable sound' : 'No ambient sound');
+        var selectedDetail = sound ? sound.slug : (selectedId ? 'Saved sound #' + selectedId : 'Silence in this cluster');
         $('#cluster-ambient-sound').val(selectedId);
-        $('#cluster-ambient-sound-name').text(sound ? sound.name : (selectedId ? 'Unavailable sound' : 'No ambient sound'));
-        $('#cluster-ambient-sound-detail').text(sound ? sound.slug : (selectedId ? 'Saved sound #' + selectedId : 'Silence in this cluster'));
+        $('#cluster-ambient-sound-name').text(selectedName);
+        $('#cluster-ambient-sound-detail').text(selectedDetail);
         $('#cluster-ambient-sound-search').val('');
         $('#cluster-ambient-sound-picker').removeClass('open');
-        $('#cluster-ambient-sound-toggle').attr('aria-expanded', 'false');
+        $('#cluster-ambient-sound-toggle').attr('aria-expanded', 'false').attr('title', pickerTooltip(selectedName, selectedDetail));
         renderAmbientSoundOptions('');
     }
 

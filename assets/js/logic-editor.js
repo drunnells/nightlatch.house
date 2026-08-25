@@ -18,6 +18,12 @@
             return $('<div>').text(value === undefined || value === null ? '' : value).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
+        function pickerTooltip(label, detail) {
+            label = String(label === undefined || label === null ? '' : label);
+            detail = String(detail === undefined || detail === null ? '' : detail);
+            return detail && detail !== label ? label + '\n' + detail : label;
+        }
+
         function notify(message, error) {
             if (options.notify) options.notify(message, error);
         }
@@ -95,14 +101,14 @@
             var label = current ? current.label : (selected ? settings.customLabel : settings.placeholder);
             var detail = current ? current.detail : (selected || (entries.length ? settings.searchHint : settings.emptyDetail));
             var html = '<div class="logic-inventory-picker logic-value-picker" data-picker-type="' + esc(type) + '" data-value="' + esc(selected) + '">' +
-                '<button type="button" class="logic-picker-toggle" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
+                '<button type="button" class="logic-picker-toggle" title="' + esc(pickerTooltip(label, detail)) + '" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
                 '<div class="logic-picker-menu"><div class="logic-picker-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="' + esc(settings.searchPlaceholder) + '" aria-label="' + esc(settings.searchPlaceholder) + '"></div><div class="logic-picker-options" role="listbox">' +
-                '<button type="button" class="logic-picker-option" data-value="" data-search="clear selection"><span><strong>' + esc(settings.clearLabel) + '</strong><small>' + esc(settings.clearDetail) + '</small></span>' + (!selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+                '<button type="button" class="logic-picker-option" title="' + esc(pickerTooltip(settings.clearLabel, settings.clearDetail)) + '" data-value="" data-search="clear selection"><span><strong>' + esc(settings.clearLabel) + '</strong><small>' + esc(settings.clearDetail) + '</small></span>' + (!selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
             entries.forEach(function (entry) {
-                html += '<button type="button" class="logic-picker-option" role="option" aria-selected="' + (selected === entry.value ? 'true' : 'false') + '" data-value="' + esc(entry.value) + '" data-search="' + esc(entry.search.toLowerCase()) + '"><span><strong>' + esc(entry.label) + '</strong><small>' + esc(entry.detail) + '</small></span>' + (selected === entry.value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+                html += '<button type="button" class="logic-picker-option" title="' + esc(pickerTooltip(entry.label, entry.detail)) + '" role="option" aria-selected="' + (selected === entry.value ? 'true' : 'false') + '" data-value="' + esc(entry.value) + '" data-search="' + esc(entry.search.toLowerCase()) + '"><span><strong>' + esc(entry.label) + '</strong><small>' + esc(entry.detail) + '</small></span>' + (selected === entry.value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
             });
             if (settings.allowNew) {
-                html += '<button type="button" class="logic-picker-option logic-create-picker-value" hidden><span><strong>Use as a new flag</strong><small></small></span><i class="fa-solid fa-plus"></i></button>';
+                html += '<button type="button" class="logic-picker-option logic-create-picker-value" title="Use as a new flag" hidden><span><strong>Use as a new flag</strong><small></small></span><i class="fa-solid fa-plus"></i></button>';
             }
             if (!entries.length) html += '<p class="logic-picker-empty">' + esc(settings.emptyHelp) + '</p>';
             return html + '</div></div></div>';
@@ -504,6 +510,7 @@
                 var rawValue = $(this).val().trim();
                 var exactMatch = picker.find('.logic-picker-option[data-value]').filter(function () { return $(this).attr('data-value') === rawValue; }).length > 0;
                 createOption.prop('hidden', !rawValue || rawValue.length > 190 || exactMatch);
+                createOption.attr('title', rawValue ? pickerTooltip('Use as a new flag', rawValue) : 'Use as a new flag');
                 createOption.find('small').text(rawValue);
             }
         });

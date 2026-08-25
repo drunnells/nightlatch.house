@@ -67,6 +67,8 @@ if (strpos($logicScript, 'logic-add-branch') === false
     || strpos($logicScript, "searchPicker('object'") === false
     || strpos($logicScript, "searchPicker('description_target'") === false
     || strpos($logicScript, "searchPicker('sound'") === false
+    || strpos($logicScript, 'pickerTooltip(entry.label, entry.detail)') === false
+    || strpos($logicScript, 'pickerTooltip(label, detail)') === false
     || strpos($logicScript, 'logic-add-behavior') === false
     || strpos($logicScript, 'logic-trigger-type') === false
     || strpos($logicScript, 'overlay-library-toggle') === false) {

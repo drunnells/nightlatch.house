@@ -8,6 +8,7 @@ Nightlatch House is a PHP 7.x project for a point-and-click puzzle adventure ins
 - Prefer simple, explicit PHP arrays for shared configuration structures.
 - Keep browser-facing gameplay code in HTML, CSS, and JavaScript unless the project establishes a different structure later.
 - Use Bootstrap, jQuery, and Font Awesome for the primary admin UI unless the project establishes a different admin stack later.
+- Searchable custom-picker selections and options must expose their complete label and secondary detail in a native hover tooltip when the visible text may be truncated.
 - Treat generated graphics, animation assets, and sound assets as first-class game content. Do not rename or reorganize them casually.
 - Game design tooling may use generative AI providers, including Google Gemini and OpenAI.
 

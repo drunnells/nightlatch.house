@@ -68,6 +68,16 @@
         return $('<div>').text(value || '').html();
     }
 
+    function escAttr(value) {
+        return esc(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function pickerTooltip(label, detail) {
+        label = String(label === undefined || label === null ? '' : label);
+        detail = String(detail === undefined || detail === null ? '' : detail);
+        return detail && detail !== label ? label + '\n' + detail : label;
+    }
+
     function roomOption(value) {
         value = String(value || '');
         return editorRooms.find(function (candidate) { return String(candidate.id) === value || candidate.slug === value; }) || null;
@@ -79,16 +89,16 @@
         var selectedRoom = roomOption(value);
         var label = selectedRoom ? selectedRoom.title : (value || 'Choose a room');
         var detail = selectedRoom ? (selectedRoom.clusterName + ' · ' + selectedRoom.slug) : (value ? 'Unavailable saved target' : 'Search by room name, slug, or cluster');
-        var html = '<button type="button" class="logic-picker-toggle" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
+        var html = '<button type="button" class="logic-picker-toggle" title="' + escAttr(pickerTooltip(label, detail)) + '" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
             '<div class="logic-picker-menu"><div class="logic-picker-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" placeholder="Search rooms or clusters" aria-label="Search rooms or clusters"></div><div class="logic-picker-options" role="listbox">' +
-            '<button type="button" class="logic-picker-option room-target-option" data-value="" data-search="clear target"><span><strong>No static target</strong><small>Leave this exit unconnected</small></span>' + (!value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            '<button type="button" class="logic-picker-option room-target-option" title="No static target&#10;Leave this exit unconnected" data-value="" data-search="clear target"><span><strong>No static target</strong><small>Leave this exit unconnected</small></span>' + (!value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
         editorRooms.forEach(function (candidate) {
             if (room.id && String(candidate.id) === String(room.id)) return;
             var outsideCluster = roomClusterId && String(candidate.clusterId || '') !== roomClusterId;
             var unassigned = !candidate.clusterId;
             var disabled = !roomClusterId || outsideCluster || unassigned;
             var disabledDetail = unassigned ? 'Unassigned · add from Map first' : (outsideCluster ? candidate.clusterName + ' · use a Gateway across clusters' : candidate.clusterName + ' · ' + candidate.slug);
-            html += '<button type="button" class="logic-picker-option room-target-option" data-value="' + esc(candidate.id) + '" data-search="' + esc((candidate.title + ' ' + candidate.slug + ' ' + candidate.clusterName).toLowerCase()) + '"' + (disabled ? ' disabled' : '') + '><span><strong>' + esc(candidate.title) + '</strong><small>' + esc(disabledDetail) + '</small></span>' + (String(candidate.id) === value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            html += '<button type="button" class="logic-picker-option room-target-option" title="' + escAttr(pickerTooltip(candidate.title, disabledDetail)) + '" data-value="' + esc(candidate.id) + '" data-search="' + esc((candidate.title + ' ' + candidate.slug + ' ' + candidate.clusterName).toLowerCase()) + '"' + (disabled ? ' disabled' : '') + '><span title="' + escAttr(pickerTooltip(candidate.title, disabledDetail)) + '"><strong>' + esc(candidate.title) + '</strong><small>' + esc(disabledDetail) + '</small></span>' + (String(candidate.id) === value ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
         });
         html += '</div></div>';
         $('#target-room-picker').attr('data-value', value).html(html);

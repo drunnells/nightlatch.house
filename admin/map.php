@@ -44,7 +44,7 @@ require __DIR__ . '/_header.php';
             <label for="cluster-ambient-sound">Ambient sound</label>
             <div class="logic-inventory-picker map-sound-picker" id="cluster-ambient-sound-picker">
                 <input type="hidden" id="cluster-ambient-sound" value="">
-                <button type="button" class="logic-picker-toggle" id="cluster-ambient-sound-toggle" aria-haspopup="listbox" aria-expanded="false"><span><strong id="cluster-ambient-sound-name">No ambient sound</strong><small id="cluster-ambient-sound-detail">Silence in this cluster</small></span><i class="fa-solid fa-chevron-down"></i></button>
+                <button type="button" class="logic-picker-toggle" id="cluster-ambient-sound-toggle" title="No ambient sound&#10;Silence in this cluster" aria-haspopup="listbox" aria-expanded="false"><span><strong id="cluster-ambient-sound-name">No ambient sound</strong><small id="cluster-ambient-sound-detail">Silence in this cluster</small></span><i class="fa-solid fa-chevron-down"></i></button>
                 <div class="logic-picker-menu">
                     <label class="logic-picker-search" for="cluster-ambient-sound-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="cluster-ambient-sound-search" placeholder="Search sounds by name or slug"></label>
                     <div class="logic-picker-options" id="cluster-ambient-sound-options" role="listbox"></div>

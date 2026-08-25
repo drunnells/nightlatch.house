@@ -139,6 +139,7 @@ The S3 config shape currently includes:
 - Saving a room or object uploads its background and every referenced overlay to the configured DigitalOcean Spaces bucket, stores canonical object keys in MySQL/content JSON, and removes promoted temporary files after the database commit succeeds.
 - Sound-library uploads go directly to Spaces. Their names, stable slugs, MIME types, object keys, and original metadata are stored in MySQL.
 - Browser payloads resolve stored object keys through `s3_object_baseurl`. Server-side GD/Gemini operations download saved images into request-scoped temporary files and remove them after the request.
+- Use `php scripts/test-spaces.php` for a non-mutating signed-access diagnostic; add `--write` to test a disposable upload, download, and deletion without touching the database.
 - The web-server user must have write access to the `generated` and `uploads` directories under both image asset roots and to the PHP temporary directory.
 - Keep generated and uploaded room/object temporary files and legacy uploaded sounds out of git while retaining the tracked `.gitkeep` files.
 - Do not solve write-permission problems with world-writable permissions. Prefer an appropriate web-server group, group write access, setgid directories, and the required SELinux writable-content context where applicable.

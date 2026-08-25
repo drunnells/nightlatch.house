@@ -42,7 +42,9 @@
    ),
 
    's3' => array(
+     // Uploads use the regional origin endpoint, never the .cdn. hostname.
      's3_endpoint'           => '',
+     // Browser assets use the bucket-specific CDN base URL.
      's3_object_baseurl'     => '',
      's3_bucket'             => '',
      's3_region'             => '',

@@ -28,6 +28,18 @@ if ($target['host'] !== 'nightlatch.nyc3.digitaloceanspaces.com'
     exit(1);
 }
 
+$errorResult = array(
+    'status' => 403,
+    'body' => '<Error><Code>SignatureDoesNotMatch</Code><Message>The request signature does not match.</Message><RequestId>safe-request-id</RequestId><AWSAccessKeyId>must-not-appear</AWSAccessKeyId></Error>',
+    'headers' => array(),
+);
+$errorDescription = nightlatch_storage_result_description($errorResult);
+if ($errorDescription !== 'HTTP 403, SignatureDoesNotMatch: The request signature does not match. [request ID safe-request-id]'
+    || strpos($errorDescription, 'must-not-appear') !== false) {
+    fwrite(STDERR, "Storage errors were not summarized safely.\n");
+    exit(1);
+}
+
 $data = array('regions' => array(array(
     'overlayLibrary' => array(array('asset' => 'rooms/foyer/overlays/one.png')),
     'logic' => array('branches' => array(array('actions' => array(

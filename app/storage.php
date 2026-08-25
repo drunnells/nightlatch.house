@@ -31,9 +31,17 @@ function nightlatch_require_storage_settings()
             throw new RuntimeException('DigitalOcean Spaces storage is not configured. Complete the s3 settings in the private config.');
         }
     }
+    $endpointHost = strtolower((string) parse_url($settings['endpoint'], PHP_URL_HOST));
     if (strtolower((string) parse_url($settings['endpoint'], PHP_URL_SCHEME)) !== 'https'
-        || (string) parse_url($settings['endpoint'], PHP_URL_HOST) === '') {
+        || $endpointHost === '') {
         throw new RuntimeException('The configured S3 endpoint must be a complete HTTPS URL.');
+    }
+    if (strpos($endpointHost, '.cdn.digitaloceanspaces.com') !== false) {
+        throw new RuntimeException('The configured S3 endpoint is a CDN URL. Use the regional Spaces origin endpoint for uploads.');
+    }
+    if (strtolower((string) parse_url($settings['objectBaseUrl'], PHP_URL_SCHEME)) !== 'https'
+        || (string) parse_url($settings['objectBaseUrl'], PHP_URL_HOST) === '') {
+        throw new RuntimeException('The configured S3 object base URL must be a complete HTTPS URL.');
     }
     if (!function_exists('curl_init')) throw new RuntimeException('DigitalOcean Spaces storage requires PHP cURL.');
     return $settings;
@@ -174,12 +182,22 @@ function nightlatch_storage_request($method, $key, $body, $contentType)
     if ($method === 'PUT' && $settings['acl'] !== '') $headers[] = 'x-amz-acl: ' . $settings['acl'];
     if ($contentType !== '') $headers[] = 'Content-Type: ' . $contentType;
 
+    $responseHeaders = array();
     $curl = curl_init($target['url']);
     curl_setopt_array($curl, array(
         CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 180,
         CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_HEADERFUNCTION => function ($curlHandle, $headerLine) use (&$responseHeaders) {
+            $length = strlen($headerLine);
+            $separator = strpos($headerLine, ':');
+            if ($separator === false) return $length;
+            $name = strtolower(trim(substr($headerLine, 0, $separator)));
+            $value = trim(substr($headerLine, $separator + 1));
+            if ($name !== '') $responseHeaders[$name] = $value;
+            return $length;
+        },
     ));
     if ($method === 'PUT') curl_setopt($curl, CURLOPT_POSTFIELDS, $body);
     $responseBody = curl_exec($curl);
@@ -189,14 +207,42 @@ function nightlatch_storage_request($method, $key, $body, $contentType)
     if ($responseBody === false || $curlError !== '') {
         throw new RuntimeException('The asset storage service could not be reached.');
     }
-    return array('status' => $status, 'body' => $responseBody);
+    return array('status' => $status, 'body' => $responseBody, 'headers' => $responseHeaders);
+}
+
+function nightlatch_storage_xml_error_value($body, $tag)
+{
+    $body = (string) $body;
+    $tag = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $tag);
+    if ($body === '' || $tag === '') return '';
+    if (!preg_match('#<' . $tag . '>(.*?)</' . $tag . '>#s', $body, $matches)) return '';
+    $value = html_entity_decode(strip_tags($matches[1]), ENT_QUOTES | ENT_XML1, 'UTF-8');
+    $value = trim((string) preg_replace('/[\x00-\x1F\x7F]+/', ' ', $value));
+    return strlen($value) > 500 ? substr($value, 0, 497) . '...' : $value;
+}
+
+function nightlatch_storage_result_description($result)
+{
+    $status = isset($result['status']) ? (int) $result['status'] : 0;
+    $body = isset($result['body']) ? (string) $result['body'] : '';
+    $headers = isset($result['headers']) && is_array($result['headers']) ? $result['headers'] : array();
+    $code = nightlatch_storage_xml_error_value($body, 'Code');
+    $message = nightlatch_storage_xml_error_value($body, 'Message');
+    $requestId = nightlatch_storage_xml_error_value($body, 'RequestId');
+    if ($requestId === '' && isset($headers['x-amz-request-id'])) $requestId = trim((string) $headers['x-amz-request-id']);
+
+    $description = 'HTTP ' . $status;
+    if ($code !== '') $description .= ', ' . $code;
+    if ($message !== '') $description .= ': ' . $message;
+    if ($requestId !== '') $description .= ' [request ID ' . $requestId . ']';
+    return $description;
 }
 
 function nightlatch_storage_put_bytes($key, $bytes, $mimeType)
 {
     $result = nightlatch_storage_request('PUT', $key, $bytes, $mimeType);
     if ($result['status'] < 200 || $result['status'] >= 300) {
-        throw new RuntimeException('The asset could not be uploaded to DigitalOcean Spaces (HTTP ' . $result['status'] . ').');
+        throw new RuntimeException('The asset could not be uploaded to DigitalOcean Spaces (' . nightlatch_storage_result_description($result) . ').');
     }
     return nightlatch_storage_validate_key($key);
 }
@@ -205,7 +251,7 @@ function nightlatch_storage_get_bytes($key)
 {
     $result = nightlatch_storage_request('GET', $key, '', '');
     if ($result['status'] < 200 || $result['status'] >= 300) {
-        throw new RuntimeException('The saved asset could not be downloaded from DigitalOcean Spaces (HTTP ' . $result['status'] . ').');
+        throw new RuntimeException('The saved asset could not be downloaded from DigitalOcean Spaces (' . nightlatch_storage_result_description($result) . ').');
     }
     return $result['body'];
 }
@@ -214,7 +260,7 @@ function nightlatch_storage_delete($key)
 {
     $result = nightlatch_storage_request('DELETE', $key, '', '');
     if (($result['status'] < 200 || $result['status'] >= 300) && $result['status'] !== 404) {
-        throw new RuntimeException('The asset could not be deleted from DigitalOcean Spaces (HTTP ' . $result['status'] . ').');
+        throw new RuntimeException('The asset could not be deleted from DigitalOcean Spaces (' . nightlatch_storage_result_description($result) . ').');
     }
 }
 

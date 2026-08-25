@@ -59,7 +59,9 @@ The S3 config shape currently includes:
 
 - Nightlatch House will become a point-and-click puzzle adventure.
 - The root `index.php` is the player web client shown when a visitor opens the domain. A new run begins in the entry room of the one cluster marked as the starting cluster; an existing anonymous browser run resumes its saved room and state.
-- The player client must remain polished and playable on mobile and desktop. Keep transient messages outside room/object interaction canvases, preserve the complete content image in the available viewport, provide keyboard and touch access, and use focused drawers or dialogs for descriptions, inventory, objects, and game controls.
+- The player client must remain polished and playable on mobile and desktop. Keep desktop narration in a stable reserved tray, use non-resizing overlays on small screens, preserve the complete content image in the available viewport, and provide an immersive/fullscreen room mode with compact edge controls for mobile landscape play.
+- Player interaction regions are intentionally undiscoverable. They must remain visually transparent with no cursor, hover, focus, active-state, or native-tooltip reveal while retaining keyboard and touch activation; use accessible labels for assistive technology only.
+- Use focused drawers or dialogs for player descriptions, inventory, objects, and game controls.
 - Anonymous player progress currently persists in browser local storage, including current location, arrival context, flags, inventory, overlays, descriptions, unlocked doors, navigation history, and Gateway assignments. A future server-backed run may replace this without changing authored gameplay semantics.
 - The admin tool should allow CRUD operations for rooms, inspectable objects, inventory metadata, and the data needed to assemble rooms into playable maps.
 - Rooms are grouped into clusters. Connections inside a cluster are authored statically through the top-level Map editor.

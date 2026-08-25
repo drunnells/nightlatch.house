@@ -36,6 +36,7 @@
     var ambientPending = false;
     var soundMuted = false;
     var saveTimer = null;
+    var nativeFullscreenEntered = false;
 
     var playerApp = document.getElementById('player-app');
     var playerStage = document.getElementById('player-stage');
@@ -281,8 +282,8 @@
     }
 
     function setMessageVisible(target, visible) {
-        target.hidden = !visible;
-        window.requestAnimationFrame(activeObject ? fitObjectToModal : fitRoomToStage);
+        target.classList.toggle('has-message', visible);
+        target.setAttribute('aria-hidden', visible ? 'false' : 'true');
     }
 
     function showMessage(message, context) {
@@ -293,17 +294,13 @@
         var other = byId(isObjectMessage ? 'player-message' : 'object-player-message');
         byId(isObjectMessage ? 'object-player-message-context' : 'player-message-context').textContent = context || (activeObject ? activeObject.title : room.title);
         byId(isObjectMessage ? 'object-player-message-text' : 'player-message-text').textContent = message;
-        other.hidden = true;
+        setMessageVisible(other, false);
         setMessageVisible(target, true);
     }
 
     function hideMessage() {
-        byId('player-message').hidden = true;
-        byId('object-player-message').hidden = true;
-        window.requestAnimationFrame(function () {
-            fitRoomToStage();
-            fitObjectToModal();
-        });
+        setMessageVisible(byId('player-message'), false);
+        setMessageVisible(byId('object-player-message'), false);
     }
 
     function updateSoundControl() {
@@ -464,9 +461,6 @@
             rect.setAttribute('focusable', 'true');
             rect.setAttribute('role', 'button');
             rect.setAttribute('aria-label', regionAccessibleLabel(region));
-            var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            title.textContent = regionAccessibleLabel(region);
-            rect.appendChild(title);
             target.appendChild(rect);
         });
     }
@@ -710,7 +704,7 @@
         objectModal.hidden = true;
         playerApp.classList.remove('object-open');
         byId('object-description-panel').hidden = true;
-        byId('object-player-message').hidden = true;
+        setMessageVisible(byId('object-player-message'), false);
         byId('toggle-object-description').setAttribute('aria-expanded', 'false');
         if (restoreFocus !== false && objectTrigger && document.contains(objectTrigger) && objectTrigger.offsetParent !== null) {
             objectTrigger.focus();
@@ -936,6 +930,71 @@
         byId('continue-game').focus();
     }
 
+    function currentFullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    function updateImmersiveControls() {
+        var enabled = playerApp.classList.contains('immersive-mode');
+        var button = byId('toggle-immersive');
+        button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        button.querySelector('i').className = enabled ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+        byId('immersive-menu-label').textContent = enabled ? 'Restore interface' : 'Expand room';
+        byId('immersive-menu-detail').textContent = enabled
+            ? 'Show the room title and game controls'
+            : 'Hide controls and use the available screen';
+    }
+
+    function setImmersiveMode(enabled) {
+        playerApp.classList.toggle('immersive-mode', enabled);
+        updateImmersiveControls();
+        window.requestAnimationFrame(function () {
+            fitRoomToStage();
+            fitObjectToModal();
+        });
+    }
+
+    function enterImmersiveMode() {
+        closeGameMenu(false);
+        setImmersiveMode(true);
+        var requestFullscreen = playerApp.requestFullscreen || playerApp.webkitRequestFullscreen;
+        if (requestFullscreen) {
+            try {
+                var request = requestFullscreen.call(playerApp);
+                if (request && typeof request.catch === 'function') request.catch(function () {});
+            } catch (_error) {
+                // CSS immersive mode remains available when native fullscreen is unavailable.
+            }
+        }
+        window.requestAnimationFrame(function () { byId('exit-immersive').focus(); });
+    }
+
+    function leaveImmersiveMode() {
+        setImmersiveMode(false);
+        if (currentFullscreenElement() === playerApp) {
+            var exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+            if (exitFullscreen) {
+                try {
+                    var exit = exitFullscreen.call(document);
+                    if (exit && typeof exit.catch === 'function') exit.catch(function () {});
+                } catch (_error) {}
+            }
+        }
+        roomCanvas.focus();
+    }
+
+    function handleFullscreenChange() {
+        if (currentFullscreenElement() === playerApp) {
+            nativeFullscreenEntered = true;
+            if (!playerApp.classList.contains('immersive-mode')) setImmersiveMode(true);
+            return;
+        }
+        if (nativeFullscreenEntered) {
+            nativeFullscreenEntered = false;
+            if (playerApp.classList.contains('immersive-mode')) setImmersiveMode(false);
+        }
+    }
+
     function focusableElements(container) {
         return Array.prototype.slice.call(container.querySelectorAll('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')).filter(function (element) {
             return !element.hidden && element.offsetParent !== null;
@@ -980,8 +1039,6 @@
         activateRegionFromEvent(event, objectSvg, function () { return activeObject ? activeObject.data.regions || [] : []; }, clickObjectRegion);
     });
 
-    byId('dismiss-player-message').addEventListener('click', hideMessage);
-    byId('dismiss-object-player-message').addEventListener('click', hideMessage);
     byId('toggle-sound').addEventListener('click', toggleSound);
     byId('toggle-inventory').addEventListener('click', function () { toggleInventory(this); });
     byId('mobile-inventory').addEventListener('click', function () { toggleInventory(this); });
@@ -1004,6 +1061,11 @@
     byId('back-room').addEventListener('click', returnToPreviousRoom);
     byId('open-game-menu').addEventListener('click', function () { openGameMenu(this); });
     byId('continue-game').addEventListener('click', function () { closeGameMenu(true); });
+    byId('toggle-immersive').addEventListener('click', function () {
+        if (playerApp.classList.contains('immersive-mode')) leaveImmersiveMode();
+        else enterImmersiveMode();
+    });
+    byId('exit-immersive').addEventListener('click', leaveImmersiveMode);
     byId('request-new-game').addEventListener('click', requestNewGame);
     byId('cancel-new-game').addEventListener('click', cancelNewGame);
     byId('start-new-game').addEventListener('click', function () {
@@ -1037,9 +1099,16 @@
                 event.preventDefault();
                 closeDrawers(true);
             } else trapFocus(event, activeDrawer);
+            return;
+        }
+        if (event.key === 'Escape' && playerApp.classList.contains('immersive-mode')) {
+            event.preventDefault();
+            leaveImmersiveMode();
         }
     });
     document.addEventListener('pointerdown', resumePendingAmbientSound, true);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     window.addEventListener('pagehide', saveRun);
     roomImage.addEventListener('load', function () {
         roomCanvas.classList.remove('loading-room');

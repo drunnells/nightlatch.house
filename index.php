@@ -66,6 +66,10 @@ try {
         </nav>
     </header>
 
+    <button type="button" class="immersive-exit" id="exit-immersive" aria-label="Restore game controls" title="Restore game controls">
+        <i class="fa-solid fa-compress" aria-hidden="true"></i>
+    </button>
+
     <main class="player-main">
         <section class="player-stage" id="player-stage" aria-label="Current room">
             <div class="room-canvas" id="room-canvas" tabindex="-1" style="aspect-ratio:<?php echo (int) $startRoom['data']['canvas']['width']; ?>/<?php echo (int) $startRoom['data']['canvas']['height']; ?>">
@@ -76,13 +80,12 @@ try {
             <p class="player-touch-hint" id="player-touch-hint"><i class="fa-regular fa-hand-pointer" aria-hidden="true"></i> Explore the room</p>
         </section>
 
-        <section class="player-message-tray" id="player-message" aria-live="polite" aria-atomic="true" hidden>
+        <section class="player-message-tray" id="player-message" aria-live="polite" aria-atomic="true" aria-hidden="true">
             <div class="message-glyph" aria-hidden="true"><i class="fa-solid fa-quote-left"></i></div>
             <div class="message-copy">
                 <span id="player-message-context">Room</span>
                 <p id="player-message-text"></p>
             </div>
-            <button type="button" id="dismiss-player-message" aria-label="Dismiss message"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </section>
     </main>
 
@@ -139,13 +142,12 @@ try {
                     <p id="object-player-description"></p>
                 </aside>
             </div>
-            <section class="player-message-tray object-message-tray" id="object-player-message" aria-live="polite" aria-atomic="true" hidden>
+            <section class="player-message-tray object-message-tray" id="object-player-message" aria-live="polite" aria-atomic="true" aria-hidden="true">
                 <div class="message-glyph" aria-hidden="true"><i class="fa-solid fa-quote-left"></i></div>
                 <div class="message-copy">
                     <span id="object-player-message-context">Object</span>
                     <p id="object-player-message-text"></p>
                 </div>
-                <button type="button" id="dismiss-object-player-message" aria-label="Dismiss message"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
             </section>
         </section>
     </div>
@@ -156,6 +158,7 @@ try {
             <header><span class="player-brand-mark" aria-hidden="true"><i class="fa-solid fa-key"></i></span><div><span class="drawer-kicker">Nightlatch House</span><h2 id="game-menu-title">Game menu</h2></div></header>
             <div class="game-menu-actions" id="game-menu-actions">
                 <button type="button" id="continue-game"><i class="fa-solid fa-play" aria-hidden="true"></i><span><strong>Continue</strong><small>Return to the house</small></span></button>
+                <button type="button" id="toggle-immersive" aria-pressed="false"><i class="fa-solid fa-expand" aria-hidden="true"></i><span><strong id="immersive-menu-label">Expand room</strong><small id="immersive-menu-detail">Hide controls and use the available screen</small></span></button>
                 <button type="button" id="request-new-game"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span><strong>Start over</strong><small>Clear this saved run</small></span></button>
             </div>
             <div class="new-game-confirm" id="new-game-confirm" hidden>

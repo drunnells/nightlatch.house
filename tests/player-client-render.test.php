@@ -83,6 +83,8 @@ $expectations = array(
     array('index', 'id="player-message"', 'The room message tray is missing.'),
     array('index', 'id="object-player-message"', 'The object message tray is missing.'),
     array('index', 'id="inventory-panel"', 'The player inventory is missing.'),
+    array('index', 'id="toggle-immersive"', 'The game menu is missing the immersive room control.'),
+    array('index', 'id="exit-immersive"', 'Immersive room mode has no persistent restore control.'),
     array('index', "nightlatch_asset('js/room-rules.js'", 'The player does not load the shared rule evaluator.'),
     array('catalog', 'nightlatch_load_topology', 'The shared play catalog does not load canonical topology.'),
     array('catalog', 'nightlatch_apply_topology_to_rooms', 'The shared play catalog does not mirror canonical topology into room data.'),
@@ -94,10 +96,14 @@ $expectations = array(
     array('playerJs', 'assignGatewayDestinations', 'The player is missing stable Gateway assignment behavior.'),
     array('playerJs', 'window.NLRoomRules.canExit', 'The player is missing authored door access behavior.'),
     array('playerJs', 'syncAmbientSound', 'The player is missing cluster ambience behavior.'),
+    array('playerJs', 'requestFullscreen', 'The player does not request native fullscreen for immersive mode.'),
     array('playerJs', 'window.localStorage.setItem(RUN_STORAGE_KEY', 'The anonymous player run is not persisted.'),
     array('playerCss', '.player-main', 'The player layout styles are missing.'),
     array('playerCss', '.player-message-tray', 'Player messages are not styled outside the interaction canvas.'),
+    array('playerCss', '.player-message-tray.has-message', 'Player message visibility does not preserve the desktop layout.'),
+    array('playerCss', '.player-app.immersive-mode', 'The player has no immersive room layout.'),
     array('playerCss', '@media (max-width: 760px)', 'The player has no mobile layout.'),
+    array('playerCss', '(max-height: 560px) and (orientation: landscape)', 'The player has no compact mobile landscape layout.'),
     array('playerCss', 'height: 100dvh', 'The player does not account for mobile viewport height.'),
 );
 foreach ($expectations as $expectation) {
@@ -105,6 +111,18 @@ foreach ($expectations as $expectation) {
         fwrite(STDERR, $expectation[2] . "\n");
         exit(1);
     }
+}
+
+if (strpos($files['index'], 'dismiss-player-message') !== false
+    || strpos($files['index'], 'dismiss-object-player-message') !== false) {
+    fwrite(STDERR, "Player narration must not expose controls that resize the interaction area.\n");
+    exit(1);
+}
+if (strpos($files['playerJs'], "createElementNS('http://www.w3.org/2000/svg', 'title')") !== false
+    || strpos($files['playerCss'], 'fill: rgba(115, 157, 149') !== false
+    || strpos($files['playerCss'], 'fill: rgba(201, 173, 101') !== false) {
+    fwrite(STDERR, "Player interaction regions must not reveal themselves visually or through native tooltips.\n");
+    exit(1);
 }
 
 $roomMessagePosition = strpos($files['index'], 'id="player-message"');

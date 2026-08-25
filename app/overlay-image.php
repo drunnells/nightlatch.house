@@ -35,11 +35,15 @@ function nightlatch_overlay_template_spec($sourceWidth, $sourceHeight)
     );
 }
 
-function nightlatch_overlay_edit_prompt($userPrompt, $spec)
+function nightlatch_overlay_edit_prompt($userPrompt, $spec, $referenceKind = 'region')
 {
+    $sourceDescription = $referenceKind === 'overlay'
+        ? 'The source inside the guide is an existing region overlay. Treat it as the exact visual reference and preserve its alignment, composition, and recognizable details except where the requested edit requires a change. '
+        : 'The source inside the guide is the exact room or object region crop. ';
     return "This is a precision image-editing task for a point-and-click game overlay.\n"
         . "The attached PNG is a 1024 by 1024 template. The source image to edit is inside the cyan guide rectangle "
         . "at x={$spec['x']}, y={$spec['y']}, width={$spec['width']}, height={$spec['height']}.\n"
+        . $sourceDescription
         . "Modify only the pixels inside that rectangle to satisfy the USER REQUEST. Preserve the object's exact position, scale, perspective, framing, art style, and surrounding context except where the requested change requires otherwise. "
         . "Do not move, resize, rotate, crop, extend, or recompose the source rectangle. Do not add text. Keep the guide and every pixel outside the guide unchanged. "
         . "Return exactly one 1024 by 1024 image with the same template alignment.\n\n"

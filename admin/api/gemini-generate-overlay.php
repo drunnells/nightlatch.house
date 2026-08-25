@@ -23,31 +23,40 @@ try {
     if (strlen($prompt) < 3 || strlen($prompt) > 2000) {
         throw new RuntimeException('Enter an image edit prompt between 3 and 2,000 characters.');
     }
-    if (!isset($payload['backgroundAsset'], $payload['bounds'], $payload['canvas']) || !is_array($payload['bounds']) || !is_array($payload['canvas'])) {
+    if (isset($payload['referenceOverlayAsset']) && !is_string($payload['referenceOverlayAsset'])) {
+        throw new RuntimeException('The reference overlay path is invalid.');
+    }
+    $referenceOverlayAsset = trim(isset($payload['referenceOverlayAsset']) ? $payload['referenceOverlayAsset'] : '');
+    if (strlen($referenceOverlayAsset) > 2048) {
+        throw new RuntimeException('The reference overlay path is too long.');
+    }
+    if ($referenceOverlayAsset && $outputKind !== 'overlay') {
+        throw new RuntimeException('An overlay reference may only be used to generate another overlay.');
+    }
+    if (!$referenceOverlayAsset && (!isset($payload['backgroundAsset'], $payload['bounds'], $payload['canvas']) || !is_array($payload['bounds']) || !is_array($payload['canvas']))) {
         throw new RuntimeException('Select a valid region before generating an image edit.');
     }
 
-    $backgroundPath = nightlatch_local_content_asset_path($payload['backgroundAsset'], $assetType);
+    $referenceKind = $referenceOverlayAsset ? 'overlay' : 'region';
+    $sourceAsset = $referenceOverlayAsset ? $referenceOverlayAsset : $payload['backgroundAsset'];
+    $backgroundPath = nightlatch_local_content_asset_path($sourceAsset, $assetType);
     $sourceInfo = getimagesize($backgroundPath);
     $supportedTypes = array(IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP);
     if (!$sourceInfo || !in_array($sourceInfo[2], $supportedTypes, true)) {
-        throw new RuntimeException('The background must be a PNG, JPG, or WebP image.');
+        throw new RuntimeException(($referenceOverlayAsset ? 'The reference overlay' : 'The background') . ' must be a PNG, JPG, or WebP image.');
     }
     if ($sourceInfo[0] > 8192 || $sourceInfo[1] > 8192 || ($sourceInfo[0] * $sourceInfo[1]) > 50000000) {
-        throw new RuntimeException('The background is too large to prepare safely.');
+        throw new RuntimeException(($referenceOverlayAsset ? 'The reference overlay' : 'The background') . ' is too large to prepare safely.');
     }
     $sourceBytes = file_get_contents($backgroundPath);
     $sourceImage = $sourceBytes !== false ? imagecreatefromstring($sourceBytes) : false;
     if (!$sourceImage) {
-        throw new RuntimeException('The background must be a PNG, JPG, or WebP image that PHP GD can read.');
+        throw new RuntimeException(($referenceOverlayAsset ? 'The reference overlay' : 'The background') . ' must be a PNG, JPG, or WebP image that PHP GD can read.');
     }
 
-    $sourceBox = nightlatch_region_source_box(
-        $payload['bounds'],
-        $payload['canvas'],
-        imagesx($sourceImage),
-        imagesy($sourceImage)
-    );
+    $sourceBox = $referenceOverlayAsset
+        ? array('x' => 0, 'y' => 0, 'width' => imagesx($sourceImage), 'height' => imagesy($sourceImage))
+        : nightlatch_region_source_box($payload['bounds'], $payload['canvas'], imagesx($sourceImage), imagesy($sourceImage));
     $spec = nightlatch_overlay_template_spec($sourceBox['width'], $sourceBox['height']);
     try {
         $templateBytes = nightlatch_create_overlay_template($sourceImage, $sourceBox, $spec);
@@ -63,7 +72,7 @@ try {
         throw new RuntimeException('Add a Gemini API key and image-capable model to the private local config first.');
     }
 
-    $fullPrompt = nightlatch_overlay_edit_prompt($prompt, $spec);
+    $fullPrompt = nightlatch_overlay_edit_prompt($prompt, $spec, $referenceKind);
     $request = nightlatch_gemini_image_edit_request($fullPrompt, $templateBytes, 'image/png');
     $url = 'https://generativelanguage.googleapis.com/v1/models/' . rawurlencode($model) . ':generateContent';
     $curl = curl_init($url);
@@ -135,6 +144,7 @@ try {
         'height' => $outputHeight,
         'bytes' => strlen($outputBytes),
         'outputKind' => $outputKind,
+        'referenceKind' => $referenceKind,
     ));
 } catch (Throwable $exception) {
     nightlatch_json(array('ok' => false, 'error' => $exception->getMessage()), 400);

@@ -7,7 +7,11 @@
         var region = null;
         var expandedGenerators = {};
         var expandedOverlayLibraries = {};
+        var expandedOverlayEditors = {};
         var generationMessages = {};
+        var overlayEditReferences = {};
+        var overlayEditPrompts = {};
+        var overlayEditMessages = {};
         var activeBehaviorId = 'click';
         var maxBranches = 10;
         var maxConditions = 25;
@@ -193,18 +197,22 @@
             }, entries);
         }
 
-        function addOverlayToLibrary(asset, prompt, source) {
-            if (!region || !asset || !String(asset).trim()) return;
+        function addOverlayToLibrary(asset, prompt, source, targetRegion, preserveAsset) {
+            targetRegion = targetRegion || region;
+            if (!targetRegion || !asset || !String(asset).trim()) return;
             asset = String(asset).trim();
-            if (!Array.isArray(region.overlayLibrary)) region.overlayLibrary = [];
-            var existing = region.overlayLibrary.find(function (entry) { return entry.asset === asset; });
+            if (!Array.isArray(targetRegion.overlayLibrary)) targetRegion.overlayLibrary = [];
+            var existing = targetRegion.overlayLibrary.find(function (entry) { return entry.asset === asset; });
             if (existing) {
                 if (prompt && !existing.prompt) existing.prompt = prompt;
                 if (source && !existing.source) existing.source = source;
                 return;
             }
-            if (region.overlayLibrary.length >= 100) region.overlayLibrary.shift();
-            region.overlayLibrary.push({ asset: asset, prompt: prompt || '', source: source || 'saved' });
+            if (targetRegion.overlayLibrary.length >= 100) {
+                var removeIndex = preserveAsset ? targetRegion.overlayLibrary.findIndex(function (entry) { return entry.asset !== preserveAsset; }) : 0;
+                targetRegion.overlayLibrary.splice(removeIndex < 0 ? 0 : removeIndex, 1);
+            }
+            targetRegion.overlayLibrary.push({ asset: asset, prompt: prompt || '', source: source || 'saved' });
         }
 
         function syncOverlayLibrary() {
@@ -243,6 +251,28 @@
                 html += '<button type="button" class="logic-overlay-choice' + (selected ? ' selected' : '') + '" data-asset="' + esc(entry.asset) + '" title="' + esc(overlayName(entry)) + '"><img src="' + esc(entry.asset) + '" alt=""><span>' + esc(overlayName(entry)) + '</span>' + (selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
             });
             return html + '</div></div>';
+        }
+
+        function overlayReferenceEditorMarkup(action) {
+            var entries = Array.isArray(region.overlayLibrary) ? region.overlayLibrary.slice().reverse() : [];
+            var expanded = !!expandedOverlayEditors[action.id];
+            var referenceAsset = overlayEditReferences[action.id] || '';
+            if (!referenceAsset && action.asset && entries.some(function (entry) { return entry.asset === action.asset; })) {
+                referenceAsset = action.asset;
+                overlayEditReferences[action.id] = referenceAsset;
+            }
+            var prompt = Object.prototype.hasOwnProperty.call(overlayEditPrompts, action.id) ? overlayEditPrompts[action.id] : '';
+            var message = overlayEditMessages[action.id] || '';
+            var html = '<button type="button" class="overlay-library-toggle logic-overlay-edit-toggle" aria-expanded="' + (expanded ? 'true' : 'false') + '"' + (!entries.length ? ' disabled' : '') + '><i class="fa-solid fa-pen-to-square"></i><span>Edit a saved overlay with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>' +
+                '<div class="overlay-generator overlay-reference-editor' + (expanded ? ' visible' : '') + '"><p class="hint">Choose an existing overlay as Gemini’s exact visual reference. The original stays in this region’s library.</p><label>Reference overlay</label><div class="overlay-library-grid overlay-reference-grid">';
+            entries.forEach(function (entry) {
+                var selected = referenceAsset === entry.asset;
+                html += '<button type="button" class="logic-overlay-reference-choice' + (selected ? ' selected' : '') + '" data-asset="' + esc(entry.asset) + '" title="' + esc(overlayName(entry)) + '"><img src="' + esc(entry.asset) + '" alt=""><span>' + esc(overlayName(entry)) + '</span>' + (selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            });
+            html += '</div><label>Overlay edit prompt</label><textarea class="logic-overlay-reference-prompt" rows="4" maxlength="2000" placeholder="Add a fine layer of dust without changing anything else.">' + esc(prompt) + '</textarea>' +
+                '<div class="prompt-meta"><span><i class="fa-regular fa-images"></i> ' + (referenceAsset ? 'Uses selected overlay' : 'Choose a reference overlay') + '</span><span>' + prompt.length + ' / 2000</span></div>' +
+                '<button type="button" class="btn-forge btn-block logic-edit-overlay"' + (!referenceAsset ? ' disabled' : '') + '><i class="fa-solid fa-sparkles"></i> Generate edited overlay</button><div class="generation-status logic-overlay-edit-status' + (message ? ' visible' : '') + '">' + esc(message) + '</div></div>';
+            return html;
         }
 
         function conditionOptions(selected, source) {
@@ -320,6 +350,7 @@
                 return '<label>Overlay graphic URL</label><input class="logic-action-field" data-field="asset" value="' + esc(action.asset) + '" placeholder="../assets/graphics/rooms/generated/overlay.jpg">' +
                     (action.asset ? '<img class="overlay-preview visible logic-overlay-preview" src="' + esc(action.asset) + '" alt="Overlay preview">' : '') +
                     overlayLibraryMarkup(action) +
+                    overlayReferenceEditorMarkup(action) +
                     '<label class="mini-upload logic-overlay-upload"><i class="fa-solid fa-upload"></i> Upload a new overlay<input class="logic-overlay-file" type="file" accept="image/png,image/jpeg,image/webp"></label>' +
                     '<button type="button" class="overlay-generator-toggle logic-generator-toggle" aria-expanded="' + (expanded ? 'true' : 'false') + '"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate overlay with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>' +
                     '<div class="overlay-generator logic-overlay-generator' + (expanded ? ' visible' : '') + '"><p class="hint">Gemini receives this exact region crop. Describe only what should change.</p><label>Overlay edit prompt</label><textarea class="logic-action-field logic-overlay-prompt" data-field="prompt" rows="4" maxlength="2000" placeholder="Show the compartment opened.">' + esc(action.prompt) + '</textarea><div class="prompt-meta"><span><i class="fa-solid fa-crop-simple"></i> Uses selected region</span><span>' + (action.prompt || '').length + ' / 2000</span></div><button type="button" class="btn-forge btn-block logic-generate-overlay"><i class="fa-solid fa-sparkles"></i> Generate region overlay</button><div class="generation-status logic-generation-status' + (message ? ' visible' : '') + '">' + esc(message) + '</div></div>';
@@ -694,8 +725,15 @@
         });
 
         container.on('click', '.overlay-library-toggle', function () {
+            if ($(this).hasClass('logic-overlay-edit-toggle')) return;
             var actionId = $(this).closest('.logic-action').data('action-id');
             expandedOverlayLibraries[actionId] = !expandedOverlayLibraries[actionId];
+            render();
+        });
+
+        container.on('click', '.logic-overlay-edit-toggle', function () {
+            var actionId = $(this).closest('.logic-action').data('action-id');
+            expandedOverlayEditors[actionId] = !expandedOverlayEditors[actionId];
             render();
         });
 
@@ -706,8 +744,23 @@
             var asset = $(this).attr('data-asset') || '';
             var entry = (region.overlayLibrary || []).find(function (candidate) { return candidate.asset === asset; });
             action.asset = asset;
+            overlayEditReferences[action.id] = asset;
             if (!action.prompt && entry && entry.prompt) action.prompt = entry.prompt;
             changed(); render(); notify('Previous region overlay selected');
+        });
+
+        container.on('click', '.logic-overlay-reference-choice', function () {
+            var element = $(this).closest('.logic-action');
+            var action = findAction(element.data('branch-id'), element.data('action-id'));
+            if (!action) return;
+            overlayEditReferences[action.id] = $(this).attr('data-asset') || '';
+            render();
+        });
+
+        container.on('input', '.logic-overlay-reference-prompt', function () {
+            var actionId = $(this).closest('.logic-action').data('action-id');
+            overlayEditPrompts[actionId] = $(this).val();
+            $(this).siblings('.prompt-meta').find('span:last-child').text($(this).val().length + ' / 2000');
         });
 
         container.on('change', '.logic-overlay-file', function () {
@@ -716,9 +769,10 @@
             var action = findAction(element.data('branch-id'), element.data('action-id'));
             if (!file || !action || !options.uploadOverlay) return;
             var uploadControl = $(this).closest('.logic-overlay-upload');
+            var targetRegion = region;
             options.uploadOverlay(file, uploadControl).then(function (url) {
                 action.asset = url;
-                addOverlayToLibrary(url, '', 'uploaded');
+                addOverlayToLibrary(url, '', 'uploaded', targetRegion);
                 changed(); render(); notify('Overlay uploaded');
             }).catch(function (error) { notify(error.message, true); });
         });
@@ -730,16 +784,44 @@
             if ((action.prompt || '').trim().length < 3) return notify('Describe the overlay change first.', true);
             var actionId = action.id;
             var button = $(this);
+            var targetRegion = region;
             button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Editing region…');
             generationMessages[actionId] = 'Preparing the selected crop and sending it to Gemini. This may take a minute.';
             element.find('.logic-generation-status').text(generationMessages[actionId]).addClass('visible');
             options.generateOverlay(action.prompt.trim()).then(function (result) {
                 action.asset = result.url;
-                addOverlayToLibrary(result.url, action.prompt, 'generated');
+                addOverlayToLibrary(result.url, action.prompt, 'generated', targetRegion);
                 generationMessages[actionId] = 'Overlay ready at ' + result.width + ' × ' + result.height + ' pixels. Save this content to keep it.';
                 changed(); render(); notify('Gemini region overlay created');
             }).catch(function (error) {
                 generationMessages[actionId] = error.message;
+                render(); notify(error.message, true);
+            });
+        });
+
+        container.on('click', '.logic-edit-overlay', function () {
+            var element = $(this).closest('.logic-action');
+            var action = findAction(element.data('branch-id'), element.data('action-id'));
+            if (!action || !options.generateOverlay) return;
+            var actionId = action.id;
+            var referenceAsset = overlayEditReferences[actionId] || '';
+            var prompt = (overlayEditPrompts[actionId] || '').trim();
+            if (!referenceAsset) return notify('Choose an overlay reference first.', true);
+            if (prompt.length < 3) return notify('Describe how the reference overlay should change.', true);
+            var button = $(this);
+            var targetRegion = region;
+            button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Editing overlay…');
+            overlayEditMessages[actionId] = 'Sending the selected overlay to Gemini as the visual reference. This may take a minute.';
+            element.find('.logic-overlay-edit-status').text(overlayEditMessages[actionId]).addClass('visible');
+            options.generateOverlay(prompt, referenceAsset).then(function (result) {
+                action.asset = result.url;
+                action.prompt = prompt;
+                addOverlayToLibrary(result.url, prompt, 'edited', targetRegion, referenceAsset);
+                overlayEditReferences[actionId] = result.url;
+                overlayEditMessages[actionId] = 'Edited overlay ready at ' + result.width + ' × ' + result.height + ' pixels. The original remains available in the library.';
+                changed(); render(); notify('Gemini overlay edit created');
+            }).catch(function (error) {
+                overlayEditMessages[actionId] = error.message;
                 render(); notify(error.message, true);
             });
         });

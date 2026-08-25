@@ -624,19 +624,21 @@
         }, $('.upload-drop'));
     });
 
-    function generateOverlay(prompt) {
+    function generateOverlay(prompt, referenceOverlayAsset) {
         var region = selected();
         if (!region) return Promise.reject(new Error('Select a region first.'));
+        var payload = {
+            prompt: prompt,
+            backgroundAsset: image.getAttribute('src'),
+            assetType: editor.assetType,
+            canvas: canvas,
+            bounds: region.bounds
+        };
+        if (referenceOverlayAsset) payload.referenceOverlayAsset = referenceOverlayAsset;
         return fetch('api/gemini-generate-overlay.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
-            body: JSON.stringify({
-                prompt: prompt,
-                backgroundAsset: image.getAttribute('src'),
-                assetType: editor.assetType,
-                canvas: canvas,
-                bounds: region.bounds
-            })
+            body: JSON.stringify(payload)
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error || 'The overlay could not be generated.');
             return result;

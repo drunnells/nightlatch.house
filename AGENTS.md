@@ -98,7 +98,7 @@ The S3 config shape currently includes:
 - Branch results are ordered actions. Supported actions show player messages, show/replace or clear the region overlay, set or clear flags, grant or remove items, unlock a door, open an object viewer, replace a selected room/object player description, or play a selected saved sound.
 - Overlay removal is explicit: `clear_overlay` deletes the current region-scoped overlay. A new overlay replaces the previous overlay for that region.
 - Each `set_overlay` result owns its asset and optional generation prompt so overlays may be uploaded or generated independently in IF, ELSE IF, or ELSE branches.
-- Each region keeps an `overlayLibrary` of up to 100 previously captured, linked, uploaded, or generated overlays so authors can visually reuse the same artwork across branches without duplicating files.
+- Each region keeps an `overlayLibrary` of up to 100 previously captured, linked, uploaded, generated, or Gemini-edited overlays so authors can visually reuse the same artwork across branches without duplicating files.
 - Authors may capture a selected region's current pixels into its `overlayLibrary` before editing the background. Captures are stored as PNG files with transparency preserved and remain reusable after the source image changes.
 - Inventory conditions and grant/remove results store stable inventory keys, but the editor authors them through a searchable picker of saved portable objects rather than free-text keys.
 - Flag keys and object-examination targets use the same searchable picker pattern. New flag keys may be created from the flag picker; saved flag names and their room/object region associations are derived from content JSON in `app/content-variables.php` and shown in the top-level Flags catalog.
@@ -120,8 +120,9 @@ The S3 config shape currently includes:
 - Object artwork may be cropped with a rectangle or point-by-point lasso. Lasso output is a transparent PNG outside the selected polygon, and existing object region bounds must be remapped or removed when they fall outside the crop.
 - Object generation may use a rectangular reference crop selected from a searchable thumbnail library of saved local raster room and object images. Validate and extract the selected reference area on the server before sending it to Gemini.
 - A branch-specific region overlay may be uploaded or generated from an image-editing prompt.
+- A saved region overlay may be selected as Gemini's exact reference for another edit. Preserve the original library entry, assign the new result to the active overlay action, and add that result to the same region library for reuse or further editing.
 - Authors may select a rectangular area of a room or object background, describe a precision edit, and review a full-image candidate. Cancel must leave the draft unchanged; Apply changes only the draft background reference, and the normal content Save persists it.
-- Generated region overlays use the exact selected room or object crop as a reference image inside a fixed 1024-by-1024 template. Validate the returned template dimensions before extracting the edited region.
+- Generated region overlays use either the exact selected room/object crop or the entire chosen saved overlay as a reference image inside a fixed 1024-by-1024 template. Validate the returned template dimensions before extracting the edited region.
 - Overlay prompt instructions should ask the model to preserve the source crop's position, scale, perspective, framing, style, and template alignment while changing only the requested content.
 - Generated backgrounds request Gemini's 1K output tier.
 - Store generated backgrounds and generated overlays as progressive JPEG files at quality 80 with a maximum width of 1024 pixels, preserving aspect ratio.

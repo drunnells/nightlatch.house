@@ -388,11 +388,13 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .overlay-library.visible { display: block; }
 .overlay-library > .hint { margin: 0 0 7px; }
 .overlay-library-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 230px; overflow-y: auto; }
-.logic-overlay-choice { position: relative; min-width: 0; padding: 4px; color: #899692; text-align: left; border: 1px solid #303b39; background: #0d1313; cursor: pointer; }
-.logic-overlay-choice:hover, .logic-overlay-choice.selected { color: #c4d7d3; border-color: #66877f; }
-.logic-overlay-choice img { width: 100%; height: 62px; display: block; object-fit: contain; background: #050808; }
-.logic-overlay-choice span { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
-.logic-overlay-choice > i { position: absolute; top: 7px; right: 7px; width: 17px; height: 17px; display: grid; place-items: center; color: #0a1110; background: #84b1a8; border-radius: 50%; font-size: 8px; }
+.logic-overlay-choice, .logic-overlay-reference-choice { position: relative; min-width: 0; padding: 4px; color: #899692; text-align: left; border: 1px solid #303b39; background: #0d1313; cursor: pointer; }
+.logic-overlay-choice:hover, .logic-overlay-choice.selected, .logic-overlay-reference-choice:hover, .logic-overlay-reference-choice.selected { color: #c4d7d3; border-color: #66877f; }
+.logic-overlay-choice img, .logic-overlay-reference-choice img { width: 100%; height: 62px; display: block; object-fit: contain; background: #050808; }
+.logic-overlay-choice span, .logic-overlay-reference-choice span { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 8px; }
+.logic-overlay-choice > i, .logic-overlay-reference-choice > i { position: absolute; top: 7px; right: 7px; width: 17px; height: 17px; display: grid; place-items: center; color: #0a1110; background: #84b1a8; border-radius: 50%; font-size: 8px; }
+.overlay-reference-editor > label { margin-top: 9px; }
+.overlay-reference-grid { margin-bottom: 10px; }
 .bounds-readout { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line-soft); margin-top: 18px; padding-top: 13px; color: var(--muted); font-size: 9px; }
 .bounds-readout code { font-size: 9px; }
 .nl-toast { position: fixed; z-index: 100; right: 18px; bottom: 18px; color: #dce9df; background: #17231a; border: 1px solid #486650; padding: 11px 15px; box-shadow: 0 10px 30px #000; transform: translateY(20px); opacity: 0; pointer-events: none; transition: .2s; }

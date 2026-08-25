@@ -68,6 +68,14 @@ if (strpos($prompt, 'USER REQUEST:') === false || strpos($prompt, 'Turn on the l
     exit(1);
 }
 
+$referencePrompt = nightlatch_overlay_edit_prompt('Add a fine layer of dust.', $wide, 'overlay');
+if (strpos($referencePrompt, 'existing region overlay') === false
+    || strpos($referencePrompt, 'exact visual reference') === false
+    || strpos($referencePrompt, 'Add a fine layer of dust.') === false) {
+    fwrite(STDERR, "Existing-overlay edit prompt is missing reference-preservation instructions.\n");
+    exit(1);
+}
+
 if (extension_loaded('gd')) {
     $source = imagecreatetruecolor(400, 100);
     $red = imagecolorallocate($source, 180, 20, 20);

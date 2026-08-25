@@ -69,6 +69,9 @@ if (strpos($logicScript, 'logic-add-branch') === false
     || strpos($logicScript, "searchPicker('sound'") === false
     || strpos($logicScript, 'pickerTooltip(entry.label, entry.detail)') === false
     || strpos($logicScript, 'pickerTooltip(label, detail)') === false
+    || strpos($logicScript, 'Edit a saved overlay with Gemini') === false
+    || strpos($logicScript, 'logic-overlay-reference-choice') === false
+    || strpos($logicScript, 'options.generateOverlay(prompt, referenceAsset)') === false
     || strpos($logicScript, 'logic-add-behavior') === false
     || strpos($logicScript, 'logic-trigger-type') === false
     || strpos($logicScript, 'overlay-library-toggle') === false) {
@@ -95,13 +98,21 @@ if (strpos($objectEditorMarkup, "nightlatch_asset('js/region-bounds.js')") === f
     exit(1);
 }
 $captureEndpoint = file_get_contents(dirname(__DIR__) . '/admin/api/capture-region-overlay.php');
-if ($captureEndpoint === false
+$overlayEndpoint = file_get_contents(dirname(__DIR__) . '/admin/api/gemini-generate-overlay.php');
+if ($captureEndpoint === false || $overlayEndpoint === false
     || strpos($captureEndpoint, 'nightlatch_capture_region_overlay') === false
     || strpos($editorScript, "fetch('api/capture-region-overlay.php'") === false
     || strpos($editorScript, "source: 'captured'") === false
     || strpos($logicScript, "entry.source === 'captured'") === false
     || strpos($styles, '.region-overlay-capture') === false) {
     fwrite(STDERR, "Object editor is missing current-region overlay capture.\n");
+    exit(1);
+}
+if (strpos($editorScript, 'payload.referenceOverlayAsset = referenceOverlayAsset') === false
+    || strpos($overlayEndpoint, "\$referenceKind = \$referenceOverlayAsset ? 'overlay' : 'region'") === false
+    || strpos($overlayEndpoint, 'nightlatch_local_content_asset_path($sourceAsset, $assetType)') === false
+    || strpos($styles, '.logic-overlay-reference-choice') === false) {
+    fwrite(STDERR, "Object editor is missing Gemini editing from a saved overlay reference.\n");
     exit(1);
 }
 $roomEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/room-edit.php');

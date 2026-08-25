@@ -28,6 +28,61 @@
     var resizeHandle = document.getElementById('region-resize-handle');
     var zoomFrame = null;
     var logicEditor = null;
+    var temporaryAssets = {};
+
+    function isTemporaryAssetUrl(url) {
+        return typeof url === 'string' && /\/assets\/graphics\/(rooms|objects)\/(uploads|generated)\//.test(url);
+    }
+
+    function trackTemporaryAsset(url) {
+        if (isTemporaryAssetUrl(url)) temporaryAssets[url] = true;
+        return url;
+    }
+
+    function cleanupTemporaryAssetBatch(assets, useBeacon) {
+        if (!assets.length) return Promise.resolve({ failedCount: 0 });
+        if (useBeacon && navigator.sendBeacon) {
+            var beaconData = new FormData();
+            beaconData.append('csrf_token', window.NL_CSRF);
+            beaconData.append('assets', JSON.stringify(assets));
+            navigator.sendBeacon('api/cleanup-temporary-assets.php', beaconData);
+            return Promise.resolve({ failedCount: 0 });
+        }
+        return fetch('api/cleanup-temporary-assets.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
+            body: JSON.stringify({ assets: assets }),
+            keepalive: true
+        }).then(function (response) { return response.json(); }).then(function (result) {
+            if (!result.ok) throw new Error(result.error || 'Temporary editor files could not be cleaned up.');
+            var report = result.cleanup || {};
+            ['deleted', 'missing', 'referenced', 'invalid'].forEach(function (status) {
+                (report[status] || []).forEach(function (url) { delete temporaryAssets[url]; });
+            });
+            return { failedCount: (report.failed || []).length + (report.young || []).length };
+        });
+    }
+
+    function cleanupTrackedTemporaryAssets(useBeacon) {
+        var assets = Object.keys(temporaryAssets);
+        if (!assets.length) return Promise.resolve({ failedCount: 0 });
+        var batches = [];
+        while (assets.length) batches.push(assets.splice(0, 250));
+        return Promise.all(batches.map(function (batch) {
+            return cleanupTemporaryAssetBatch(batch, useBeacon);
+        })).then(function (reports) {
+            return {
+                failedCount: reports.reduce(function (count, report) { return count + (report.failedCount || 0); }, 0)
+            };
+        }).catch(function () {
+            return { failedCount: Object.keys(temporaryAssets).length };
+        });
+    }
+
+    function discardTemporaryAsset(url) {
+        if (!temporaryAssets[url]) return Promise.resolve();
+        return cleanupTemporaryAssetBatch([url], false).catch(function () {});
+    }
 
     function uid() {
         return 'region-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -619,8 +674,14 @@
             renderRegions();
             fillInspector();
             $('#save-indicator').html('<i class="fa-regular fa-circle-check"></i> Saved just now').removeClass('dirty');
-            toast((isObject ? 'Object' : 'Room') + ' saved');
-            return result;
+            return cleanupTrackedTemporaryAssets(false).then(function (clientCleanup) {
+                var warnings = result.cleanupWarning ? [result.cleanupWarning] : [];
+                if (clientCleanup.failedCount) {
+                    warnings.push(clientCleanup.failedCount + ' discarded temporary asset' + (clientCleanup.failedCount === 1 ? '' : 's') + ' could not be removed.');
+                }
+                toast((isObject ? 'Object' : 'Room') + ' saved' + (warnings.length ? ' ' + warnings.join(' ') : ''), !!warnings.length);
+                return result;
+            });
         }).catch(function (error) {
             toast(error.message, true);
             throw error;
@@ -658,6 +719,7 @@
             body: JSON.stringify(payload)
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error || 'The overlay could not be generated.');
+            trackTemporaryAsset(result.url);
             return result;
         });
     }
@@ -670,7 +732,7 @@
         loadingElement.addClass('loading');
         return fetch('api/upload-asset.php', { method: 'POST', body: data }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error);
-            return result.url;
+            return trackTemporaryAsset(result.url);
         }).finally(function () { loadingElement.removeClass('loading'); });
     }
 
@@ -694,6 +756,7 @@
             })
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error || 'The region appearance could not be captured.');
+            trackTemporaryAsset(result.url);
             if (!Array.isArray(captureRegion.overlayLibrary)) captureRegion.overlayLibrary = [];
             if (captureRegion.overlayLibrary.length >= 100) captureRegion.overlayLibrary.shift();
             captureRegion.overlayLibrary.push({ asset: result.url, prompt: '', source: 'captured' });
@@ -797,6 +860,7 @@
             body: JSON.stringify(generationPayload)
         }).then(function (response) { return response.json(); }).then(function (result) {
             if (!result.ok) throw new Error(result.error);
+            trackTemporaryAsset(result.url);
             setBackground(result.url, true);
             $('#generation-status').text('New image ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + (result.referenceUsed ? ' · reference crop applied' : '') + '. Save the ' + contentLabel + ' to keep this selection.');
             toast('Gemini ' + (isObject ? 'object image' : 'background') + ' created');
@@ -849,7 +913,10 @@
             getBackgroundAsset: function () { return image.getAttribute('src'); },
             getCanvas: function () { return { width: canvas.width, height: canvas.height }; },
             getRegionCount: function () { return regions.length; },
-            applyCrop: applyCroppedBackground,
+            applyCrop: function (url, width, height, bounds) {
+                trackTemporaryAsset(url);
+                applyCroppedBackground(url, width, height, bounds);
+            },
             toast: toast
         };
     }
@@ -858,8 +925,14 @@
         getBackgroundAsset: function () { return image.getAttribute('src'); },
         getCanvas: function () { return { width: canvas.width, height: canvas.height }; },
         applyBackground: function (url) { setBackground(url, true); },
+        trackTemporaryAsset: trackTemporaryAsset,
+        discardTemporaryAsset: discardTemporaryAsset,
         toast: toast
     };
+
+    window.addEventListener('beforeunload', function () {
+        cleanupTrackedTemporaryAssets(true);
+    });
 
     svg.setAttribute('viewBox', '0 0 ' + canvas.width + ' ' + canvas.height);
     roomCanvas.style.aspectRatio = canvas.width + ' / ' + canvas.height;

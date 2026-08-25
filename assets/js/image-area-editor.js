@@ -62,7 +62,8 @@
         $('#image-edit-footer-status').text(summary + '. Describe the change and generate a preview.');
     }
 
-    function clearCandidate() {
+    function clearCandidate(discard) {
+        if (discard && candidate && bridge.discardTemporaryAsset) bridge.discardTemporaryAsset(candidate.url);
         candidate = null;
         showingOriginal = false;
         previewImage.src = sourceUrl;
@@ -72,11 +73,11 @@
         $('#image-edit-generation-status').removeClass('visible').empty();
     }
 
-    function resetEditor(clearPrompt) {
+    function resetEditor(clearPrompt, discardCandidate) {
         generationId += 1;
         selection = null;
         selectionStart = null;
-        clearCandidate();
+        clearCandidate(discardCandidate !== false);
         if (clearPrompt) $('#image-edit-prompt').val('').trigger('input');
         $('#generate-image-area-edit').prop('disabled', false).html('<i class="fa-solid fa-sparkles"></i> Generate preview');
         renderSelection();
@@ -107,7 +108,7 @@
     $(selectionLayer).on('pointerdown', function (event) {
         if (!dimensions) return;
         event.preventDefault();
-        if (candidate) clearCandidate();
+        if (candidate) clearCandidate(true);
         selectionStart = point(event.originalEvent);
         selection = { x: selectionStart.x, y: selectionStart.y, width: 1, height: 1 };
         selectionLayer.setPointerCapture(event.originalEvent.pointerId);
@@ -141,8 +142,15 @@
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
             body: JSON.stringify({ prompt: prompt, backgroundAsset: sourceUrl, assetType: bridge.assetType, canvas: dimensions, bounds: selection })
         }).then(function (response) { return response.json(); }).then(function (result) {
-            if (requestId !== generationId) return;
+            if (requestId !== generationId) {
+                if (result.ok && bridge.trackTemporaryAsset && bridge.discardTemporaryAsset) {
+                    bridge.trackTemporaryAsset(result.url);
+                    bridge.discardTemporaryAsset(result.url);
+                }
+                return;
+            }
             if (!result.ok) throw new Error(result.error || 'The image area could not be edited.');
+            if (bridge.trackTemporaryAsset) bridge.trackTemporaryAsset(result.url);
             candidate = result;
             showingOriginal = false;
             previewImage.src = result.url;
@@ -172,10 +180,12 @@
     $('[data-cancel-image-edit]').on('click', function () { setOpen(false); resetEditor(true); });
     $('#apply-image-area-edit').on('click', function () {
         if (!candidate) return;
-        bridge.applyBackground(candidate.url, candidate.width, candidate.height);
+        var appliedCandidate = candidate;
+        candidate = null;
+        bridge.applyBackground(appliedCandidate.url, appliedCandidate.width, appliedCandidate.height);
         setOpen(false);
         bridge.toast('Edited image applied to the draft. Save to keep it.');
-        resetEditor(true);
+        resetEditor(true, false);
     });
     $(document).on('keydown', function (event) {
         if (event.key === 'Escape' && !workspace.hidden) {

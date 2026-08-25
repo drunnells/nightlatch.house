@@ -112,7 +112,9 @@ try {
         $oldKeys = nightlatch_content_storage_keys($existingObject['background_asset'], nightlatch_interactive_content_data($existingObject['object_data']));
         nightlatch_delete_unreferenced_content_storage_keys($pdo, array_values(array_diff($oldKeys, $newKeys)));
     }
-    nightlatch_cleanup_local_asset_files($localFiles);
+    $cleanupReport = nightlatch_cleanup_local_asset_files($localFiles);
+    $cleanupWarning = nightlatch_local_asset_cleanup_warning($cleanupReport);
+    if ($cleanupWarning !== '') error_log('Nightlatch object save cleanup warning: ' . $cleanupWarning);
     $assetReplacements = array();
     foreach ($replacements as $source => $key) $assetReplacements[$source] = nightlatch_storage_public_url($key);
 
@@ -123,6 +125,7 @@ try {
         'inventoryKey' => $inventoryKey ? $inventoryKey : '',
         'backgroundAsset' => nightlatch_storage_public_url($promoted['backgroundAsset']),
         'assetReplacements' => $assetReplacements,
+        'cleanupWarning' => $cleanupWarning,
         'savedAt' => date(DATE_ATOM),
     ));
 } catch (PDOException $exception) {

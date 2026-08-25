@@ -77,13 +77,16 @@ try {
     }
 
     $pdo->commit();
-    nightlatch_cleanup_local_asset_files($localFiles);
+    $cleanupReport = nightlatch_cleanup_local_asset_files($localFiles);
+    $cleanupWarning = nightlatch_local_asset_cleanup_warning($cleanupReport);
 
     fwrite(STDOUT, "Spaces asset migration complete.\n");
     fwrite(STDOUT, "Rooms checked: {$roomCount}\n");
     fwrite(STDOUT, "Objects checked: {$objectCount}\n");
     fwrite(STDOUT, "Sounds checked: {$soundCount}\n");
     fwrite(STDOUT, "Local assets uploaded: {$uploadedCount}\n");
+    fwrite(STDOUT, "Local source files deleted: " . count($cleanupReport['deleted']) . "\n");
+    if ($cleanupWarning !== '') fwrite(STDERR, "Warning: {$cleanupWarning}\n");
 } catch (Throwable $exception) {
     if ($pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
     nightlatch_delete_storage_keys($uploadedKeys);

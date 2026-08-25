@@ -140,6 +140,7 @@ The S3 config shape currently includes:
 - Sound-library uploads go directly to Spaces. Their names, stable slugs, MIME types, object keys, and original metadata are stored in MySQL.
 - Browser payloads resolve stored object keys through `s3_object_baseurl`. Server-side GD/Gemini operations download saved images into request-scoped temporary files and remove them after the request.
 - Use `php scripts/test-spaces.php` for a non-mutating signed-access diagnostic; add `--write` to test a disposable upload, download, and deletion without touching the database.
+- Editor sessions track newly created local graphics and remove discarded candidates on cancel, save, or page exit. Use `php scripts/cleanup-local-assets.php` for a database-aware dry run of crash leftovers older than 24 hours, then add `--delete` to remove only the reported unreferenced files.
 - The web-server user must have write access to the `generated` and `uploads` directories under both image asset roots and to the PHP temporary directory.
 - Keep generated and uploaded room/object temporary files and legacy uploaded sounds out of git while retaining the tracked `.gitkeep` files.
 - Do not solve write-permission problems with world-writable permissions. Prefer an appropriate web-server group, group write access, setgid directories, and the required SELinux writable-content context where applicable.
@@ -174,6 +175,7 @@ The S3 config shape currently includes:
   - `php tests/content-variables.test.php`
   - `php tests/map-topology.test.php`
   - `php tests/map-editor-render.test.php`
+  - `php tests/local-asset-cleanup.test.php`
   - `php tests/sound-library.test.php`
   - `php tests/storage.test.php`
   - `php tests/sounds-editor-render.test.php`

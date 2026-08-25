@@ -83,8 +83,11 @@ if (strpos($objectEditorMarkup, 'json_encode($objectOptions') === false
     || strpos($objectEditorMarkup, 'window.NL_EDITOR_SOUNDS') === false
     || strpos($editorScript, 'fresh.automaticBehaviors') === false
     || strpos($editorScript, 'fresh.overlayLibrary') === false
+    || strpos($editorScript, "fetch('api/cleanup-temporary-assets.php'") === false
+    || strpos($editorScript, "window.addEventListener('beforeunload'") === false
     || strpos($editorScript, 'window.NLImageAreaEditorBridge') === false
     || strpos($imageEditScript, "fetch('api/gemini-edit-background-region.php'") === false
+    || strpos($imageEditScript, 'bridge.discardTemporaryAsset(candidate.url)') === false
     || strpos($imageEditScript, 'data-cancel-image-edit') === false) {
     fwrite(STDERR, "Object editor is missing inventory object choices.\n");
     exit(1);

@@ -314,6 +314,165 @@ function nightlatch_local_content_asset_path($assetUrl, $assetType)
     return $temporaryPath;
 }
 
+function nightlatch_local_temporary_asset_directories()
+{
+    return array(
+        'assets/graphics/rooms/uploads' => NIGHTLATCH_ROOT . '/assets/graphics/rooms/uploads',
+        'assets/graphics/rooms/generated' => NIGHTLATCH_ROOT . '/assets/graphics/rooms/generated',
+        'assets/graphics/objects/uploads' => NIGHTLATCH_ROOT . '/assets/graphics/objects/uploads',
+        'assets/graphics/objects/generated' => NIGHTLATCH_ROOT . '/assets/graphics/objects/generated',
+        'assets/sounds/uploads' => NIGHTLATCH_ROOT . '/assets/sounds/uploads',
+    );
+}
+
+function nightlatch_local_temporary_asset_relative_path($path)
+{
+    $realPath = realpath((string) $path);
+    if ($realPath === false || !is_file($realPath)) return '';
+    foreach (nightlatch_local_temporary_asset_directories() as $relativeDirectory => $directory) {
+        $realDirectory = realpath($directory);
+        if ($realDirectory === false || strpos($realPath, $realDirectory . DIRECTORY_SEPARATOR) !== 0) continue;
+        $relative = ltrim(substr($realPath, strlen($realDirectory)), DIRECTORY_SEPARATOR);
+        if ($relative === '' || basename($relative) === '.gitkeep') return '';
+        return $relativeDirectory . '/' . str_replace(DIRECTORY_SEPARATOR, '/', $relative);
+    }
+    return '';
+}
+
+function nightlatch_local_temporary_asset_file($reference)
+{
+    if (!is_string($reference) || trim($reference) === '') return '';
+    $urlPath = parse_url($reference, PHP_URL_PATH);
+    if (!is_string($urlPath) || $urlPath === '') return '';
+    $urlPath = '/' . ltrim(str_replace('\\', '/', rawurldecode($urlPath)), '/');
+    foreach (nightlatch_local_temporary_asset_directories() as $relativeDirectory => $directory) {
+        $marker = '/' . $relativeDirectory . '/';
+        $position = strpos($urlPath, $marker);
+        if ($position === false) continue;
+        $relative = substr($urlPath, $position + strlen($marker));
+        if ($relative === '' || strpos('/' . $relative . '/', '/../') !== false || strpos($relative, "\0") !== false) return '';
+        $root = realpath($directory);
+        if ($root === false) return '';
+        $candidatePath = $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        if (!file_exists($candidatePath)) return $candidatePath;
+        $candidate = realpath($candidatePath);
+        if ($candidate === false || strpos($candidate, $root . DIRECTORY_SEPARATOR) !== 0 || !is_file($candidate)) return '';
+        return $candidate;
+    }
+    return '';
+}
+
+function nightlatch_collect_interactive_local_asset_files($value, &$files, $insideOverlayLibrary = false)
+{
+    if (!is_array($value)) return;
+    foreach ($value as $key => $child) {
+        $isOverlayLibrary = $insideOverlayLibrary || $key === 'overlayLibrary';
+        if (($key === 'asset' && is_string($child)) || ($insideOverlayLibrary && is_int($key) && is_string($child))) {
+            $path = nightlatch_local_temporary_asset_file($child);
+            if ($path !== '') $files[$path] = true;
+        } elseif (is_array($child)) {
+            nightlatch_collect_interactive_local_asset_files($child, $files, $isOverlayLibrary);
+        }
+    }
+}
+
+function nightlatch_content_local_asset_files($backgroundAsset, $data)
+{
+    $files = array();
+    $backgroundPath = nightlatch_local_temporary_asset_file($backgroundAsset);
+    if ($backgroundPath !== '') $files[$backgroundPath] = true;
+    nightlatch_collect_interactive_local_asset_files($data, $files);
+    return $files;
+}
+
+function nightlatch_database_local_asset_files(PDO $pdo)
+{
+    $files = array();
+    foreach ($pdo->query('SELECT background_asset, room_data FROM rooms')->fetchAll() as $row) {
+        $files += nightlatch_content_local_asset_files(
+            $row['background_asset'],
+            nightlatch_interactive_content_data($row['room_data'])
+        );
+    }
+    foreach ($pdo->query('SELECT background_asset, object_data FROM objects')->fetchAll() as $row) {
+        $files += nightlatch_content_local_asset_files(
+            $row['background_asset'],
+            nightlatch_interactive_content_data($row['object_data'])
+        );
+    }
+    foreach ($pdo->query('SELECT asset_path FROM sounds')->fetchAll() as $row) {
+        $path = nightlatch_local_temporary_asset_file($row['asset_path']);
+        if ($path !== '') $files[$path] = true;
+    }
+    return $files;
+}
+
+function nightlatch_scan_local_temporary_assets()
+{
+    $files = array();
+    foreach (nightlatch_local_temporary_asset_directories() as $directory) {
+        if (!is_dir($directory)) continue;
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($iterator as $file) {
+            if (!$file->isFile() || $file->isLink() || $file->getFilename() === '.gitkeep') continue;
+            $path = $file->getRealPath();
+            $relativePath = nightlatch_local_temporary_asset_relative_path($path);
+            if ($path === false || $relativePath === '') continue;
+            $files[$path] = array(
+                'path' => $path,
+                'relativePath' => $relativePath,
+                'size' => (int) $file->getSize(),
+                'modifiedAt' => (int) $file->getMTime(),
+            );
+        }
+    }
+    ksort($files);
+    return $files;
+}
+
+function nightlatch_delete_local_temporary_asset_files($paths, $referencedFiles = array(), $minimumAgeSeconds = 0)
+{
+    $report = array(
+        'deleted' => array(),
+        'missing' => array(),
+        'referenced' => array(),
+        'young' => array(),
+        'invalid' => array(),
+        'failed' => array(),
+    );
+    $minimumAgeSeconds = max(0, (int) $minimumAgeSeconds);
+    foreach (array_values(array_unique($paths)) as $path) {
+        $path = (string) $path;
+        if (!is_file($path)) {
+            $report['missing'][] = $path;
+            continue;
+        }
+        $realPath = realpath($path);
+        $relativePath = nightlatch_local_temporary_asset_relative_path($realPath);
+        if ($realPath === false || $relativePath === '') {
+            $report['invalid'][] = $path;
+            continue;
+        }
+        if (isset($referencedFiles[$realPath])) {
+            $report['referenced'][] = $relativePath;
+            continue;
+        }
+        $modifiedAt = filemtime($realPath);
+        if ($minimumAgeSeconds > 0 && $modifiedAt !== false && time() - $modifiedAt < $minimumAgeSeconds) {
+            $report['young'][] = $relativePath;
+            continue;
+        }
+        if (@unlink($realPath)) {
+            $report['deleted'][] = $relativePath;
+        } else {
+            $report['failed'][] = $relativePath;
+        }
+    }
+    return $report;
+}
+
 function nightlatch_asset_mime_type($path)
 {
     $finfo = new finfo(FILEINFO_MIME_TYPE);
@@ -427,17 +586,17 @@ function nightlatch_content_storage_keys($backgroundAsset, $data)
 
 function nightlatch_cleanup_local_asset_files($localFiles)
 {
-    foreach (array_keys($localFiles) as $path) {
-        $normalized = str_replace('\\', '/', $path);
-        if ((strpos($normalized, '/assets/graphics/rooms/uploads/') !== false
-                || strpos($normalized, '/assets/graphics/rooms/generated/') !== false
-                || strpos($normalized, '/assets/graphics/objects/uploads/') !== false
-                || strpos($normalized, '/assets/graphics/objects/generated/') !== false
-                || strpos($normalized, '/assets/sounds/uploads/') !== false)
-            && is_file($path)) {
-            @unlink($path);
-        }
-    }
+    return nightlatch_delete_local_temporary_asset_files(array_keys($localFiles));
+}
+
+function nightlatch_local_asset_cleanup_warning($report)
+{
+    $failed = isset($report['failed']) ? count($report['failed']) : 0;
+    $invalid = isset($report['invalid']) ? count($report['invalid']) : 0;
+    $count = $failed + $invalid;
+    if (!$count) return '';
+    return $count . ' temporary local asset' . ($count === 1 ? '' : 's')
+        . ' could not be removed. Check file permissions and run the local asset cleanup command.';
 }
 
 function nightlatch_delete_storage_keys($keys)

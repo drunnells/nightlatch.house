@@ -78,9 +78,6 @@ try {
             <button type="button" class="player-icon-button" id="toggle-sound" aria-label="Mute sound" aria-pressed="false" title="Mute sound">
                 <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
             </button>
-            <button type="button" class="player-icon-button" id="toggle-room-description" aria-label="Read room description" aria-expanded="false" title="Look around">
-                <i class="fa-regular fa-eye" aria-hidden="true"></i>
-            </button>
             <button type="button" class="player-icon-button inventory-toggle" id="toggle-inventory" aria-label="Open inventory" aria-expanded="false" title="Inventory">
                 <i class="fa-solid fa-suitcase" aria-hidden="true"></i>
                 <span id="inventory-count" aria-label="0 items">0</span>
@@ -97,9 +94,14 @@ try {
                 <img id="room-image" src="<?php echo nightlatch_h($startRoom['backgroundAsset']); ?>" alt="<?php echo nightlatch_h($startRoom['title']); ?>">
                 <div class="content-overlay-layer" id="room-overlay-layer" aria-hidden="true"></div>
                 <svg class="interaction-layer" id="room-regions" viewBox="0 0 <?php echo (int) $startRoom['data']['canvas']['width']; ?> <?php echo (int) $startRoom['data']['canvas']['height']; ?>" preserveAspectRatio="none" aria-label="Room interactions"></svg>
-                <button type="button" class="canvas-fullscreen-button" id="toggle-room-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
-                    <i class="fa-solid fa-expand" aria-hidden="true"></i><span class="fullscreen-label">Full screen</span>
-                </button>
+                <div class="canvas-context-toolbar" role="group" aria-label="Scene controls">
+                    <button type="button" class="canvas-action-button canvas-description-button" id="toggle-room-description" aria-label="Describe the scene" aria-expanded="false" title="Describe the scene">
+                        <i class="fa-regular fa-eye" aria-hidden="true"></i><span>Describe</span>
+                    </button>
+                    <button type="button" class="canvas-action-button canvas-fullscreen-button" id="toggle-room-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
+                        <i class="fa-solid fa-expand" aria-hidden="true"></i><span class="fullscreen-label">Full screen</span>
+                    </button>
+                </div>
             </div>
             <p class="player-touch-hint" id="player-touch-hint"><i class="fa-regular fa-hand-pointer" aria-hidden="true"></i> Explore the room</p>
         </section>
@@ -152,10 +154,8 @@ try {
                 <div><span class="drawer-kicker">Examining</span><h2 id="object-modal-title">Object</h2></div>
                 <div class="object-viewer-actions">
                     <button type="button" class="player-icon-button" id="toggle-object-sound" aria-label="Mute sound" aria-pressed="false" title="Mute sound"><i class="fa-solid fa-volume-high" aria-hidden="true"></i></button>
-                    <button type="button" class="player-icon-button" id="toggle-object-description" aria-label="Read object description" aria-expanded="false" title="Read description"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
                     <button type="button" class="player-icon-button inventory-toggle" id="toggle-object-inventory" aria-label="Open inventory" aria-expanded="false" title="Inventory"><i class="fa-solid fa-suitcase" aria-hidden="true"></i><span id="object-inventory-count" aria-label="0 items">0</span></button>
                     <button type="button" class="player-icon-button" id="open-object-game-menu" aria-label="Open game menu" aria-expanded="false" title="Menu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
-                    <button type="button" class="object-close" id="close-object" aria-label="Close object"><i class="fa-solid fa-xmark" aria-hidden="true"></i><span>Close</span></button>
                 </div>
             </header>
             <div class="object-viewer-body" id="object-modal-body">
@@ -163,9 +163,15 @@ try {
                     <img id="object-image" alt="">
                     <div class="content-overlay-layer" id="object-overlay-layer" aria-hidden="true"></div>
                     <svg class="interaction-layer" id="object-regions" preserveAspectRatio="none" aria-label="Object interactions"></svg>
-                    <button type="button" class="canvas-fullscreen-button" id="toggle-object-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
-                        <i class="fa-solid fa-expand" aria-hidden="true"></i><span class="fullscreen-label">Full screen</span>
-                    </button>
+                    <div class="canvas-context-toolbar" role="group" aria-label="Object controls">
+                        <button type="button" class="canvas-action-button canvas-description-button" id="toggle-object-description" aria-label="Describe this object" aria-expanded="false" title="Describe this object">
+                            <i class="fa-regular fa-eye" aria-hidden="true"></i><span>Describe</span>
+                        </button>
+                        <button type="button" class="canvas-action-button canvas-fullscreen-button" id="toggle-object-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
+                            <i class="fa-solid fa-expand" aria-hidden="true"></i><span class="fullscreen-label">Full screen</span>
+                        </button>
+                    </div>
+                    <button type="button" class="object-close canvas-object-close" id="close-object" aria-label="Close object"><i class="fa-solid fa-xmark" aria-hidden="true"></i><span>Close</span></button>
                 </div>
                 <aside class="object-description text-rail" id="object-description-panel" aria-hidden="true">
                     <header><span>Description</span><button type="button" id="close-object-description" aria-label="Close object description"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>

@@ -271,7 +271,8 @@
         if (availableWidth <= 0 || availableHeight <= 0) return;
         var width = Number(room.data.canvas.width) || 1600;
         var height = Number(room.data.canvas.height) || 900;
-        var scale = Math.min(availableWidth / width, availableHeight / height, 1);
+        var maximumScale = playerApp.classList.contains('fullscreen-mode') ? Infinity : 1;
+        var scale = Math.min(availableWidth / width, availableHeight / height, maximumScale);
         roomCanvas.style.width = Math.max(1, Math.floor(width * scale)) + 'px';
         roomCanvas.style.height = Math.max(1, Math.floor(height * scale)) + 'px';
     }
@@ -283,7 +284,7 @@
         var availableHeight = objectModalBody.clientHeight - numericPadding(style, 'paddingTop') - numericPadding(style, 'paddingBottom');
         var width = Number(activeObject.data.canvas.width) || 1000;
         var height = Number(activeObject.data.canvas.height) || 1000;
-        var scale = Math.min(availableWidth / width, availableHeight / height, 1);
+        var scale = Math.min(availableWidth / width, availableHeight / height);
         objectCanvas.style.width = Math.max(1, Math.floor(width * scale)) + 'px';
         objectCanvas.style.height = Math.max(1, Math.floor(height * scale)) + 'px';
     }
@@ -705,7 +706,6 @@
             panel.classList.add('visible');
             panel.setAttribute('aria-hidden', 'false');
             byId('toggle-room-description').setAttribute('aria-expanded', 'true');
-            window.requestAnimationFrame(function () { byId('close-room-description').focus(); });
             return;
         }
         panel.classList.remove('visible');
@@ -731,8 +731,7 @@
         panel.classList.toggle('visible', open);
         panel.setAttribute('aria-hidden', open ? 'false' : 'true');
         byId('toggle-object-description').setAttribute('aria-expanded', open ? 'true' : 'false');
-        if (open) window.requestAnimationFrame(function () { byId('close-object-description').focus(); });
-        else if (wasOpen && restoreFocus !== false) byId('toggle-object-description').focus();
+        if (!open && wasOpen && restoreFocus !== false) byId('toggle-object-description').focus();
     }
 
     function openObject(slug, trigger) {
@@ -1157,7 +1156,10 @@
         if (!focusable.length) return;
         var first = focusable[0];
         var last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
+        if (!container.contains(document.activeElement)) {
+            event.preventDefault();
+            (event.shiftKey ? last : first).focus({ preventScroll: true });
+        } else if (event.shiftKey && document.activeElement === first) {
             event.preventDefault();
             last.focus();
         } else if (!event.shiftKey && document.activeElement === last) {

@@ -19,8 +19,6 @@
         value = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
         return {
             enabled: !!value.enabled,
-            previousRegionId: String(value.previousRegionId || ''),
-            nextRegionId: String(value.nextRegionId || ''),
             pageTurnSoundSlug: String(value.pageTurnSoundSlug || ''),
             pages: (Array.isArray(value.pages) ? value.pages : []).map(function (page) {
                 return {
@@ -46,22 +44,6 @@
             return typeof options.getRegions === 'function' ? options.getRegions() : [];
         }
 
-        function regionOptionMarkup(selectedId, roleLabel) {
-            var html = '<option value="">Choose a region</option>';
-            var found = false;
-            regions().forEach(function (region, index) {
-                var id = String(region.id || '');
-                var label = (index + 1) + '. ' + (region.name || 'Untitled region');
-                var detail = roleLabel + ' · ' + id;
-                if (id === selectedId) found = true;
-                html += '<option value="' + escAttr(id) + '" title="' + escAttr(label + '\n' + detail) + '"' + (id === selectedId ? ' selected' : '') + '>' + esc(label) + '</option>';
-            });
-            if (selectedId && !found) {
-                html += '<option value="' + escAttr(selectedId) + '" title="Missing region\n' + escAttr(selectedId) + '" selected>Missing region · ' + esc(selectedId) + '</option>';
-            }
-            return html;
-        }
-
         function overlayChoices() {
             var choices = [];
             var seen = {};
@@ -78,11 +60,6 @@
                 });
             });
             return choices;
-        }
-
-        function renderNavigation() {
-            root.find('#book-previous-region').html(regionOptionMarkup(book.previousRegionId, 'Previous page'));
-            root.find('#book-next-region').html(regionOptionMarkup(book.nextRegionId, 'Next page'));
         }
 
         function soundOptionMarkup() {
@@ -144,7 +121,6 @@
         function render() {
             enabledInput.prop('checked', book.enabled);
             root.prop('hidden', !book.enabled);
-            renderNavigation();
             renderSoundPicker();
             renderPages();
         }
@@ -160,13 +136,7 @@
             render();
             changed();
         });
-        root.on('change', '#book-previous-region', function () {
-            book.previousRegionId = String($(this).val() || '');
-            changed();
-        }).on('change', '#book-next-region', function () {
-            book.nextRegionId = String($(this).val() || '');
-            changed();
-        }).on('click', '#book-page-sound-toggle', function () {
+        root.on('click', '#book-page-sound-toggle', function () {
             var picker = root.find('#book-page-sound-picker');
             var opening = !picker.hasClass('open');
             picker.toggleClass('open', opening);
@@ -275,20 +245,7 @@
         return {
             value: function () { return normalizeBook(book); },
             enabled: function () { return !!book.enabled; },
-            navigationRole: function (regionId) {
-                regionId = String(regionId || '');
-                if (!book.enabled) return '';
-                if (regionId === book.previousRegionId) return 'previous';
-                if (regionId === book.nextRegionId) return 'next';
-                return '';
-            },
-            refreshRegions: function () { renderNavigation(); renderPages(); },
-            clearRegion: function (regionId) {
-                regionId = String(regionId || '');
-                if (book.previousRegionId === regionId) book.previousRegionId = '';
-                if (book.nextRegionId === regionId) book.nextRegionId = '';
-                renderNavigation();
-            },
+            refreshRegions: function () { renderPages(); },
             replaceAssets: function (replacements) {
                 book.pages.forEach(function (page) {
                     if (replacements[page.asset]) page.asset = replacements[page.asset];
@@ -297,10 +254,6 @@
             },
             validate: function () {
                 if (!book.enabled) return '';
-                if (!book.previousRegionId || !book.nextRegionId) return 'Choose both previous-page and next-page regions for this book.';
-                if (book.previousRegionId === book.nextRegionId) return 'Previous-page and next-page controls must use different regions.';
-                var regionIds = regions().map(function (region) { return String(region.id || ''); });
-                if (regionIds.indexOf(book.previousRegionId) === -1 || regionIds.indexOf(book.nextRegionId) === -1) return 'Book navigation controls must use regions that still exist.';
                 if (!book.pages.length) return 'Add at least one page overlay to this book.';
                 if (book.pages.some(function (page) { return !page.asset; })) return 'Every book page needs an overlay asset.';
                 return '';

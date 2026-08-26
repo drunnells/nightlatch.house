@@ -19,7 +19,7 @@
     var regions = room.data.regions || [];
     var state;
     var activeObject = null;
-    var activeBookPageIndex = 0;
+    var activeBookPageIndex = -1;
     var navigationStack = [];
     var svg = document.getElementById('play-regions');
     var objectSvg = document.getElementById('object-play-regions');
@@ -441,6 +441,42 @@
         $('#object-overlay-layer').html(html);
     }
 
+    function renderBookControls() {
+        var controlState = window.NLRoomRules.bookControlState(activeObject && activeObject.data ? activeObject.data.book : null, activeBookPageIndex);
+        $('#debug-book-controls').prop('hidden', !activeObject || !controlState.enabled);
+        if (!activeObject || !controlState.enabled) return;
+        $('#debug-book-open').prop('disabled', !controlState.canOpen);
+        $('#debug-book-next').prop('disabled', !controlState.canNext);
+        $('#debug-book-previous').prop('disabled', !controlState.canPrevious);
+        $('#debug-book-close').prop('disabled', !controlState.canClose);
+    }
+
+    function focusAvailableBookControl(action) {
+        var controlState = window.NLRoomRules.bookControlState(activeObject && activeObject.data ? activeObject.data.book : null, activeBookPageIndex);
+        var targetId = action === 'close' ? 'debug-book-open'
+            : (action === 'open' ? (controlState.canNext ? 'debug-book-next' : 'debug-book-close')
+                : (action === 'next' ? (controlState.canNext ? 'debug-book-next' : 'debug-book-previous')
+                    : (controlState.canPrevious ? 'debug-book-previous' : (controlState.canNext ? 'debug-book-next' : 'debug-book-close'))));
+        var target = document.getElementById(targetId);
+        if (target && !target.disabled) target.focus();
+    }
+
+    function useActiveBookControl(action, trigger) {
+        if (!activeObject) return;
+        var object = activeObject;
+        var result = window.NLRoomRules.useBookControl(object.data && object.data.book, activeBookPageIndex, action);
+        if (!result.handled || !result.available) return;
+        activeBookPageIndex = result.pageIndex;
+        if (result.soundSlug) playSoundSlug(result.soundSlug);
+        var message = action === 'open'
+            ? 'Opened to page 1 of ' + result.pageCount + '.'
+            : (action === 'close' ? 'Closed the book.' : 'Page ' + (result.pageIndex + 1) + ' of ' + result.pageCount + '.');
+        renderAll();
+        showMessage(message);
+        logEvent(action.replace(/^./, function (letter) { return letter.toUpperCase(); }) + ' book', true, message, object.title + ' · book');
+        if (trigger && trigger.disabled) window.requestAnimationFrame(function () { focusAvailableBookControl(action); });
+    }
+
     function ownedObjects() {
         return window.NLRoomRules.ownedObjects(objects, state);
     }
@@ -464,6 +500,7 @@
         renderState();
         renderRoomOverlays();
         renderObjectOverlays();
+        renderBookControls();
         renderInventory();
         renderDescriptions();
     }
@@ -626,7 +663,7 @@
         var object = objectBySlug[slug];
         if (!object) return false;
         activeObject = object;
-        activeBookPageIndex = 0;
+        activeBookPageIndex = -1;
         closeInventory();
         setDescriptionOpen('object', false);
         $('#object-modal-title').text(object.title);
@@ -635,6 +672,7 @@
         objectCanvas.style.aspectRatio = object.data.canvas.width + ' / ' + object.data.canvas.height;
         renderRegionSvg(objectSvg, object.data.regions || []);
         renderObjectOverlays();
+        renderBookControls();
         renderDescriptions();
         document.getElementById('object-modal').hidden = false;
         document.body.classList.add('object-modal-open');
@@ -642,7 +680,8 @@
         renderAll();
         window.requestAnimationFrame(function () {
             fitObjectToModal();
-            document.getElementById('close-object').focus();
+            var bookState = window.NLRoomRules.bookControlState(object.data && object.data.book, activeBookPageIndex);
+            document.getElementById(bookState.canOpen ? 'debug-book-open' : 'close-object').focus();
         });
         if (source) logEvent(object.title, true, 'Opened object viewer from ' + source + '.', 'viewer');
         return true;
@@ -652,7 +691,7 @@
         if (!activeObject) return;
         var title = activeObject.title;
         activeObject = null;
-        activeBookPageIndex = 0;
+        activeBookPageIndex = -1;
         document.getElementById('object-modal').hidden = true;
         document.getElementById('object-description-card').hidden = true;
         $('#toggle-object-description').attr('aria-expanded', 'false');
@@ -728,18 +767,6 @@
     function clickObjectRegion(region) {
         if (!activeObject) return;
         var object = activeObject;
-        var pageTurn = window.NLRoomRules.turnBookPage(object.data && object.data.book, activeBookPageIndex, region.id);
-        if (pageTurn.handled) {
-            activeBookPageIndex = pageTurn.pageIndex;
-            if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug);
-            var pageMessage = pageTurn.moved
-                ? 'Page ' + (pageTurn.pageIndex + 1) + ' of ' + pageTurn.pageCount + '.'
-                : (pageTurn.direction === 'previous' ? 'Already at the first page.' : 'Already at the last page.');
-            renderAll();
-            showMessage(pageMessage);
-            logEvent(region.name, pageTurn.moved, pageMessage, object.title + ' · book');
-            return;
-        }
         var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id, overlayKey: objectOverlayKey(object, region) });
         playEvaluationSounds(evaluation);
         dispatchStateChanges(evaluation.effects.changes, object.title + ' · ' + region.name);
@@ -765,6 +792,9 @@
     $('#close-inventory').on('click', closeInventory);
     $('#inventory-objects').on('click', '.inventory-object', function () { openObject($(this).attr('data-object-slug'), 'inventory'); });
     $('#close-object, [data-close-object]').on('click', function () { closeObject(true); });
+    $('#debug-book-controls').on('click', '[data-book-control]', function () {
+        if (!this.disabled) useActiveBookControl($(this).attr('data-book-control'), this);
+    });
     $('#toggle-room-description').on('click', function () { setDescriptionOpen('room', $(this).attr('aria-expanded') !== 'true'); });
     $('#toggle-object-description').on('click', function () { setDescriptionOpen('object', $(this).attr('aria-expanded') !== 'true'); });
     $('[data-close-description]').on('click', function () { setDescriptionOpen($(this).attr('data-close-description'), false); });

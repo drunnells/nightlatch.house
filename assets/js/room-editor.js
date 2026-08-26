@@ -218,7 +218,6 @@
     function renderRegions() {
         while (svg.firstChild) svg.removeChild(svg.firstChild);
         regions.forEach(function (region, index) {
-            var bookRole = bookEditor ? bookEditor.navigationRole(region.id) : '';
             var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('x', region.bounds.x);
             rect.setAttribute('y', region.bounds.y);
@@ -233,17 +232,16 @@
             label.setAttribute('y', region.bounds.y + 28);
             label.setAttribute('class', 'region-label');
             label.setAttribute('data-id', region.id);
-            label.textContent = (index + 1) + '  ' + (bookRole === 'previous' ? '← ' : (bookRole === 'next' ? '→ ' : '')) + region.name;
+            label.textContent = (index + 1) + '  ' + region.name;
             svg.appendChild(label);
         });
         if (draftRect) svg.appendChild(draftRect);
 
         var html = regions.length ? '' : '<div class="region-empty"><i class="fa-regular fa-square-plus"></i><p>No clickable areas yet</p></div>';
         regions.forEach(function (region, index) {
-            var bookRole = bookEditor ? bookEditor.navigationRole(region.id) : '';
-            var regionDetail = bookRole ? 'Book · ' + bookRole + ' page' : (region.kind === 'door' ? 'Door / exit' : 'Interaction');
+            var regionDetail = region.kind === 'door' ? 'Door / exit' : 'Interaction';
             html += '<button class="region-item' + (region.id === selectedId ? ' active' : '') + '" data-id="' + esc(region.id) + '">' +
-                '<span class="region-number">' + (index + 1) + '</span><span><strong>' + esc(region.name) + '</strong><small><i class="fa-solid ' + (bookRole ? 'fa-book-open' : (region.kind === 'door' ? 'fa-door-open' : 'fa-hand-pointer')) + '"></i> ' + esc(regionDetail) + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
+                '<span class="region-number">' + (index + 1) + '</span><span><strong>' + esc(region.name) + '</strong><small><i class="fa-solid ' + (region.kind === 'door' ? 'fa-door-open' : 'fa-hand-pointer') + '"></i> ' + esc(regionDetail) + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
         });
         $('#region-list').html(html);
         positionRegionHandles();
@@ -328,10 +326,7 @@
         var region = selected();
         $('#inspector-empty').toggle(!region);
         $('#inspector-content').toggle(!!region);
-        if (!region) {
-            $('#book-navigation-notice').prop('hidden', true);
-            return;
-        }
+        if (!region) return;
         fieldLock = true;
         $('#inspector-title').text(region.name);
         $('#region-name').val(region.name);
@@ -346,9 +341,6 @@
         $('#door-gateway-exit').prop('checked', gatewayExitSelected(region.id));
         $('#static-door-fields').toggle(!gatewayExitSelected(region.id) && !reservedReturn);
         if (logicEditor) logicEditor.setRegion(region);
-        var bookRole = bookEditor ? bookEditor.navigationRole(region.id) : '';
-        $('#book-navigation-notice').prop('hidden', !bookRole);
-        if (bookRole) $('#book-navigation-title').text(bookRole === 'previous' ? 'Built-in previous-page control' : 'Built-in next-page control');
         renderCapturedOverlaySummary();
         updateBoundsReadout(region);
         fieldLock = false;
@@ -563,7 +555,6 @@
     });
     $('#delete-region').on('click', function () {
         if (!selectedId || !window.confirm('Delete this clickable region?')) return;
-        if (bookEditor) bookEditor.clearRegion(selectedId);
         gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== String(selectedId); });
         regions = regions.filter(function (region) { return region.id !== selectedId; });
         selectedId = null;
@@ -826,7 +817,7 @@
             sounds: window.NL_EDITOR_SOUNDS || [],
             upload: uploadAssetPromise,
             generatePage: generateBookPage,
-            onChange: function () { markDirty(); renderRegions(); fillInspector(); },
+            onChange: markDirty,
             notify: toast
         });
     }

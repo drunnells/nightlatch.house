@@ -514,6 +514,18 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 #object-overlay-layer { position: absolute; inset: 0; pointer-events: none; }
 #object-overlay-layer img { position: absolute; object-fit: fill; }
 #object-overlay-layer .book-page-overlay { inset: 0; width: 100%; height: 100%; }
+.book-viewer-controls[hidden] { display: none; }
+.book-viewer-controls { position: absolute; z-index: 5; inset: 0; pointer-events: none; }
+.book-control-group { position: absolute; top: 50%; display: flex; flex-direction: column; gap: 8px; transform: translateY(-50%); }
+.book-control-left { left: 9px; align-items: flex-start; }
+.book-control-right { right: 9px; align-items: flex-end; }
+.book-control-button { min-width: 122px; min-height: 38px; padding: 7px 11px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #eee4ca; border: 1px solid #8a7644; background: rgba(18,20,17,.92); box-shadow: 0 8px 24px #000; cursor: pointer; pointer-events: auto; }
+.book-control-button:hover:not(:disabled), .book-control-button:focus-visible { color: #fff; border-color: var(--gold-light); background: rgba(43,37,22,.97); }
+.book-control-button:focus-visible { outline: 2px solid rgba(210,182,111,.4); outline-offset: 2px; }
+.book-control-button:disabled { color: #737a76; border-color: #454b48; background: rgba(22,25,24,.76); box-shadow: none; filter: grayscale(1); cursor: not-allowed; opacity: .55; }
+.book-control-button i { color: var(--gold); font-size: 11px; }
+.book-control-button:disabled i { color: #686e6b; }
+.book-control-button span { font-size: 9px; font-weight: 700; }
 .object-description-card { z-index: 6; }
 .portable-setting { margin-top: 18px !important; padding: 11px; border: 1px solid #3d4739; background: #151a14; }
 .book-type-setting { margin-top: 14px !important; padding: 12px; border: 1px solid #5b4c2b; background: #18150f; }
@@ -525,9 +537,8 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .book-settings-heading, .book-page-toolbar, .book-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .book-settings-heading h3 { margin: 2px 0 0; font-family: Cinzel, serif; font-size: 14px; }
 .book-settings-heading > span { color: var(--gold-light); font-family: monospace; font-size: 9px; }
-.book-region-fields { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 12px 0; }
-.book-region-fields label, .book-page-card > label { margin: 0; }
-.book-region-fields select, .book-page-card select { width: 100%; margin-top: 5px; }
+.book-page-card > label { margin: 0; }
+.book-page-card select { width: 100%; margin-top: 5px; }
 .book-sound-picker .logic-picker-search { margin: 0; }
 .book-page-toolbar { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); color: #bdc5c0; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .book-page-toolbar .btn-ghost { min-height: 30px; padding: 6px 9px; }
@@ -550,13 +561,6 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .book-page-card.loading { opacity: .65; pointer-events: none; }
 .book-page-generator textarea { font-size: 10px; }
 .book-pages-empty { min-height: 80px; padding: 18px; border: 1px dashed #35403b; }
-.book-navigation-notice[hidden] { display: none; }
-.book-navigation-notice { margin: 12px 0; padding: 10px; display: flex; align-items: flex-start; gap: 9px; color: #c8c0a5; border: 1px solid #5e4f2e; background: #1a160e; }
-.book-navigation-notice > i { margin-top: 2px; color: var(--gold); }
-.book-navigation-notice strong, .book-navigation-notice small { display: block; }
-.book-navigation-notice strong { font-family: Cinzel, serif; font-size: 10px; }
-.book-navigation-notice small { margin-top: 3px; color: #928c79; font-size: 9px; line-height: 1.4; }
-
 /* Object image extraction and Gemini reference selection */
 .object-image-tools { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
 .object-image-tools > .btn-ghost { margin-bottom: 14px; }

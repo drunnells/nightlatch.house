@@ -209,22 +209,34 @@ assert.deepStrictEqual(inventory.map(function (object) { return object.slug; }),
 
 var book = {
     enabled: true,
-    previousRegionId: 'page-left',
-    nextRegionId: 'page-right',
     pageTurnSoundSlug: 'paper-turn',
     pages: [{ asset: 'page-1.png' }, { asset: 'page-2.png' }, { asset: 'page-3.png' }]
 };
-assert.strictEqual(rules.bookPage(book, 0).asset, 'page-1.png', 'books open on their first page overlay');
-var pageTurn = rules.turnBookPage(book, 0, 'page-right');
-assert.deepStrictEqual(pageTurn, { handled: true, moved: true, direction: 'next', pageIndex: 1, pageCount: 3, soundSlug: 'paper-turn' }, 'the configured next region advances one page and returns the shared book sound');
-pageTurn = rules.turnBookPage(book, 2, 'page-right');
-assert.strictEqual(pageTurn.handled, true, 'the configured navigation region remains built in at a boundary');
-assert.strictEqual(pageTurn.moved, false, 'a book cannot advance beyond its final page');
-assert.strictEqual(pageTurn.pageIndex, 2);
-assert.strictEqual(pageTurn.soundSlug, '', 'a page-turn sound does not play when the page does not change');
-pageTurn = rules.turnBookPage(book, 1, 'ordinary-region');
-assert.strictEqual(pageTurn.handled, false, 'ordinary object regions retain their authored click logic');
-assert.strictEqual(rules.turnBookPage({ enabled: false, pages: book.pages }, 0, 'page-right').handled, false, 'disabled book settings do not change ordinary object behavior');
+assert.strictEqual(rules.bookPage(book, -1), null, 'a book shows its base object artwork while closed');
+assert.deepStrictEqual(rules.bookControlState(book, -1), {
+    enabled: true,
+    isOpen: false,
+    pageIndex: -1,
+    pageCount: 3,
+    canOpen: true,
+    canNext: false,
+    canPrevious: false,
+    canClose: false
+}, 'only Open is available while a book is closed');
+var pageTurn = rules.useBookControl(book, -1, 'open');
+assert.deepStrictEqual(pageTurn, { handled: true, available: true, moved: true, action: 'open', pageIndex: 0, pageCount: 3, soundSlug: '' }, 'Open reveals the first page without playing the page-turn sound');
+assert.strictEqual(rules.bookPage(book, pageTurn.pageIndex).asset, 'page-1.png', 'opening a book reveals its first page overlay');
+pageTurn = rules.useBookControl(book, 0, 'next');
+assert.deepStrictEqual(pageTurn, { handled: true, available: true, moved: true, action: 'next', pageIndex: 1, pageCount: 3, soundSlug: 'paper-turn' }, 'Next Page advances one page and returns the shared book sound');
+pageTurn = rules.useBookControl(book, 2, 'next');
+assert.deepStrictEqual(pageTurn, { handled: true, available: false, moved: false, action: 'next', pageIndex: 2, pageCount: 3, soundSlug: '' }, 'Next Page is unavailable at the final page');
+pageTurn = rules.useBookControl(book, 1, 'previous');
+assert.strictEqual(pageTurn.pageIndex, 0, 'Previous Page moves backward one page');
+assert.strictEqual(pageTurn.soundSlug, 'paper-turn', 'backward page turns use the same per-book sound');
+pageTurn = rules.useBookControl(book, 0, 'close');
+assert.deepStrictEqual(pageTurn, { handled: true, available: true, moved: true, action: 'close', pageIndex: -1, pageCount: 3, soundSlug: '' }, 'Close returns to the base object artwork without a page-turn sound');
+assert.strictEqual(rules.useBookControl(book, -1, 'ordinary-region').handled, false, 'ordinary object regions are not treated as book controls');
+assert.strictEqual(rules.bookControlState({ enabled: false, pages: book.pages }, -1).enabled, false, 'disabled book settings do not add controls to an object');
 
 var gatewayAssignments = rules.assignGatewayDestinations({
     destinationCount: 2,

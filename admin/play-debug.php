@@ -74,6 +74,16 @@ require __DIR__ . '/_header.php';
                                 <img id="object-image" alt="">
                                 <div id="object-overlay-layer"></div>
                                 <svg id="object-play-regions" preserveAspectRatio="none" aria-label="Object interaction regions"></svg>
+                                <div class="book-viewer-controls" id="debug-book-controls" hidden>
+                                    <div class="book-control-group book-control-left" role="group" aria-label="Previous and close book controls">
+                                        <button type="button" class="book-control-button" id="debug-book-close" data-book-control="close"><i class="fa-solid fa-book"></i><span>Close</span></button>
+                                        <button type="button" class="book-control-button" id="debug-book-previous" data-book-control="previous"><i class="fa-solid fa-chevron-left"></i><span>Previous Page</span></button>
+                                    </div>
+                                    <div class="book-control-group book-control-right" role="group" aria-label="Open and next book controls">
+                                        <button type="button" class="book-control-button" id="debug-book-open" data-book-control="open"><span>Open</span><i class="fa-solid fa-book-open"></i></button>
+                                        <button type="button" class="book-control-button" id="debug-book-next" data-book-control="next"><span>Next Page</span><i class="fa-solid fa-chevron-right"></i></button>
+                                    </div>
+                                </div>
                                 <aside class="player-description-card object-description-card" id="object-description-card" hidden><header><span><i class="fa-solid fa-eye"></i> Object description</span><button type="button" data-close-description="object" aria-label="Hide object description"><i class="fa-solid fa-xmark"></i></button></header><p id="object-player-description"></p></aside>
                             </div>
                         </div>

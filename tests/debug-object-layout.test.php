@@ -32,6 +32,11 @@ $debugScript = file_get_contents(dirname(__DIR__) . '/assets/js/play-debug.js');
 if (strpos($debugMarkup, 'id="back-room"') === false
     || strpos($debugMarkup, 'id="toggle-room-description"') === false
     || strpos($debugMarkup, 'id="toggle-object-description"') === false
+    || strpos($debugMarkup, 'id="debug-book-controls"') === false
+    || strpos($debugMarkup, 'id="debug-book-open"') === false
+    || strpos($debugMarkup, 'id="debug-book-next"') === false
+    || strpos($debugMarkup, 'id="debug-book-previous"') === false
+    || strpos($debugMarkup, 'id="debug-book-close"') === false
     || strpos($debugMarkup, 'id="debug-ambient-player"') === false
     || strpos($debugMarkup, 'window.NL_DEBUG_SOUNDS') === false
     || strpos($debugMarkup, 'window.NL_DEBUG_ROOMS') === false
@@ -44,6 +49,9 @@ if (strpos($debugMarkup, 'id="back-room"') === false
     || strpos($debugScript, 'maximumRuns: 100') === false
     || strpos($debugScript, 'syncAmbientSound') === false
     || strpos($debugScript, 'renderDescriptions') === false
+    || strpos($debugScript, 'useActiveBookControl') === false
+    || strpos($styles, '.book-control-left { left: 9px;') === false
+    || strpos($styles, '.book-control-right { right: 9px;') === false
     || strpos($debugScript, 'syncPlayerMessagePanel') === false
     || strpos($styles, '.player-message { display: none;') === false
     || strpos($styles, 'pointer-events: none;') === false) {

@@ -55,6 +55,7 @@ $privateCatalog = array(
             'regions' => array(),
             'book' => array(
                 'enabled' => true,
+                // Legacy authoring fields must not reach the public runtime catalog.
                 'previousRegionId' => 'page-left',
                 'nextRegionId' => 'page-right',
                 'pageTurnSoundSlug' => 'paper-turn',
@@ -83,6 +84,7 @@ if (isset($publicRoom['description']) || isset($publicRoom['backgroundPrompt'])
     || isset($publicCatalog['topology']['nodes'][0]['x'])
     || isset($publicCatalog['objects'][0]['description']) || isset($publicCatalog['objects'][0]['backgroundPrompt'])
     || isset($publicBook['designerNote']) || isset($publicBook['pages'][0]['caption']) || isset($publicBook['pages'][0]['prompt'])
+    || isset($publicBook['previousRegionId']) || isset($publicBook['nextRegionId'])
     || $publicBook['pageTurnSoundSlug'] !== 'paper-turn'
     || $publicBook['pages'][0]['asset'] !== 'objects/journal/overlays/page-one.png'
     || $publicAction['asset'] !== 'rooms/start/overlays/runtime.jpg') {
@@ -119,6 +121,11 @@ $expectations = array(
     array('index', 'id="toggle-object-description"', 'The object artwork has no visible description control.'),
     array('index', 'id="toggle-object-fullscreen"', 'The object canvas has no visible fullscreen control.'),
     array('index', 'id="close-object"', 'The object artwork has no visible close control.'),
+    array('index', 'id="object-book-controls"', 'The object artwork has no built-in book controls.'),
+    array('index', 'id="book-open"', 'The book viewer has no Open control.'),
+    array('index', 'id="book-next"', 'The book viewer has no Next Page control.'),
+    array('index', 'id="book-previous"', 'The book viewer has no Previous Page control.'),
+    array('index', 'id="book-close"', 'The book viewer has no Close control.'),
     array('index', 'id="request-exit-game"', 'The game menu has no exit-and-reset action.'),
     array('index', 'id="exit-game-confirm"', 'The destructive game exit is missing confirmation.'),
     array('index', 'id="toggle-object-sound"', 'The object viewer does not retain sound controls.'),
@@ -130,12 +137,14 @@ $expectations = array(
     array('catalog', 'nightlatch_public_play_catalog', 'The public play catalog projection is missing.'),
     array('debug', 'app/play-catalog.php', 'Debug play does not use the shared play catalog.'),
     array('playerJs', 'window.NLRoomRules.runRegion', 'The player does not evaluate shared room rules.'),
-    array('playerJs', 'window.NLRoomRules.turnBookPage', 'The player is missing shared built-in book navigation.'),
+    array('playerJs', 'window.NLRoomRules.useBookControl', 'The player is missing shared built-in book navigation.'),
+    array('playerJs', 'window.NLRoomRules.bookControlState', 'The player does not derive book control availability from shared state.'),
     array('playerJs', 'window.NLRoomRules.bookPage', 'The player does not render book page overlays.'),
-    array('playerJs', 'if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug)', 'The player does not play the per-book page flip sound.'),
-    array('debugJs', 'window.NLRoomRules.turnBookPage', 'Debug play is missing shared built-in book navigation.'),
+    array('playerJs', 'if (result.soundSlug) playSoundSlug(result.soundSlug)', 'The player does not play the per-book page flip sound.'),
+    array('debugJs', 'window.NLRoomRules.useBookControl', 'Debug play is missing shared built-in book navigation.'),
+    array('debugJs', 'window.NLRoomRules.bookControlState', 'Debug play does not derive book control availability from shared state.'),
     array('debugJs', 'window.NLRoomRules.bookPage', 'Debug play does not render book page overlays.'),
-    array('debugJs', 'if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug)', 'Debug play does not play the per-book page flip sound.'),
+    array('debugJs', 'if (result.soundSlug) playSoundSlug(result.soundSlug)', 'Debug play does not play the per-book page flip sound.'),
     array('playerJs', 'runActivationBehaviors', 'The player is missing automatic activation behaviors.'),
     array('playerJs', 'maximumRuns: 100', 'The player is missing the guarded automatic-behavior queue.'),
     array('playerJs', 'assignGatewayDestinations', 'The player is missing stable Gateway assignment behavior.'),

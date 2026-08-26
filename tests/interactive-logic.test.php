@@ -150,8 +150,6 @@ $bookData = array(
     ),
     'book' => array(
         'enabled' => true,
-        'previousRegionId' => 'previous-page',
-        'nextRegionId' => 'next-page',
         'pageTurnSoundSlug' => 'paper-turn',
         'pages' => array(
             array('asset' => '../page-one.png', 'prompt' => 'Add a faded botanical illustration.'),
@@ -160,16 +158,6 @@ $bookData = array(
     ),
 );
 nightlatch_validate_interactive_data($bookData, 'object');
-
-$invalidBook = $bookData;
-$invalidBook['book']['nextRegionId'] = 'previous-page';
-try {
-    nightlatch_validate_interactive_data($invalidBook, 'object');
-    fwrite(STDERR, "A book reused one region for both navigation directions.\n");
-    exit(1);
-} catch (RuntimeException $exception) {
-    // Expected.
-}
 
 $invalidBook = $bookData;
 $invalidBook['book']['pages'][0]['prompt'] = str_repeat('x', 2001);

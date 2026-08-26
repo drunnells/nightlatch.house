@@ -29,7 +29,7 @@
     var state = null;
     var currentEntryRegionId = '';
     var activeObject = null;
-    var activeBookPageIndex = 0;
+    var activeBookPageIndex = -1;
     var navigationStack = [];
     var activeDrawer = null;
     var drawerTrigger = null;
@@ -489,14 +489,11 @@
         container.appendChild(button);
     }
 
-    function regionAccessibleLabel(region, content) {
-        var book = content ? window.NLRoomRules.normalizeBook(content.data && content.data.book) : null;
-        if (book && book.enabled && String(region.id) === book.previousRegionId) return 'Previous page';
-        if (book && book.enabled && String(region.id) === book.nextRegionId) return 'Next page';
+    function regionAccessibleLabel(region) {
         return region.kind === 'door' ? 'Try this exit' : 'Investigate this area';
     }
 
-    function renderRegionSvg(target, targetRegions, content) {
+    function renderRegionSvg(target, targetRegions) {
         target.textContent = '';
         targetRegions.forEach(function (region) {
             if (!region || !region.bounds) return;
@@ -510,14 +507,14 @@
             rect.setAttribute('tabindex', '0');
             rect.setAttribute('focusable', 'true');
             rect.setAttribute('role', 'button');
-            rect.setAttribute('aria-label', regionAccessibleLabel(region, content));
+            rect.setAttribute('aria-label', regionAccessibleLabel(region));
             target.appendChild(rect);
         });
     }
 
     function renderRegions() {
-        renderRegionSvg(roomSvg, regions, room);
-        if (activeObject) renderRegionSvg(objectSvg, activeObject.data.regions || [], activeObject);
+        renderRegionSvg(roomSvg, regions);
+        if (activeObject) renderRegionSvg(objectSvg, activeObject.data.regions || []);
     }
 
     function overlayImage(region, url, canvas) {
@@ -559,6 +556,42 @@
         });
     }
 
+    function renderBookControls() {
+        var controls = byId('object-book-controls');
+        var controlState = window.NLRoomRules.bookControlState(activeObject && activeObject.data ? activeObject.data.book : null, activeBookPageIndex);
+        controls.hidden = !activeObject || !controlState.enabled;
+        if (controls.hidden) return;
+        byId('book-open').disabled = !controlState.canOpen;
+        byId('book-next').disabled = !controlState.canNext;
+        byId('book-previous').disabled = !controlState.canPrevious;
+        byId('book-close').disabled = !controlState.canClose;
+    }
+
+    function focusAvailableBookControl(action) {
+        var controlState = window.NLRoomRules.bookControlState(activeObject && activeObject.data ? activeObject.data.book : null, activeBookPageIndex);
+        var targetId = action === 'close' ? 'book-open'
+            : (action === 'open' ? (controlState.canNext ? 'book-next' : 'book-close')
+                : (action === 'next' ? (controlState.canNext ? 'book-next' : 'book-previous')
+                    : (controlState.canPrevious ? 'book-previous' : (controlState.canNext ? 'book-next' : 'book-close'))));
+        var target = byId(targetId);
+        if (target && !target.disabled) target.focus({ preventScroll: true });
+    }
+
+    function useActiveBookControl(action, trigger) {
+        if (!activeObject) return;
+        var result = window.NLRoomRules.useBookControl(activeObject.data && activeObject.data.book, activeBookPageIndex, action);
+        if (!result.handled || !result.available) return;
+        activeBookPageIndex = result.pageIndex;
+        renderObjectOverlays();
+        renderBookControls();
+        if (result.soundSlug) playSoundSlug(result.soundSlug);
+        var message = action === 'open'
+            ? 'Opened to page 1 of ' + result.pageCount + '.'
+            : (action === 'close' ? 'Closed the book.' : 'Page ' + (result.pageIndex + 1) + ' of ' + result.pageCount + '.');
+        showMessage(message, activeObject.title);
+        if (trigger && trigger.disabled) window.requestAnimationFrame(function () { focusAvailableBookControl(action); });
+    }
+
     function ownedObjects() {
         return window.NLRoomRules.ownedObjects(objects, state);
     }
@@ -596,6 +629,7 @@
         renderRegions();
         renderRoomOverlays();
         renderObjectOverlays();
+        renderBookControls();
         renderInventory();
         renderDescriptions();
         scheduleSave();
@@ -787,7 +821,7 @@
         closeDrawers(false);
         setRoomDescriptionOpen(false, null, false);
         activeObject = object;
-        activeBookPageIndex = 0;
+        activeBookPageIndex = -1;
         setObjectDescriptionOpen(false, false);
         byId('object-modal-title').textContent = object.title;
         objectImage.src = object.backgroundAsset;
@@ -801,7 +835,8 @@
         renderAll();
         window.requestAnimationFrame(function () {
             fitObjectToModal();
-            byId('close-object').focus();
+            var bookState = window.NLRoomRules.bookControlState(object.data && object.data.book, activeBookPageIndex);
+            (bookState.canOpen ? byId('book-open') : byId('close-object')).focus();
         });
         return true;
     }
@@ -810,7 +845,7 @@
         if (!activeObject) return;
         setObjectDescriptionOpen(false, false);
         activeObject = null;
-        activeBookPageIndex = 0;
+        activeBookPageIndex = -1;
         objectModal.hidden = true;
         playerApp.classList.remove('object-open');
         setMessageVisible(byId('object-player-message'), false);
@@ -908,17 +943,6 @@
     function clickObjectRegion(region) {
         if (!activeObject || !region) return;
         var object = activeObject;
-        var pageTurn = window.NLRoomRules.turnBookPage(object.data && object.data.book, activeBookPageIndex, region.id);
-        if (pageTurn.handled) {
-            activeBookPageIndex = pageTurn.pageIndex;
-            renderObjectOverlays();
-            if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug);
-            var pageMessage = pageTurn.moved
-                ? 'Page ' + (pageTurn.pageIndex + 1) + ' of ' + pageTurn.pageCount + '.'
-                : (pageTurn.direction === 'previous' ? 'You are at the first page.' : 'There are no more pages.');
-            showMessage(pageMessage, object.title);
-            return;
-        }
         var evaluation = window.NLRoomRules.runRegion(region, state, {
             regionId: region.id,
             regionKind: region.kind,
@@ -1263,6 +1287,10 @@
         setObjectDescriptionOpen(this.getAttribute('aria-expanded') !== 'true');
     });
     byId('close-object').addEventListener('click', function () { closeObject(true); });
+    byId('object-book-controls').addEventListener('click', function (event) {
+        var button = event.target.closest('[data-book-control]');
+        if (button && !button.disabled) useActiveBookControl(button.getAttribute('data-book-control'), button);
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-close-object]'), function (element) {
         element.addEventListener('click', function () { closeObject(true); });
     });

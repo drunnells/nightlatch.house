@@ -394,8 +394,6 @@
         book = book && typeof book === 'object' && !Array.isArray(book) ? book : {};
         return {
             enabled: !!book.enabled,
-            previousRegionId: String(book.previousRegionId || ''),
-            nextRegionId: String(book.nextRegionId || ''),
             pageTurnSoundSlug: String(book.pageTurnSoundSlug || ''),
             pages: (Array.isArray(book.pages) ? book.pages : []).map(function (page) {
                 return { asset: page && page.asset ? String(page.asset) : '' };
@@ -406,28 +404,59 @@
     function bookPage(book, pageIndex) {
         book = normalizeBook(book);
         if (!book.enabled || !book.pages.length) return null;
-        pageIndex = Math.max(0, Math.min(book.pages.length - 1, parseInt(pageIndex, 10) || 0));
+        pageIndex = parseInt(pageIndex, 10);
+        if (isNaN(pageIndex) || pageIndex < 0) return null;
+        pageIndex = Math.min(book.pages.length - 1, pageIndex);
         return book.pages[pageIndex];
     }
 
-    function turnBookPage(book, pageIndex, regionId) {
+    function bookControlState(book, pageIndex) {
         book = normalizeBook(book);
-        pageIndex = Math.max(0, Math.min(Math.max(0, book.pages.length - 1), parseInt(pageIndex, 10) || 0));
-        regionId = String(regionId || '');
-        var direction = regionId === book.previousRegionId ? 'previous' : (regionId === book.nextRegionId ? 'next' : '');
-        if (!book.enabled || !book.pages.length || !direction) {
-            return { handled: false, moved: false, direction: '', pageIndex: pageIndex, pageCount: book.pages.length, soundSlug: '' };
+        var enabled = book.enabled && book.pages.length > 0;
+        var parsedIndex = parseInt(pageIndex, 10);
+        var isOpen = enabled && !isNaN(parsedIndex) && parsedIndex >= 0;
+        var currentIndex = isOpen ? Math.min(book.pages.length - 1, parsedIndex) : -1;
+        return {
+            enabled: enabled,
+            isOpen: isOpen,
+            pageIndex: currentIndex,
+            pageCount: book.pages.length,
+            canOpen: enabled && !isOpen,
+            canNext: isOpen && currentIndex < book.pages.length - 1,
+            canPrevious: isOpen && currentIndex > 0,
+            canClose: isOpen
+        };
+    }
+
+    function useBookControl(book, pageIndex, action) {
+        book = normalizeBook(book);
+        action = String(action || '');
+        var state = bookControlState(book, pageIndex);
+        var availability = {
+            open: state.canOpen,
+            next: state.canNext,
+            previous: state.canPrevious,
+            close: state.canClose
+        };
+        if (!Object.prototype.hasOwnProperty.call(availability, action)) {
+            return { handled: false, available: false, moved: false, action: '', pageIndex: state.pageIndex, pageCount: state.pageCount, soundSlug: '' };
         }
-        var nextIndex = direction === 'previous'
-            ? Math.max(0, pageIndex - 1)
-            : Math.min(book.pages.length - 1, pageIndex + 1);
+        if (!availability[action]) {
+            return { handled: true, available: false, moved: false, action: action, pageIndex: state.pageIndex, pageCount: state.pageCount, soundSlug: '' };
+        }
+        var nextIndex = state.pageIndex;
+        if (action === 'open') nextIndex = 0;
+        if (action === 'next') nextIndex += 1;
+        if (action === 'previous') nextIndex -= 1;
+        if (action === 'close') nextIndex = -1;
         return {
             handled: true,
-            moved: nextIndex !== pageIndex,
-            direction: direction,
+            available: true,
+            moved: nextIndex !== state.pageIndex,
+            action: action,
             pageIndex: nextIndex,
-            pageCount: book.pages.length,
-            soundSlug: nextIndex !== pageIndex ? book.pageTurnSoundSlug : ''
+            pageCount: state.pageCount,
+            soundSlug: (action === 'next' || action === 'previous') ? book.pageTurnSoundSlug : ''
         };
     }
 
@@ -456,6 +485,7 @@
         ownedObjects: ownedObjects,
         normalizeBook: normalizeBook,
         bookPage: bookPage,
-        turnBookPage: turnBookPage
+        bookControlState: bookControlState,
+        useBookControl: useBookControl
     };
 }));

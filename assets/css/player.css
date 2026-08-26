@@ -291,6 +291,34 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
 .content-overlay-layer img { position: absolute; display: block; object-fit: fill; }
 .content-overlay-layer .book-page-overlay { inset: 0; width: 100%; height: 100%; }
 .interaction-layer { z-index: 3; }
+.book-viewer-controls[hidden] { display: none; }
+.book-viewer-controls { position: absolute; z-index: 8; inset: 0; pointer-events: none; }
+.book-control-group { position: absolute; top: 50%; display: flex; flex-direction: column; gap: 9px; transform: translateY(-50%); }
+.book-control-left { left: 10px; align-items: flex-start; }
+.book-control-right { right: 10px; align-items: flex-end; }
+.book-control-button {
+    min-width: 126px;
+    min-height: 40px;
+    padding: 8px 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #f1e8d0;
+    border: 1px solid rgba(228, 212, 159, .72);
+    border-radius: 3px;
+    background: rgba(20, 20, 15, .9);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .58);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    pointer-events: auto;
+}
+.book-control-button:hover:not(:disabled), .book-control-button:focus-visible { color: #fff; border-color: var(--gold-light); background: rgba(42, 37, 22, .97); }
+.book-control-button:focus-visible { outline: 2px solid rgba(231, 212, 151, .45); outline-offset: 2px; }
+.book-control-button:disabled { color: #777b76; border-color: rgba(119, 124, 118, .35); background: rgba(21, 24, 23, .72); box-shadow: none; filter: grayscale(1); cursor: not-allowed; opacity: .55; }
+.book-control-button i { color: var(--gold-light); font-size: 11px; }
+.book-control-button:disabled i { color: #6f736f; }
+.book-control-button span { font-size: 9px; font-weight: 700; letter-spacing: .035em; }
 .play-region,
 .play-region:hover,
 .play-region:focus,
@@ -657,6 +685,10 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .canvas-action-button { min-width: 40px; width: 40px; padding: 0; }
     .canvas-action-button span { display: none; }
     .canvas-object-close { top: 7px; right: 7px; }
+    .book-control-left { left: 7px; }
+    .book-control-right { right: 7px; }
+    .book-control-button { min-width: 40px; width: 40px; min-height: 38px; padding: 0; }
+    .book-control-button span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 }
 
 @media (max-width: 420px) {
@@ -746,6 +778,10 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .object-viewer-header h2 { max-width: 24vw; font-size: 13px; }
     .object-viewer-actions { gap: 3px; }
     .object-viewer-body { padding: 54px 5px 5px; }
+    .book-control-group { gap: 6px; }
+    .book-control-left { left: 5px; }
+    .book-control-right { right: 5px; }
+    .book-control-button { width: 36px; min-width: 36px; min-height: 34px; }
     .object-message-tray { left: auto; right: 8px; width: min(360px, calc(100% - 16px)); transform: translateX(calc(100% + 16px)); }
     .object-message-tray.has-message { transform: translateX(0); }
     .game-dialog { padding: 5px; }

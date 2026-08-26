@@ -20,12 +20,9 @@ $requiredIds = array(
     'object-portable',
     'object-book',
     'book-settings',
-    'book-previous-region',
-    'book-next-region',
     'book-page-sound-picker',
     'book-pages',
     'add-book-page',
-    'book-navigation-notice',
     'inventory-key',
     'player-description',
     'save-room',
@@ -70,7 +67,6 @@ if ($styles === false || $editorScript === false || $logicScript === false || $i
 }
 if ($bookEditorScript === false
     || strpos($html, 'js/book-editor.js') === false
-    || strpos($bookEditorScript, 'navigationRole') === false
     || strpos($bookEditorScript, 'book-page-upload') === false
     || strpos($bookEditorScript, 'book-page-generate') === false
     || strpos($bookEditorScript, 'book-page-prompt') === false
@@ -83,6 +79,15 @@ if ($bookEditorScript === false
     || strpos($editorScript, 'sounds: window.NL_EDITOR_SOUNDS') === false
     || strpos($editorScript, 'payload.data.book = bookEditor.value()') === false) {
     fwrite(STDERR, "Object editor is missing built-in book authoring controls.\n");
+    exit(1);
+}
+if (strpos($html, 'book-previous-region') !== false
+    || strpos($html, 'book-next-region') !== false
+    || strpos($html, 'book-navigation-notice') !== false
+    || strpos($bookEditorScript, 'navigationRole') !== false
+    || strpos($bookEditorScript, 'previousRegionId') !== false
+    || strpos($bookEditorScript, 'nextRegionId') !== false) {
+    fwrite(STDERR, "Object editor still exposes legacy region-based book navigation.\n");
     exit(1);
 }
 if (strpos($logicScript, 'logic-add-branch') === false

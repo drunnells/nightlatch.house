@@ -155,6 +155,16 @@ try {
                     <img id="object-image" alt="">
                     <div class="content-overlay-layer" id="object-overlay-layer" aria-hidden="true"></div>
                     <svg class="interaction-layer" id="object-regions" preserveAspectRatio="none" aria-label="Object interactions"></svg>
+                    <div class="book-viewer-controls" id="object-book-controls" hidden>
+                        <div class="book-control-group book-control-left" role="group" aria-label="Previous and close book controls">
+                            <button type="button" class="book-control-button" id="book-close" data-book-control="close"><i class="fa-solid fa-book" aria-hidden="true"></i><span>Close</span></button>
+                            <button type="button" class="book-control-button" id="book-previous" data-book-control="previous"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i><span>Previous Page</span></button>
+                        </div>
+                        <div class="book-control-group book-control-right" role="group" aria-label="Open and next book controls">
+                            <button type="button" class="book-control-button" id="book-open" data-book-control="open"><span>Open</span><i class="fa-solid fa-book-open" aria-hidden="true"></i></button>
+                            <button type="button" class="book-control-button" id="book-next" data-book-control="next"><span>Next Page</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+                        </div>
+                    </div>
                     <div class="canvas-context-toolbar" role="group" aria-label="Object controls">
                         <button type="button" class="canvas-action-button canvas-description-button" id="toggle-object-description" aria-label="Describe this object" aria-controls="object-player-message" aria-expanded="false" title="Describe this object">
                             <i class="fa-regular fa-eye" aria-hidden="true"></i><span>Describe</span>

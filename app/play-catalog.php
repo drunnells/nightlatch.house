@@ -79,8 +79,6 @@ function nightlatch_player_runtime_data($value)
             }
             $result[$key] = array(
                 'enabled' => true,
-                'previousRegionId' => isset($child['previousRegionId']) ? (string) $child['previousRegionId'] : '',
-                'nextRegionId' => isset($child['nextRegionId']) ? (string) $child['nextRegionId'] : '',
                 'pageTurnSoundSlug' => isset($child['pageTurnSoundSlug']) ? (string) $child['pageTurnSoundSlug'] : '',
                 'pages' => $pages,
             );

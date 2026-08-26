@@ -112,11 +112,7 @@ require __DIR__ . '/_header.php';
             <label class="check-row book-type-setting"><input id="object-book" type="checkbox"><span><strong>Use built-in book behavior</strong><small>Turn this object into a page-through book.</small></span></label>
             <div class="book-settings" id="book-settings" hidden>
                 <div class="book-settings-heading"><div><span class="eyebrow">Book navigation</span><h3>Pages and controls</h3></div><span id="book-page-count">0 pages</span></div>
-                <p class="hint">Draw two ordinary interaction regions on the object, then reserve them for previous and next page. Their click logic is bypassed while book behavior is enabled.</p>
-                <div class="book-region-fields">
-                    <label for="book-previous-region">Previous-page region<select id="book-previous-region"></select></label>
-                    <label for="book-next-region">Next-page region<select id="book-next-region"></select></label>
-                </div>
+                <p class="hint">The object viewer supplies Open, Previous Page, Next Page, and Close controls automatically. Object interaction regions continue to use their normal authored logic.</p>
                 <label>Page flip sound</label>
                 <div class="logic-inventory-picker book-sound-picker" id="book-page-sound-picker"></div>
                 <p class="hint">Optional. This saved sound plays whenever the player successfully turns forward or backward.</p>
@@ -158,7 +154,6 @@ require __DIR__ . '/_header.php';
                 <button type="button" class="btn-ghost btn-block" id="capture-region-overlay"><i class="fa-solid fa-crop-simple"></i> Capture current region</button>
                 <div class="captured-overlay-summary" id="captured-overlay-summary"><span>No captured appearances yet.</span></div>
             </div>
-            <div class="book-navigation-notice" id="book-navigation-notice" hidden><i class="fa-solid fa-book-open"></i><span><strong id="book-navigation-title">Built-in book control</strong><small>Page turning replaces click logic for this region while book behavior is enabled. Automatic behaviors still work normally.</small></span></div>
             <div class="region-logic-editor" id="region-logic-editor"></div>
             <div class="bounds-readout"><span>Position</span><code id="region-bounds">x 0 · y 0 · w 0 · h 0</code></div>
         </div>

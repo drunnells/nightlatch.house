@@ -158,7 +158,7 @@ function nightlatch_validate_automatic_behaviors($behaviors, $contentKind, $regi
     }
 }
 
-function nightlatch_validate_book_data($book, $regions, $contentKind)
+function nightlatch_validate_book_data($book, $contentKind)
 {
     if (!is_array($book)) {
         throw new RuntimeException('Book settings must be an object.');
@@ -167,14 +167,8 @@ function nightlatch_validate_book_data($book, $regions, $contentKind)
         throw new RuntimeException('Only objects may use book settings.');
     }
 
-    $previousRegionId = isset($book['previousRegionId']) ? $book['previousRegionId'] : '';
-    $nextRegionId = isset($book['nextRegionId']) ? $book['nextRegionId'] : '';
     $pageTurnSoundSlug = isset($book['pageTurnSoundSlug']) ? $book['pageTurnSoundSlug'] : '';
-    nightlatch_logic_string($previousRegionId, 190, 'Previous-page region ID');
-    nightlatch_logic_string($nextRegionId, 190, 'Next-page region ID');
     nightlatch_logic_string($pageTurnSoundSlug, 190, 'Book page-turn sound slug');
-    $previousRegionId = trim((string) $previousRegionId);
-    $nextRegionId = trim((string) $nextRegionId);
 
     $pages = isset($book['pages']) ? $book['pages'] : array();
     if (!is_array($pages) || count($pages) > 100) {
@@ -197,24 +191,8 @@ function nightlatch_validate_book_data($book, $regions, $contentKind)
     if (empty($book['enabled'])) {
         return;
     }
-    if ($previousRegionId === '' || $nextRegionId === '') {
-        throw new RuntimeException('Enabled books must select previous-page and next-page regions.');
-    }
-    if ($previousRegionId === $nextRegionId) {
-        throw new RuntimeException('Previous-page and next-page controls must use different regions.');
-    }
     if (!$pages) {
         throw new RuntimeException('Enabled books must contain at least one page overlay.');
-    }
-
-    $regionIds = array();
-    foreach ($regions as $region) {
-        if (is_array($region) && isset($region['id'])) {
-            $regionIds[(string) $region['id']] = true;
-        }
-    }
-    if (!isset($regionIds[$previousRegionId]) || !isset($regionIds[$nextRegionId])) {
-        throw new RuntimeException('Book navigation controls must reference saved object regions.');
     }
 }
 
@@ -264,7 +242,7 @@ function nightlatch_validate_interactive_data($data, $contentKind)
         }
     }
     if (isset($data['book'])) {
-        nightlatch_validate_book_data($data['book'], $regions, $contentKind);
+        nightlatch_validate_book_data($data['book'], $contentKind);
     }
     return $data;
 }

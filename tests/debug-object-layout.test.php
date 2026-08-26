@@ -51,9 +51,11 @@ if (strpos($debugMarkup, 'id="back-room"') === false
     || strpos($debugScript, 'syncAmbientSound') === false
     || strpos($debugScript, 'renderDescriptions') === false
     || strpos($debugScript, 'useActiveBookControl') === false
+    || strpos($debugScript, 'window.NLRoomRules.regionAcceptsPlayerClick') === false
     || strpos($debugScript, "if (\$('#inventory-panel').hasClass('visible')) closeInventory();") === false
     || strpos($styles, '.book-control-left { left: 9px;') === false
     || strpos($styles, '.book-control-right { right: 9px;') === false
+    || strpos($styles, '.play-region.passive') === false
     || strpos($debugScript, 'syncPlayerMessagePanel') === false
     || strpos($styles, '.player-message { display: none;') === false
     || strpos($styles, 'pointer-events: none;') === false) {

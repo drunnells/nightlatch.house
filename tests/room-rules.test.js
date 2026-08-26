@@ -140,6 +140,24 @@ var automaticBehaviors = rules.normalizeAutomaticBehaviors({
 });
 assert.strictEqual(automaticBehaviors.length, 1, 'regions retain independently authored automatic behaviors');
 assert.strictEqual(automaticBehaviors[0].trigger.key, 'generator_power', 'state-change trigger keys are normalized');
+var automaticOnlyRegion = {
+    kind: 'interaction',
+    logic: {
+        branches: [{ when: { type: 'group', match: 'all', children: [] }, actions: [] }],
+        elseActions: []
+    },
+    automaticBehaviors: automaticBehaviors
+};
+assert.strictEqual(rules.regionAcceptsPlayerClick(automaticOnlyRegion), false, 'automatic behavior actions do not make an otherwise empty region player-clickable');
+assert.strictEqual(rules.regionAcceptsPlayerClick({
+    kind: 'interaction',
+    logic: {
+        branches: [{ when: { type: 'group', match: 'all', children: [] }, actions: [{ type: 'message', text: 'Look closer.' }] }],
+        elseActions: []
+    }
+}), true, 'an authored click action makes an interaction region player-clickable');
+assert.strictEqual(rules.regionAcceptsPlayerClick({ kind: 'door', logic: rules.defaultLogic() }), true, 'doors remain player-clickable without result actions');
+assert.strictEqual(rules.regionAcceptsPlayerClick({ kind: 'interaction', success: { message: 'Legacy click result' } }), true, 'legacy player-click results remain clickable');
 var automaticState = freshState();
 automaticState.flags.generator_power = 'on';
 rules.runLogic(automaticBehaviors[0].logic, automaticState, { overlayKey: 'room:boiler:generator' });

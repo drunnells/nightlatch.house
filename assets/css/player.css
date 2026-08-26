@@ -337,6 +337,10 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     pointer-events: all;
     transition: none;
 }
+.play-region.passive,
+.play-region.passive:hover,
+.play-region.passive:focus,
+.play-region.passive:active { pointer-events: none; }
 
 .player-touch-hint {
     position: absolute;

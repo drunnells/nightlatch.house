@@ -497,17 +497,23 @@
         target.textContent = '';
         targetRegions.forEach(function (region) {
             if (!region || !region.bounds) return;
+            var acceptsPlayerClick = window.NLRoomRules.regionAcceptsPlayerClick(region);
             var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('x', region.bounds.x);
             rect.setAttribute('y', region.bounds.y);
             rect.setAttribute('width', region.bounds.width);
             rect.setAttribute('height', region.bounds.height);
-            rect.setAttribute('class', 'play-region ' + (region.kind === 'door' ? 'door' : 'interaction'));
+            rect.setAttribute('class', 'play-region ' + (region.kind === 'door' ? 'door' : 'interaction') + (acceptsPlayerClick ? '' : ' passive'));
             rect.setAttribute('data-id', region.id);
-            rect.setAttribute('tabindex', '0');
-            rect.setAttribute('focusable', 'true');
-            rect.setAttribute('role', 'button');
-            rect.setAttribute('aria-label', regionAccessibleLabel(region));
+            if (acceptsPlayerClick) {
+                rect.setAttribute('tabindex', '0');
+                rect.setAttribute('focusable', 'true');
+                rect.setAttribute('role', 'button');
+                rect.setAttribute('aria-label', regionAccessibleLabel(region));
+            } else {
+                rect.setAttribute('focusable', 'false');
+                rect.setAttribute('aria-hidden', 'true');
+            }
             target.appendChild(rect);
         });
     }
@@ -1254,7 +1260,7 @@
         if (event.type === 'keydown') event.preventDefault();
         var id = target.getAttribute('data-id');
         var region = contentRegions().find(function (candidate) { return String(candidate.id) === String(id); });
-        if (region) handler(region);
+        if (region && window.NLRoomRules.regionAcceptsPlayerClick(region)) handler(region);
     }
 
     roomSvg.addEventListener('click', function (event) {

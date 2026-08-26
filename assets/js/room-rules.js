@@ -159,6 +159,27 @@
         return (region && Array.isArray(region.automaticBehaviors) ? region.automaticBehaviors : []).map(normalizeAutomaticBehavior);
     }
 
+    function regionAcceptsPlayerClick(region) {
+        region = region || {};
+        if (region.kind === 'door') return true;
+        if (region.logic && Array.isArray(region.logic.branches)) {
+            return region.logic.branches.some(function (branch) {
+                return !!branch && Array.isArray(branch.actions) && branch.actions.length > 0;
+            }) || (Array.isArray(region.logic.elseActions) && region.logic.elseActions.length > 0);
+        }
+        var outcomes = [region.success, region.failure];
+        return outcomes.some(function (outcome) {
+            return !!outcome && !!(
+                outcome.message
+                || outcome.overlay
+                || (outcome.setFlag && outcome.setFlag.key)
+                || outcome.grantItem
+                || outcome.unlockDoor
+                || outcome.examineObject
+            );
+        });
+    }
+
     function stateBucket(state, source) {
         state = state || {};
         if (source === 'item') return state.items || {};
@@ -471,6 +492,7 @@
         normalizeTrigger: normalizeTrigger,
         normalizeAutomaticBehavior: normalizeAutomaticBehavior,
         normalizeAutomaticBehaviors: normalizeAutomaticBehaviors,
+        regionAcceptsPlayerClick: regionAcceptsPlayerClick,
         descriptionKey: descriptionKey,
         conditionPasses: conditionPasses,
         conditionTrace: conditionTrace,

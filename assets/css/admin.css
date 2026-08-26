@@ -421,6 +421,7 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .play-region.interaction { fill: rgba(76,145,136,.18); stroke: #64aa9f; }
 .play-region.door { fill: rgba(197,166,100,.18); stroke: #d0af63; }
 .play-region:hover { fill-opacity: .65; stroke-width: 4; }
+.play-region.passive { fill: rgba(126,137,134,.09); stroke: #626d6a; stroke-dasharray: 6 4; cursor: default; pointer-events: none; }
 #play-regions.regions-hidden .play-region, #object-play-regions.regions-hidden .play-region { fill: transparent; stroke: transparent; }
 #overlay-layer { position: absolute; inset: 0; pointer-events: none; }
 #overlay-layer img { position: absolute; object-fit: fill; }

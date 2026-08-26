@@ -354,15 +354,16 @@
     function renderRegionSvg(target, targetRegions) {
         target.innerHTML = '';
         targetRegions.forEach(function (region) {
+            var acceptsPlayerClick = window.NLRoomRules.regionAcceptsPlayerClick(region);
             var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('x', region.bounds.x);
             rect.setAttribute('y', region.bounds.y);
             rect.setAttribute('width', region.bounds.width);
             rect.setAttribute('height', region.bounds.height);
-            rect.setAttribute('class', 'play-region ' + region.kind);
+            rect.setAttribute('class', 'play-region ' + region.kind + (acceptsPlayerClick ? '' : ' passive'));
             rect.setAttribute('data-id', region.id);
             var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            title.textContent = region.name;
+            title.textContent = region.name + (acceptsPlayerClick ? '' : ' · automatic only');
             rect.appendChild(title);
             target.appendChild(rect);
         });
@@ -777,12 +778,15 @@
         logEvent(region.name, pass, message, object.title, evaluation);
     }
 
-    $(svg).on('click', '.play-region', function () { clickRoomRegion(findRoomRegion($(this).attr('data-id'))); });
+    $(svg).on('click', '.play-region', function () {
+        var region = findRoomRegion($(this).attr('data-id'));
+        if (region && window.NLRoomRules.regionAcceptsPlayerClick(region)) clickRoomRegion(region);
+    });
     $(objectSvg).on('click', '.play-region', function () {
         if (!activeObject) return;
         var id = $(this).attr('data-id');
         var region = (activeObject.data.regions || []).find(function (candidate) { return candidate.id === id; });
-        if (region) clickObjectRegion(region);
+        if (region && window.NLRoomRules.regionAcceptsPlayerClick(region)) clickObjectRegion(region);
     });
     $('#show-regions').on('change', renderRegions);
     $('#reset-session').on('click', reset);

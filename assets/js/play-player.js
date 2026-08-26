@@ -228,9 +228,14 @@
     }
 
     function renderDescriptions() {
-        byId('room-description-title').textContent = room.title;
-        byId('room-player-description').textContent = contentDescription('room', room) || 'There is nothing more to notice here.';
-        byId('object-player-description').textContent = contentDescription('object', activeObject) || 'There is nothing more to notice about it.';
+        if (byId('toggle-room-description').getAttribute('aria-expanded') === 'true') {
+            byId('player-message-context').textContent = room.title;
+            byId('player-message-text').textContent = contentDescription('room', room) || 'There is nothing more to notice here.';
+        }
+        if (activeObject && byId('toggle-object-description').getAttribute('aria-expanded') === 'true') {
+            byId('object-player-message-context').textContent = activeObject.title;
+            byId('object-player-message-text').textContent = contentDescription('object', activeObject) || 'There is nothing more to notice about it.';
+        }
     }
 
     function ensureGatewayAssignments(candidateRoom) {
@@ -305,12 +310,22 @@
         target.setAttribute('aria-hidden', visible ? 'false' : 'true');
     }
 
+    function setMessageAsDescription(target, enabled) {
+        target.classList.toggle('description-message', enabled);
+        target.querySelector('.message-glyph i').className = enabled ? 'fa-regular fa-eye' : 'fa-solid fa-quote-left';
+    }
+
     function showMessage(message, context) {
         message = String(message || '').trim();
         if (!message) return;
         var isObjectMessage = !!activeObject;
         var target = byId(isObjectMessage ? 'object-player-message' : 'player-message');
         var other = byId(isObjectMessage ? 'player-message' : 'object-player-message');
+        if (target.classList.contains('description-message')) {
+            if (isObjectMessage) setObjectDescriptionOpen(false, false);
+            else setRoomDescriptionOpen(false, null, false);
+        }
+        setMessageAsDescription(target, false);
         byId(isObjectMessage ? 'object-player-message-context' : 'player-message-context').textContent = context || (activeObject ? activeObject.title : room.title);
         byId(isObjectMessage ? 'object-player-message-text' : 'player-message-text').textContent = message;
         setMessageVisible(other, false);
@@ -696,21 +711,26 @@
     }
 
     function setRoomDescriptionOpen(open, trigger, restoreFocus) {
-        var panel = byId('room-description-panel');
-        var wasOpen = panel.classList.contains('visible');
-        renderDescriptions();
+        var button = byId('toggle-room-description');
+        var target = byId('player-message');
+        var wasOpen = button.getAttribute('aria-expanded') === 'true';
         if (open) {
             closeDrawers(false);
             hideMessage();
             roomDescriptionTrigger = trigger || document.activeElement;
-            panel.classList.add('visible');
-            panel.setAttribute('aria-hidden', 'false');
-            byId('toggle-room-description').setAttribute('aria-expanded', 'true');
+            button.setAttribute('aria-expanded', 'true');
+            button.setAttribute('aria-label', 'Hide scene description');
+            button.setAttribute('title', 'Hide scene description');
+            setMessageAsDescription(target, true);
+            renderDescriptions();
+            setMessageVisible(target, true);
             return;
         }
-        panel.classList.remove('visible');
-        panel.setAttribute('aria-hidden', 'true');
-        byId('toggle-room-description').setAttribute('aria-expanded', 'false');
+        if (wasOpen) setMessageVisible(target, false);
+        setMessageAsDescription(target, false);
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-label', 'Describe the scene');
+        button.setAttribute('title', 'Describe the scene');
         if (wasOpen && restoreFocus !== false && roomDescriptionTrigger && document.contains(roomDescriptionTrigger)) {
             roomDescriptionTrigger.focus();
         }
@@ -718,20 +738,31 @@
     }
 
     function toggleRoomDescription(trigger) {
-        var open = !byId('room-description-panel').classList.contains('visible');
+        var open = byId('toggle-room-description').getAttribute('aria-expanded') !== 'true';
         setRoomDescriptionOpen(open, trigger, true);
     }
 
     function setObjectDescriptionOpen(open, restoreFocus) {
         if (!activeObject) return;
-        renderDescriptions();
-        var panel = byId('object-description-panel');
-        var wasOpen = panel.classList.contains('visible');
-        if (open) hideMessage();
-        panel.classList.toggle('visible', open);
-        panel.setAttribute('aria-hidden', open ? 'false' : 'true');
-        byId('toggle-object-description').setAttribute('aria-expanded', open ? 'true' : 'false');
-        if (!open && wasOpen && restoreFocus !== false) byId('toggle-object-description').focus();
+        var button = byId('toggle-object-description');
+        var target = byId('object-player-message');
+        var wasOpen = button.getAttribute('aria-expanded') === 'true';
+        if (open) {
+            hideMessage();
+            button.setAttribute('aria-expanded', 'true');
+            button.setAttribute('aria-label', 'Hide object description');
+            button.setAttribute('title', 'Hide object description');
+            setMessageAsDescription(target, true);
+            renderDescriptions();
+            setMessageVisible(target, true);
+            return;
+        }
+        if (wasOpen) setMessageVisible(target, false);
+        setMessageAsDescription(target, false);
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-label', 'Describe this object');
+        button.setAttribute('title', 'Describe this object');
+        if (wasOpen && restoreFocus !== false) button.focus();
     }
 
     function openObject(slug, trigger) {
@@ -762,13 +793,11 @@
 
     function closeObject(restoreFocus) {
         if (!activeObject) return;
+        setObjectDescriptionOpen(false, false);
         activeObject = null;
         objectModal.hidden = true;
         playerApp.classList.remove('object-open');
-        byId('object-description-panel').classList.remove('visible');
-        byId('object-description-panel').setAttribute('aria-hidden', 'true');
         setMessageVisible(byId('object-player-message'), false);
-        byId('toggle-object-description').setAttribute('aria-expanded', 'false');
         if (restoreFocus !== false && objectTrigger && document.contains(objectTrigger) && objectTrigger.offsetParent !== null) {
             objectTrigger.focus();
         } else if (restoreFocus !== false) {
@@ -893,7 +922,6 @@
         ensureGatewayAssignments(room);
         syncAmbientSound(room);
         byId('player-room-title').textContent = room.title;
-        byId('room-description-title').textContent = room.title;
         roomCanvas.classList.add('loading-room');
         roomImage.src = room.backgroundAsset;
         roomImage.alt = room.title;
@@ -1199,7 +1227,6 @@
     byId('toggle-object-inventory').addEventListener('click', function () { toggleInventory(this); });
     byId('close-inventory').addEventListener('click', function () { closeDrawers(true); });
     byId('toggle-room-description').addEventListener('click', function () { toggleRoomDescription(this); });
-    byId('close-room-description').addEventListener('click', function () { setRoomDescriptionOpen(false, null, true); });
     byId('panel-scrim').addEventListener('click', function () { closeDrawers(true); });
     byId('inventory-objects').addEventListener('click', function (event) {
         var button = event.target.closest('.inventory-object');
@@ -1208,7 +1235,6 @@
     byId('toggle-object-description').addEventListener('click', function () {
         setObjectDescriptionOpen(this.getAttribute('aria-expanded') !== 'true');
     });
-    byId('close-object-description').addEventListener('click', function () { setObjectDescriptionOpen(false, true); });
     byId('close-object').addEventListener('click', function () { closeObject(true); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-close-object]'), function (element) {
         element.addEventListener('click', function () { closeObject(true); });
@@ -1251,20 +1277,20 @@
             return;
         }
         if (!objectModal.hidden) {
-            var objectDescriptionOpen = byId('object-description-panel').classList.contains('visible');
+            var objectDescriptionOpen = byId('toggle-object-description').getAttribute('aria-expanded') === 'true';
             if (event.key === 'Escape') {
                 event.preventDefault();
                 if (objectDescriptionOpen) setObjectDescriptionOpen(false, true);
                 else closeObject(true);
-            } else trapFocus(event, objectDescriptionOpen ? byId('object-description-panel') : objectModal);
+            } else trapFocus(event, objectModal);
             return;
         }
-        if (byId('room-description-panel').classList.contains('visible')) {
+        if (byId('toggle-room-description').getAttribute('aria-expanded') === 'true') {
             if (event.key === 'Escape') {
                 event.preventDefault();
                 setRoomDescriptionOpen(false, null, true);
-            } else trapFocus(event, byId('room-description-panel'));
-            return;
+                return;
+            }
         }
         if (event.key === 'Escape' && playerApp.classList.contains('fullscreen-mode')) {
             event.preventDefault();

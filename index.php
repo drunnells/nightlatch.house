@@ -95,7 +95,7 @@ try {
                 <div class="content-overlay-layer" id="room-overlay-layer" aria-hidden="true"></div>
                 <svg class="interaction-layer" id="room-regions" viewBox="0 0 <?php echo (int) $startRoom['data']['canvas']['width']; ?> <?php echo (int) $startRoom['data']['canvas']['height']; ?>" preserveAspectRatio="none" aria-label="Room interactions"></svg>
                 <div class="canvas-context-toolbar" role="group" aria-label="Scene controls">
-                    <button type="button" class="canvas-action-button canvas-description-button" id="toggle-room-description" aria-label="Describe the scene" aria-expanded="false" title="Describe the scene">
+                    <button type="button" class="canvas-action-button canvas-description-button" id="toggle-room-description" aria-label="Describe the scene" aria-controls="player-message" aria-expanded="false" title="Describe the scene">
                         <i class="fa-regular fa-eye" aria-hidden="true"></i><span>Describe</span>
                     </button>
                     <button type="button" class="canvas-action-button canvas-fullscreen-button" id="toggle-room-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
@@ -139,14 +139,6 @@ try {
         <div class="drawer-body" id="inventory-objects"></div>
     </aside>
 
-    <aside class="text-rail description-drawer" id="room-description-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="room-description-title">
-        <header class="text-rail-header">
-            <div><span class="drawer-kicker">Look around</span><h2 id="room-description-title">Room</h2></div>
-            <button type="button" class="drawer-close" id="close-room-description" aria-label="Close room description"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
-        </header>
-        <div class="text-rail-body description-copy"><p id="room-player-description"></p></div>
-    </aside>
-
     <div class="object-viewer" id="object-modal" hidden role="dialog" aria-modal="true" aria-labelledby="object-modal-title">
         <div class="object-viewer-backdrop" data-close-object></div>
         <section class="object-viewer-card">
@@ -164,7 +156,7 @@ try {
                     <div class="content-overlay-layer" id="object-overlay-layer" aria-hidden="true"></div>
                     <svg class="interaction-layer" id="object-regions" preserveAspectRatio="none" aria-label="Object interactions"></svg>
                     <div class="canvas-context-toolbar" role="group" aria-label="Object controls">
-                        <button type="button" class="canvas-action-button canvas-description-button" id="toggle-object-description" aria-label="Describe this object" aria-expanded="false" title="Describe this object">
+                        <button type="button" class="canvas-action-button canvas-description-button" id="toggle-object-description" aria-label="Describe this object" aria-controls="object-player-message" aria-expanded="false" title="Describe this object">
                             <i class="fa-regular fa-eye" aria-hidden="true"></i><span>Describe</span>
                         </button>
                         <button type="button" class="canvas-action-button canvas-fullscreen-button" id="toggle-object-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
@@ -173,10 +165,6 @@ try {
                     </div>
                     <button type="button" class="object-close canvas-object-close" id="close-object" aria-label="Close object"><i class="fa-solid fa-xmark" aria-hidden="true"></i><span>Close</span></button>
                 </div>
-                <aside class="object-description text-rail" id="object-description-panel" aria-hidden="true">
-                    <header><span>Description</span><button type="button" id="close-object-description" aria-label="Close object description"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
-                    <p id="object-player-description"></p>
-                </aside>
             </div>
             <section class="player-message-tray transient-text-rail object-message-tray" id="object-player-message" aria-live="polite" aria-atomic="true" aria-hidden="true">
                 <div class="message-glyph" aria-hidden="true"><i class="fa-solid fa-quote-left"></i></div>

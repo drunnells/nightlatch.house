@@ -238,12 +238,14 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     position: absolute;
     z-index: 7;
     top: 10px;
-    left: 10px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    right: 0;
+    left: 0;
+    height: 38px;
+    pointer-events: none;
 }
 .canvas-action-button {
+    position: absolute;
+    top: 0;
     min-width: 105px;
     height: 38px;
     padding: 0 13px;
@@ -258,12 +260,16 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     box-shadow: 0 8px 28px rgba(0,0,0,.55);
     backdrop-filter: blur(10px);
     cursor: pointer;
+    pointer-events: auto;
     transition: color .16s ease, border-color .16s ease, background .16s ease;
 }
+.canvas-fullscreen-button { left: 10px; }
 .canvas-description-button {
+    left: 50%;
     color: #f1e7c8;
     border-color: rgba(228, 212, 159, .76);
     background: rgba(28, 26, 18, .9);
+    transform: translateX(-50%);
 }
 .canvas-action-button:hover,
 .canvas-action-button[aria-expanded="true"],
@@ -349,6 +355,9 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     transition: transform .24s ease, opacity .2s ease, visibility 0s linear .24s;
 }
 .player-message-tray.has-message { visibility: visible; opacity: 1; pointer-events: auto; transform: translateX(0); transition-delay: 0s; }
+.player-message-tray.description-message { max-height: min(46vh, 360px); border-left-color: var(--teal); }
+.player-message-tray.description-message .message-copy { max-height: min(40vh, 310px); }
+.player-message-tray.description-message .message-glyph { color: var(--gold-light); border-color: rgba(201, 173, 101, .32); }
 .message-glyph { width: 34px; height: 34px; display: grid; place-items: center; color: var(--gold); border: 1px solid var(--line); border-radius: 50%; background: #171913; font-size: 11px; }
 .message-copy { min-width: 0; max-height: min(28vh, 150px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(201, 173, 101, .38) transparent; }
 .message-copy span { display: block; margin-bottom: 5px; color: var(--teal); font-size: 8px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; }
@@ -388,11 +397,6 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
 .player-app.fullscreen-mode .player-main { grid-row: 1; height: 100%; }
 .player-app.fullscreen-mode .player-stage { padding: 4px; }
 .player-app.fullscreen-mode .player-touch-hint { display: none; }
-.player-app.fullscreen-mode .description-drawer {
-    top: max(60px, calc(env(safe-area-inset-top) + 54px));
-    right: max(10px, env(safe-area-inset-right));
-    max-height: calc(100% - max(70px, calc(env(safe-area-inset-top) + 64px)));
-}
 .player-app.fullscreen-mode .player-travel-bar {
     position: absolute;
     z-index: 18;
@@ -484,34 +488,10 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     transition: transform .22s ease, opacity .22s ease, visibility 0s linear .22s;
 }
 .player-drawer.visible { visibility: visible; opacity: 1; pointer-events: auto; transform: translateX(0); transition-delay: 0s; }
-.text-rail {
-    position: absolute;
-    z-index: 35;
-    top: calc(var(--header-height) + 16px);
-    right: max(16px, env(safe-area-inset-right));
-    width: min(410px, calc(100% - 32px));
-    max-height: min(56vh, 560px);
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    overflow: hidden;
-    color: var(--text);
-    border: 1px solid var(--line-strong);
-    background: rgba(14, 19, 20, .98);
-    box-shadow: -18px 18px 65px rgba(0,0,0,.62);
-    visibility: hidden;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(calc(100% + 32px));
-    transition: transform .26s ease, opacity .2s ease, visibility 0s linear .26s;
-}
-.text-rail.visible { visibility: visible; opacity: 1; pointer-events: auto; transform: translateX(0); transition-delay: 0s; }
-.text-rail-header { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px 14px 20px; border-bottom: 1px solid var(--line); background: #111717; }
-.text-rail-body { min-height: 0; padding: 19px 22px 24px; overflow-y: auto; }
 .drawer-header { min-height: 86px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px; border-bottom: 1px solid var(--line); background: #111717; }
 .drawer-kicker { display: block; margin-bottom: 5px; color: var(--gold); font-size: 8px; letter-spacing: .15em; text-transform: uppercase; }
-.drawer-header h2, .text-rail-header h2, .object-viewer-header h2, .game-dialog-card h2 { margin: 0; font-family: Cinzel, serif; font-size: 21px; font-weight: 600; }
+.drawer-header h2, .object-viewer-header h2, .game-dialog-card h2 { margin: 0; font-family: Cinzel, serif; font-size: 21px; font-weight: 600; }
 .drawer-body { min-height: 0; padding: 15px 20px max(20px, env(safe-area-inset-bottom)); overflow-y: auto; }
-.description-copy p, .object-description p { margin: 0; color: #ded8ca; font-family: Cinzel, serif; font-size: clamp(14px, 1.6vw, 18px); line-height: 1.8; white-space: pre-line; }
 
 .inventory-object {
     width: 100%;
@@ -588,10 +568,6 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
 .object-viewer-body { position: absolute; inset: 0; min-width: 0; min-height: 0; padding: 76px clamp(14px, 2.2vw, 28px) clamp(14px, 2.2vw, 28px); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .object-canvas { position: relative; flex: 0 0 auto; overflow: hidden; }
 .canvas-object-close { position: absolute; z-index: 7; top: 10px; right: 10px; }
-.object-description { position: absolute; z-index: 18; top: 76px; right: 16px; bottom: auto; width: min(390px, calc(100% - 32px)); max-height: calc(100% - 92px); display: block; padding: 0 18px 24px; overflow-y: auto; border: 1px solid var(--line-strong); background: rgba(14, 19, 20, .98); box-shadow: -16px 12px 60px rgba(0,0,0,.6); }
-.object-description.visible { visibility: visible; opacity: 1; pointer-events: auto; transform: translateX(0); transition-delay: 0s; }
-.object-description header { position: sticky; top: 0; min-height: 54px; margin: 0 -18px 18px; padding: 0 10px 0 18px; display: flex; align-items: center; justify-content: space-between; color: var(--gold); border-bottom: 1px solid var(--line); background: #111717; font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
-.object-description header button { width: 32px; height: 32px; color: #929d99; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
 .player-app.fullscreen-mode .object-viewer { padding: 0; }
 .player-app.fullscreen-mode .object-viewer-card { width: 100vw; height: 100vh; height: 100dvh; border: 0; }
 
@@ -650,6 +626,8 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .message-glyph { width: 28px; height: 28px; font-size: 9px; }
     .message-copy { max-height: min(24vh, 104px); }
     .message-copy p { font-size: 11px; line-height: 1.45; }
+    .player-message-tray.description-message { max-height: min(48vh, 280px); }
+    .player-message-tray.description-message .message-copy { max-height: min(42vh, 230px); }
     .player-travel-bar { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
     .player-hint { display: none; }
     .travel-button { min-height: 42px; max-width: 190px; padding: 6px 9px; }
@@ -659,10 +637,6 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .mobile-inventory-button b { min-width: 17px; height: 17px; display: grid; place-items: center; color: #18150d; border-radius: 9px; background: var(--gold-light); font-size: 8px; }
     .player-drawer { top: auto; left: 0; width: 100%; max-height: min(78vh, 620px); max-height: min(78dvh, 620px); padding-top: 0; border-top: 1px solid var(--line-strong); border-left: 0; transform: translateY(102%); }
     .player-drawer.visible { transform: translateY(0); }
-    .text-rail { top: calc(var(--header-height) + 8px); right: 8px; width: calc(100% - 16px); max-height: min(54vh, 470px); transform: translateX(calc(100% + 16px)); }
-    .text-rail.visible { transform: translateX(0); }
-    .text-rail-header { min-height: 66px; padding: 11px 12px 11px 16px; }
-    .text-rail-body { padding: 16px 18px 20px; }
     .drawer-header { min-height: 72px; padding: 13px 16px; }
     .drawer-body { padding: 10px 16px max(16px, env(safe-area-inset-bottom)); }
     .object-viewer { padding: 8px; }
@@ -674,11 +648,11 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .object-viewer-actions { gap: 4px; }
     .object-viewer-actions .player-icon-button { width: 34px; height: 34px; }
     .object-viewer-body { padding: 66px 10px 10px; }
-    .object-description { top: 66px; right: 8px; bottom: auto; left: auto; width: calc(100% - 16px); max-height: calc(100% - 74px); }
     .object-message-tray { left: auto; right: 8px; bottom: 8px; width: min(360px, calc(100% - 16px)); }
     .object-close { min-width: 40px; width: 40px; padding: 0; }
     .object-close span { display: none; }
-    .canvas-context-toolbar { top: 7px; left: 7px; }
+    .canvas-context-toolbar { top: 7px; right: 0; left: 0; }
+    .canvas-fullscreen-button { left: 7px; }
     .canvas-action-button { min-width: 40px; width: 40px; padding: 0; }
     .canvas-action-button span { display: none; }
     .canvas-object-close { top: 7px; right: 7px; }
@@ -742,9 +716,8 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     }
     .player-message-tray.has-message { transform: translateX(0); }
     .message-copy { max-height: min(24vh, 76px); }
-    .text-rail { top: max(6px, env(safe-area-inset-top)); right: 56px; width: min(370px, calc(100% - 122px)); max-height: calc(100% - 12px); transform: translateX(calc(100% + 64px)); }
-    .text-rail.visible { transform: translateX(0); }
-    .canvas-context-toolbar { top: 7px; left: 7px; }
+    .canvas-context-toolbar { top: 7px; right: 0; left: 0; }
+    .canvas-fullscreen-button { left: 7px; }
     .canvas-action-button { min-width: 38px; width: 38px; height: 34px; padding: 0; }
     .canvas-action-button span { display: none; }
     .player-travel-bar {
@@ -772,7 +745,6 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .object-viewer-header h2 { max-width: 24vw; font-size: 13px; }
     .object-viewer-actions { gap: 3px; }
     .object-viewer-body { padding: 54px 5px 5px; }
-    .object-description { top: 54px; right: 6px; width: min(360px, calc(100% - 12px)); max-height: calc(100% - 60px); }
     .object-message-tray { left: auto; right: 8px; width: min(360px, calc(100% - 16px)); transform: translateX(calc(100% + 16px)); }
     .object-message-tray.has-message { transform: translateX(0); }
     .game-dialog { padding: 5px; }

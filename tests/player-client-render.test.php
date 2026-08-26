@@ -108,6 +108,7 @@ $expectations = array(
     array('playerJs', 'window.NLRoomRules.canExit', 'The player is missing authored door access behavior.'),
     array('playerJs', 'syncAmbientSound', 'The player is missing cluster ambience behavior.'),
     array('playerJs', 'requestFullscreen', 'The player does not request native fullscreen.'),
+    array('playerJs', 'setMessageAsDescription', 'Explicit descriptions do not reuse the narration trays.'),
     array('playerJs', "contains('fullscreen-mode') ? Infinity : 1", 'Desktop fullscreen does not allow the room image to use the available display.'),
     array('playerJs', 'MESSAGE_DISPLAY_MS = 4200', 'Transient player text has no timed slide-out lifecycle.'),
     array('playerJs', 'exitGameToEntry', 'The player has no exit-to-entry reset lifecycle.'),
@@ -119,10 +120,12 @@ $expectations = array(
     array('playerCss', '.player-app.fullscreen-mode', 'The player has no desktop/mobile fullscreen layout.'),
     array('playerCss', '.player-app.fullscreen-mode .player-header-actions .inventory-toggle', 'Fullscreen mode does not retain the complete controls.'),
     array('playerCss', '.canvas-context-toolbar', 'The scene-specific controls are not positioned on the artwork.'),
+    array('playerCss', '.canvas-description-button {', 'The description control has no centered artwork position.'),
+    array('playerCss', 'left: 50%', 'The description control is not centered over the artwork.'),
     array('playerCss', '.canvas-action-button', 'The artwork controls are not styled.'),
     array('playerCss', '.canvas-object-close', 'The object close affordance is not positioned on its artwork.'),
     array('playerCss', '.object-viewer-body { position: absolute; inset: 0;', 'The object viewer is not presented as one visual surface.'),
-    array('playerCss', '.text-rail.visible', 'Explicit descriptions have no persistent slide-out presentation.'),
+    array('playerCss', '.player-message-tray.description-message', 'Explicit descriptions have no persistent bottom-right narration presentation.'),
     array('playerCss', '@media (max-width: 760px)', 'The player has no mobile layout.'),
     array('playerCss', '(max-height: 560px) and (orientation: landscape)', 'The player has no compact mobile landscape layout.'),
     array('playerCss', 'height: 100dvh', 'The player does not account for mobile viewport height.'),
@@ -146,9 +149,11 @@ if (strpos($files['playerJs'], "createElementNS('http://www.w3.org/2000/svg', 't
     exit(1);
 }
 
-if (strpos($files['playerJs'], "byId('close-room-description').focus()") !== false
-    || strpos($files['playerJs'], "byId('close-object-description').focus()") !== false) {
-    fwrite(STDERR, "Opening a description must not move focus and shift the interaction viewport.\n");
+if (strpos($files['index'], 'room-description-panel') !== false
+    || strpos($files['index'], 'object-description-panel') !== false
+    || strpos($files['index'], 'aria-controls="player-message"') === false
+    || strpos($files['index'], 'aria-controls="object-player-message"') === false) {
+    fwrite(STDERR, "Explicit descriptions must reuse the bottom-right narration trays without a separate panel.\n");
     exit(1);
 }
 
@@ -158,19 +163,18 @@ $roomTouchHintPosition = strpos($files['index'], 'id="player-touch-hint"');
 $objectCanvasPosition = strpos($files['index'], 'id="object-canvas"');
 $objectDescriptionControlPosition = strpos($files['index'], 'id="toggle-object-description"');
 $objectCloseControlPosition = strpos($files['index'], 'id="close-object"');
-$objectDescriptionPanelPosition = strpos($files['index'], 'id="object-description-panel"');
+$objectMessagePosition = strpos($files['index'], 'id="object-player-message"');
 if ($roomCanvasPosition === false || $roomDescriptionControlPosition === false || $roomTouchHintPosition === false
-    || $objectCanvasPosition === false || $objectDescriptionControlPosition === false || $objectCloseControlPosition === false || $objectDescriptionPanelPosition === false
+    || $objectCanvasPosition === false || $objectDescriptionControlPosition === false || $objectCloseControlPosition === false || $objectMessagePosition === false
     || $roomDescriptionControlPosition <= $roomCanvasPosition || $roomDescriptionControlPosition >= $roomTouchHintPosition
-    || $objectDescriptionControlPosition <= $objectCanvasPosition || $objectDescriptionControlPosition >= $objectDescriptionPanelPosition
-    || $objectCloseControlPosition <= $objectCanvasPosition || $objectCloseControlPosition >= $objectDescriptionPanelPosition) {
+    || $objectDescriptionControlPosition <= $objectCanvasPosition || $objectDescriptionControlPosition >= $objectMessagePosition
+    || $objectCloseControlPosition <= $objectCanvasPosition || $objectCloseControlPosition >= $objectMessagePosition) {
     fwrite(STDERR, "Room and object context controls must remain directly on their interaction artwork.\n");
     exit(1);
 }
 
 $roomMessagePosition = strpos($files['index'], 'id="player-message"');
 $roomCanvasClosePosition = strpos($files['index'], '</section>', strpos($files['index'], 'id="player-stage"'));
-$objectMessagePosition = strpos($files['index'], 'id="object-player-message"');
 $objectBodyClosePosition = strpos($files['index'], '</div>', strpos($files['index'], 'id="object-modal-body"'));
 if ($roomMessagePosition === false || $roomCanvasClosePosition === false || $roomMessagePosition < $roomCanvasClosePosition
     || $objectMessagePosition === false || $objectBodyClosePosition === false || $objectMessagePosition < $objectBodyClosePosition) {

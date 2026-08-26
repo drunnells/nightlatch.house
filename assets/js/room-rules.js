@@ -390,6 +390,45 @@
         });
     }
 
+    function normalizeBook(book) {
+        book = book && typeof book === 'object' && !Array.isArray(book) ? book : {};
+        return {
+            enabled: !!book.enabled,
+            previousRegionId: String(book.previousRegionId || ''),
+            nextRegionId: String(book.nextRegionId || ''),
+            pages: (Array.isArray(book.pages) ? book.pages : []).map(function (page) {
+                return { asset: page && page.asset ? String(page.asset) : '' };
+            })
+        };
+    }
+
+    function bookPage(book, pageIndex) {
+        book = normalizeBook(book);
+        if (!book.enabled || !book.pages.length) return null;
+        pageIndex = Math.max(0, Math.min(book.pages.length - 1, parseInt(pageIndex, 10) || 0));
+        return book.pages[pageIndex];
+    }
+
+    function turnBookPage(book, pageIndex, regionId) {
+        book = normalizeBook(book);
+        pageIndex = Math.max(0, Math.min(Math.max(0, book.pages.length - 1), parseInt(pageIndex, 10) || 0));
+        regionId = String(regionId || '');
+        var direction = regionId === book.previousRegionId ? 'previous' : (regionId === book.nextRegionId ? 'next' : '');
+        if (!book.enabled || !book.pages.length || !direction) {
+            return { handled: false, moved: false, direction: '', pageIndex: pageIndex, pageCount: book.pages.length };
+        }
+        var nextIndex = direction === 'previous'
+            ? Math.max(0, pageIndex - 1)
+            : Math.min(book.pages.length - 1, pageIndex + 1);
+        return {
+            handled: true,
+            moved: nextIndex !== pageIndex,
+            direction: direction,
+            pageIndex: nextIndex,
+            pageCount: book.pages.length
+        };
+    }
+
     return {
         conditionNode: conditionNode,
         conditionGroup: conditionGroup,
@@ -412,6 +451,9 @@
         applySuccess: applySuccess,
         canExit: canExit,
         assignGatewayDestinations: assignGatewayDestinations,
-        ownedObjects: ownedObjects
+        ownedObjects: ownedObjects,
+        normalizeBook: normalizeBook,
+        bookPage: bookPage,
+        turnBookPage: turnBookPage
     };
 }));

@@ -29,6 +29,7 @@
     var state = null;
     var currentEntryRegionId = '';
     var activeObject = null;
+    var activeBookPageIndex = 0;
     var navigationStack = [];
     var activeDrawer = null;
     var drawerTrigger = null;
@@ -486,11 +487,14 @@
         container.appendChild(button);
     }
 
-    function regionAccessibleLabel(region) {
+    function regionAccessibleLabel(region, content) {
+        var book = content ? window.NLRoomRules.normalizeBook(content.data && content.data.book) : null;
+        if (book && book.enabled && String(region.id) === book.previousRegionId) return 'Previous page';
+        if (book && book.enabled && String(region.id) === book.nextRegionId) return 'Next page';
         return region.kind === 'door' ? 'Try this exit' : 'Investigate this area';
     }
 
-    function renderRegionSvg(target, targetRegions) {
+    function renderRegionSvg(target, targetRegions, content) {
         target.textContent = '';
         targetRegions.forEach(function (region) {
             if (!region || !region.bounds) return;
@@ -504,14 +508,14 @@
             rect.setAttribute('tabindex', '0');
             rect.setAttribute('focusable', 'true');
             rect.setAttribute('role', 'button');
-            rect.setAttribute('aria-label', regionAccessibleLabel(region));
+            rect.setAttribute('aria-label', regionAccessibleLabel(region, content));
             target.appendChild(rect);
         });
     }
 
     function renderRegions() {
-        renderRegionSvg(roomSvg, regions);
-        if (activeObject) renderRegionSvg(objectSvg, activeObject.data.regions || []);
+        renderRegionSvg(roomSvg, regions, room);
+        if (activeObject) renderRegionSvg(objectSvg, activeObject.data.regions || [], activeObject);
     }
 
     function overlayImage(region, url, canvas) {
@@ -539,6 +543,14 @@
         var layer = byId('object-overlay-layer');
         layer.textContent = '';
         if (!activeObject) return;
+        var bookPage = window.NLRoomRules.bookPage(activeObject.data && activeObject.data.book, activeBookPageIndex);
+        if (bookPage && bookPage.asset) {
+            var pageImage = document.createElement('img');
+            pageImage.className = 'book-page-overlay';
+            pageImage.src = bookPage.asset;
+            pageImage.alt = '';
+            layer.appendChild(pageImage);
+        }
         (activeObject.data.regions || []).forEach(function (region) {
             var url = state.overlays[objectOverlayKey(activeObject, region)];
             if (url) layer.appendChild(overlayImage(region, url, activeObject.data.canvas));
@@ -773,6 +785,7 @@
         closeDrawers(false);
         setRoomDescriptionOpen(false, null, false);
         activeObject = object;
+        activeBookPageIndex = 0;
         setObjectDescriptionOpen(false, false);
         byId('object-modal-title').textContent = object.title;
         objectImage.src = object.backgroundAsset;
@@ -795,6 +808,7 @@
         if (!activeObject) return;
         setObjectDescriptionOpen(false, false);
         activeObject = null;
+        activeBookPageIndex = 0;
         objectModal.hidden = true;
         playerApp.classList.remove('object-open');
         setMessageVisible(byId('object-player-message'), false);
@@ -892,6 +906,16 @@
     function clickObjectRegion(region) {
         if (!activeObject || !region) return;
         var object = activeObject;
+        var pageTurn = window.NLRoomRules.turnBookPage(object.data && object.data.book, activeBookPageIndex, region.id);
+        if (pageTurn.handled) {
+            activeBookPageIndex = pageTurn.pageIndex;
+            renderObjectOverlays();
+            var pageMessage = pageTurn.moved
+                ? 'Page ' + (pageTurn.pageIndex + 1) + ' of ' + pageTurn.pageCount + '.'
+                : (pageTurn.direction === 'previous' ? 'You are at the first page.' : 'There are no more pages.');
+            showMessage(pageMessage, object.title);
+            return;
+        }
         var evaluation = window.NLRoomRules.runRegion(region, state, {
             regionId: region.id,
             regionKind: region.kind,

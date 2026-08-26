@@ -513,8 +513,47 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .object-play-canvas > img { width: 100%; height: 100%; display: block; object-fit: fill; user-select: none; -webkit-user-drag: none; }
 #object-overlay-layer { position: absolute; inset: 0; pointer-events: none; }
 #object-overlay-layer img { position: absolute; object-fit: fill; }
+#object-overlay-layer .book-page-overlay { inset: 0; width: 100%; height: 100%; }
 .object-description-card { z-index: 6; }
 .portable-setting { margin-top: 18px !important; padding: 11px; border: 1px solid #3d4739; background: #151a14; }
+.book-type-setting { margin-top: 14px !important; padding: 12px; border: 1px solid #5b4c2b; background: #18150f; }
+.book-type-setting > span { min-width: 0; }
+.book-type-setting strong, .book-type-setting small { display: block; }
+.book-type-setting small { margin-top: 3px; color: #8d8a7b; font-size: 9px; font-weight: 400; line-height: 1.35; }
+.book-settings[hidden] { display: none; }
+.book-settings { margin: 10px 0 18px; padding: 13px; border: 1px solid #4d422a; background: #0c1010; }
+.book-settings-heading, .book-page-toolbar, .book-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.book-settings-heading h3 { margin: 2px 0 0; font-family: Cinzel, serif; font-size: 14px; }
+.book-settings-heading > span { color: var(--gold-light); font-family: monospace; font-size: 9px; }
+.book-region-fields { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 12px 0; }
+.book-region-fields label, .book-page-card > label { margin: 0; }
+.book-region-fields select, .book-page-card select { width: 100%; margin-top: 5px; }
+.book-page-toolbar { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); color: #bdc5c0; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.book-page-toolbar .btn-ghost { min-height: 30px; padding: 6px 9px; }
+.book-pages { display: grid; gap: 10px; margin-top: 10px; }
+.book-page-card { min-width: 0; padding: 10px; border: 1px solid #333c38; background: #121717; }
+.book-page-heading > span { min-width: 0; }
+.book-page-heading strong, .book-page-heading small { display: block; }
+.book-page-heading strong { color: #d7d1bb; font-family: Cinzel, serif; font-size: 11px; }
+.book-page-heading small { max-width: 160px; margin-top: 3px; overflow: hidden; color: #737e79; font-family: monospace; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.book-page-heading > div { display: flex; gap: 3px; }
+.book-page-heading .icon-button { width: 27px; height: 27px; }
+.book-page-preview { height: 92px; margin: 9px 0; display: grid; place-items: center; overflow: hidden; border: 1px solid #2f3734; background: #080b0b; }
+.book-page-preview img { width: 100%; height: 100%; display: block; object-fit: contain; }
+.book-page-preview span, .book-pages-empty { color: #606b67; font-size: 9px; text-align: center; }
+.book-page-preview span i, .book-pages-empty i { display: block; margin-bottom: 6px; font-size: 18px; }
+.book-page-upload-label { position: relative; margin-top: 9px !important; display: block; }
+.book-page-upload-label > span { min-height: 32px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #abb4ae; border: 1px dashed #48534e; cursor: pointer; }
+.book-page-upload-label:hover > span { color: var(--gold-light); border-color: var(--gold-dark); }
+.book-page-upload-label input { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.book-page-card.loading { opacity: .65; pointer-events: none; }
+.book-pages-empty { min-height: 80px; padding: 18px; border: 1px dashed #35403b; }
+.book-navigation-notice[hidden] { display: none; }
+.book-navigation-notice { margin: 12px 0; padding: 10px; display: flex; align-items: flex-start; gap: 9px; color: #c8c0a5; border: 1px solid #5e4f2e; background: #1a160e; }
+.book-navigation-notice > i { margin-top: 2px; color: var(--gold); }
+.book-navigation-notice strong, .book-navigation-notice small { display: block; }
+.book-navigation-notice strong { font-family: Cinzel, serif; font-size: 10px; }
+.book-navigation-notice small { margin-top: 3px; color: #928c79; font-size: 9px; line-height: 1.4; }
 
 /* Object image extraction and Gemini reference selection */
 .object-image-tools { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line-soft); }

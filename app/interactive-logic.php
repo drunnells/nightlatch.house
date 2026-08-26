@@ -158,6 +158,62 @@ function nightlatch_validate_automatic_behaviors($behaviors, $contentKind, $regi
     }
 }
 
+function nightlatch_validate_book_data($book, $regions, $contentKind)
+{
+    if (!is_array($book)) {
+        throw new RuntimeException('Book settings must be an object.');
+    }
+    if ($contentKind !== 'object') {
+        throw new RuntimeException('Only objects may use book settings.');
+    }
+
+    $previousRegionId = isset($book['previousRegionId']) ? $book['previousRegionId'] : '';
+    $nextRegionId = isset($book['nextRegionId']) ? $book['nextRegionId'] : '';
+    nightlatch_logic_string($previousRegionId, 190, 'Previous-page region ID');
+    nightlatch_logic_string($nextRegionId, 190, 'Next-page region ID');
+    $previousRegionId = trim((string) $previousRegionId);
+    $nextRegionId = trim((string) $nextRegionId);
+
+    $pages = isset($book['pages']) ? $book['pages'] : array();
+    if (!is_array($pages) || count($pages) > 100) {
+        throw new RuntimeException('A book may contain at most 100 page overlays.');
+    }
+    foreach ($pages as $page) {
+        if (!is_array($page)) {
+            throw new RuntimeException('Every book page must be an object.');
+        }
+        $asset = isset($page['asset']) ? $page['asset'] : '';
+        nightlatch_logic_string($asset, 2048, 'Book page overlay asset');
+        $asset = trim((string) $asset);
+        if (!empty($book['enabled']) && $asset === '') {
+            throw new RuntimeException('Every enabled book page must have an overlay asset.');
+        }
+    }
+
+    if (empty($book['enabled'])) {
+        return;
+    }
+    if ($previousRegionId === '' || $nextRegionId === '') {
+        throw new RuntimeException('Enabled books must select previous-page and next-page regions.');
+    }
+    if ($previousRegionId === $nextRegionId) {
+        throw new RuntimeException('Previous-page and next-page controls must use different regions.');
+    }
+    if (!$pages) {
+        throw new RuntimeException('Enabled books must contain at least one page overlay.');
+    }
+
+    $regionIds = array();
+    foreach ($regions as $region) {
+        if (is_array($region) && isset($region['id'])) {
+            $regionIds[(string) $region['id']] = true;
+        }
+    }
+    if (!isset($regionIds[$previousRegionId]) || !isset($regionIds[$nextRegionId])) {
+        throw new RuntimeException('Book navigation controls must reference saved object regions.');
+    }
+}
+
 function nightlatch_validate_interactive_data($data, $contentKind)
 {
     if (!is_array($data)) {
@@ -202,6 +258,9 @@ function nightlatch_validate_interactive_data($data, $contentKind)
                 nightlatch_logic_string(isset($overlay['source']) ? $overlay['source'] : '', 40, 'Saved overlay source');
             }
         }
+    }
+    if (isset($data['book'])) {
+        nightlatch_validate_book_data($data['book'], $regions, $contentKind);
     }
     return $data;
 }

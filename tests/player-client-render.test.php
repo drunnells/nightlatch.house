@@ -40,7 +40,28 @@ $privateCatalog = array(
             ))))),
         ))),
     )),
-    'objects' => array(),
+    'objects' => array(array(
+        'id' => 5,
+        'title' => 'Field journal',
+        'slug' => 'field-journal',
+        'description' => 'Designer-only object notes',
+        'playerDescription' => 'A weathered journal.',
+        'backgroundAsset' => 'objects/journal/backgrounds/test.jpg',
+        'backgroundPrompt' => 'Private object prompt',
+        'portable' => true,
+        'inventoryKey' => 'field_journal',
+        'data' => array(
+            'canvas' => array('width' => 1200, 'height' => 1200),
+            'regions' => array(),
+            'book' => array(
+                'enabled' => true,
+                'previousRegionId' => 'page-left',
+                'nextRegionId' => 'page-right',
+                'designerNote' => 'Private book note',
+                'pages' => array(array('asset' => 'objects/journal/overlays/page-one.png', 'caption' => 'Private page note')),
+            ),
+        ),
+    )),
     'sounds' => array(array('id' => 1, 'name' => 'Knock', 'slug' => 'knock', 'assetUrl' => 'sound.mp3', 'originalFilename' => 'private.wav')),
     'topology' => array(
         'clusters' => array(array('id' => 20, 'name' => 'House', 'slug' => 'house', 'description' => 'Private cluster notes', 'entryRoomId' => 2, 'isStart' => true)),
@@ -53,11 +74,15 @@ $publicCatalog = nightlatch_public_play_catalog($privateCatalog);
 $publicRoom = $publicCatalog['rooms'][0];
 $publicRegion = $publicRoom['data']['regions'][0];
 $publicAction = $publicRegion['logic']['branches'][0]['actions'][0];
+$publicBook = $publicCatalog['objects'][0]['data']['book'];
 if (isset($publicRoom['description']) || isset($publicRoom['backgroundPrompt'])
     || isset($publicRegion['overlayLibrary']) || isset($publicAction['prompt'])
     || isset($publicCatalog['sounds'][0]['originalFilename'])
     || isset($publicCatalog['topology']['clusters'][0]['description'])
     || isset($publicCatalog['topology']['nodes'][0]['x'])
+    || isset($publicCatalog['objects'][0]['description']) || isset($publicCatalog['objects'][0]['backgroundPrompt'])
+    || isset($publicBook['designerNote']) || isset($publicBook['pages'][0]['caption'])
+    || $publicBook['pages'][0]['asset'] !== 'objects/journal/overlays/page-one.png'
     || $publicAction['asset'] !== 'rooms/start/overlays/runtime.jpg') {
     fwrite(STDERR, "The public play catalog leaked authoring metadata or removed runtime data.\n");
     exit(1);
@@ -67,6 +92,7 @@ $files = array(
     'index' => file_get_contents($root . '/index.php'),
     'catalog' => file_get_contents($root . '/app/play-catalog.php'),
     'playerJs' => file_get_contents($root . '/assets/js/play-player.js'),
+    'debugJs' => file_get_contents($root . '/assets/js/play-debug.js'),
     'playerCss' => file_get_contents($root . '/assets/css/player.css'),
     'debug' => file_get_contents($root . '/admin/play-debug.php'),
 );
@@ -102,6 +128,10 @@ $expectations = array(
     array('catalog', 'nightlatch_public_play_catalog', 'The public play catalog projection is missing.'),
     array('debug', 'app/play-catalog.php', 'Debug play does not use the shared play catalog.'),
     array('playerJs', 'window.NLRoomRules.runRegion', 'The player does not evaluate shared room rules.'),
+    array('playerJs', 'window.NLRoomRules.turnBookPage', 'The player is missing shared built-in book navigation.'),
+    array('playerJs', 'window.NLRoomRules.bookPage', 'The player does not render book page overlays.'),
+    array('debugJs', 'window.NLRoomRules.turnBookPage', 'Debug play is missing shared built-in book navigation.'),
+    array('debugJs', 'window.NLRoomRules.bookPage', 'Debug play does not render book page overlays.'),
     array('playerJs', 'runActivationBehaviors', 'The player is missing automatic activation behaviors.'),
     array('playerJs', 'maximumRuns: 100', 'The player is missing the guarded automatic-behavior queue.'),
     array('playerJs', 'assignGatewayDestinations', 'The player is missing stable Gateway assignment behavior.'),

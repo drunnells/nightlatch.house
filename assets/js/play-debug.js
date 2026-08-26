@@ -19,6 +19,7 @@
     var regions = room.data.regions || [];
     var state;
     var activeObject = null;
+    var activeBookPageIndex = 0;
     var navigationStack = [];
     var svg = document.getElementById('play-regions');
     var objectSvg = document.getElementById('object-play-regions');
@@ -429,6 +430,8 @@
             return;
         }
         var html = '';
+        var bookPage = window.NLRoomRules.bookPage(activeObject.data && activeObject.data.book, activeBookPageIndex);
+        if (bookPage && bookPage.asset) html += '<img class="book-page-overlay" src="' + esc(bookPage.asset) + '" alt="">';
         (activeObject.data.regions || []).forEach(function (region) {
             var url = state.overlays[objectOverlayKey(activeObject, region)];
             if (url) html += overlayImage(region, url, activeObject.data.canvas);
@@ -621,6 +624,7 @@
         var object = objectBySlug[slug];
         if (!object) return false;
         activeObject = object;
+        activeBookPageIndex = 0;
         closeInventory();
         setDescriptionOpen('object', false);
         $('#object-modal-title').text(object.title);
@@ -646,6 +650,7 @@
         if (!activeObject) return;
         var title = activeObject.title;
         activeObject = null;
+        activeBookPageIndex = 0;
         document.getElementById('object-modal').hidden = true;
         document.getElementById('object-description-card').hidden = true;
         $('#toggle-object-description').attr('aria-expanded', 'false');
@@ -721,6 +726,17 @@
     function clickObjectRegion(region) {
         if (!activeObject) return;
         var object = activeObject;
+        var pageTurn = window.NLRoomRules.turnBookPage(object.data && object.data.book, activeBookPageIndex, region.id);
+        if (pageTurn.handled) {
+            activeBookPageIndex = pageTurn.pageIndex;
+            var pageMessage = pageTurn.moved
+                ? 'Page ' + (pageTurn.pageIndex + 1) + ' of ' + pageTurn.pageCount + '.'
+                : (pageTurn.direction === 'previous' ? 'Already at the first page.' : 'Already at the last page.');
+            renderAll();
+            showMessage(pageMessage);
+            logEvent(region.name, pageTurn.moved, pageMessage, object.title + ' · book');
+            return;
+        }
         var evaluation = window.NLRoomRules.runRegion(region, state, { regionId: region.id, overlayKey: objectOverlayKey(object, region) });
         playEvaluationSounds(evaluation);
         dispatchStateChanges(evaluation.effects.changes, object.title + ' · ' + region.name);

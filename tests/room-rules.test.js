@@ -207,6 +207,23 @@ var inventory = rules.ownedObjects([
 ], state);
 assert.deepStrictEqual(inventory.map(function (object) { return object.slug; }), ['puzzle-box']);
 
+var book = {
+    enabled: true,
+    previousRegionId: 'page-left',
+    nextRegionId: 'page-right',
+    pages: [{ asset: 'page-1.png' }, { asset: 'page-2.png' }, { asset: 'page-3.png' }]
+};
+assert.strictEqual(rules.bookPage(book, 0).asset, 'page-1.png', 'books open on their first page overlay');
+var pageTurn = rules.turnBookPage(book, 0, 'page-right');
+assert.deepStrictEqual(pageTurn, { handled: true, moved: true, direction: 'next', pageIndex: 1, pageCount: 3 }, 'the configured next region advances one page');
+pageTurn = rules.turnBookPage(book, 2, 'page-right');
+assert.strictEqual(pageTurn.handled, true, 'the configured navigation region remains built in at a boundary');
+assert.strictEqual(pageTurn.moved, false, 'a book cannot advance beyond its final page');
+assert.strictEqual(pageTurn.pageIndex, 2);
+pageTurn = rules.turnBookPage(book, 1, 'ordinary-region');
+assert.strictEqual(pageTurn.handled, false, 'ordinary object regions retain their authored click logic');
+assert.strictEqual(rules.turnBookPage({ enabled: false, pages: book.pages }, 0, 'page-right').handled, false, 'disabled book settings do not change ordinary object behavior');
+
 var gatewayAssignments = rules.assignGatewayDestinations({
     destinationCount: 2,
     exitRegionIds: ['left-gateway', 'right-gateway', 'unused-gateway'],

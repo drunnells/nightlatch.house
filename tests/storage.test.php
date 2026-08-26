@@ -45,10 +45,13 @@ $data = array('regions' => array(array(
     'logic' => array('branches' => array(array('actions' => array(
         array('type' => 'set_overlay', 'asset' => 'rooms/foyer/overlays/two.png'),
     )))),
-)));
+)), 'book' => array(
+    'enabled' => true,
+    'pages' => array(array('asset' => 'rooms/foyer/overlays/book-page.png')),
+));
 $keys = nightlatch_content_storage_keys($key, $data);
 sort($keys);
-$expected = array($key, 'rooms/foyer/overlays/one.png', 'rooms/foyer/overlays/two.png');
+$expected = array($key, 'rooms/foyer/overlays/book-page.png', 'rooms/foyer/overlays/one.png', 'rooms/foyer/overlays/two.png');
 sort($expected);
 if ($keys !== $expected) {
     fwrite(STDERR, "Saved content storage references were not collected correctly.\n");

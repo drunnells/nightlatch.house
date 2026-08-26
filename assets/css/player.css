@@ -289,6 +289,7 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
 .content-overlay-layer, .interaction-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .content-overlay-layer { z-index: 2; pointer-events: none; }
 .content-overlay-layer img { position: absolute; display: block; object-fit: fill; }
+.content-overlay-layer .book-page-overlay { inset: 0; width: 100%; height: 100%; }
 .interaction-layer { z-index: 3; }
 .play-region,
 .play-region:hover,

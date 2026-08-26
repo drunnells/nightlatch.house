@@ -28,6 +28,7 @@
     var resizeHandle = document.getElementById('region-resize-handle');
     var zoomFrame = null;
     var logicEditor = null;
+    var bookEditor = null;
     var temporaryAssets = {};
 
     function isTemporaryAssetUrl(url) {
@@ -217,6 +218,7 @@
     function renderRegions() {
         while (svg.firstChild) svg.removeChild(svg.firstChild);
         regions.forEach(function (region, index) {
+            var bookRole = bookEditor ? bookEditor.navigationRole(region.id) : '';
             var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('x', region.bounds.x);
             rect.setAttribute('y', region.bounds.y);
@@ -231,15 +233,17 @@
             label.setAttribute('y', region.bounds.y + 28);
             label.setAttribute('class', 'region-label');
             label.setAttribute('data-id', region.id);
-            label.textContent = (index + 1) + '  ' + region.name;
+            label.textContent = (index + 1) + '  ' + (bookRole === 'previous' ? '← ' : (bookRole === 'next' ? '→ ' : '')) + region.name;
             svg.appendChild(label);
         });
         if (draftRect) svg.appendChild(draftRect);
 
         var html = regions.length ? '' : '<div class="region-empty"><i class="fa-regular fa-square-plus"></i><p>No clickable areas yet</p></div>';
         regions.forEach(function (region, index) {
+            var bookRole = bookEditor ? bookEditor.navigationRole(region.id) : '';
+            var regionDetail = bookRole ? 'Book · ' + bookRole + ' page' : (region.kind === 'door' ? 'Door / exit' : 'Interaction');
             html += '<button class="region-item' + (region.id === selectedId ? ' active' : '') + '" data-id="' + esc(region.id) + '">' +
-                '<span class="region-number">' + (index + 1) + '</span><span><strong>' + esc(region.name) + '</strong><small><i class="fa-solid ' + (region.kind === 'door' ? 'fa-door-open' : 'fa-hand-pointer') + '"></i> ' + (region.kind === 'door' ? 'Door / exit' : 'Interaction') + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
+                '<span class="region-number">' + (index + 1) + '</span><span><strong>' + esc(region.name) + '</strong><small><i class="fa-solid ' + (bookRole ? 'fa-book-open' : (region.kind === 'door' ? 'fa-door-open' : 'fa-hand-pointer')) + '"></i> ' + esc(regionDetail) + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
         });
         $('#region-list').html(html);
         positionRegionHandles();
@@ -324,7 +328,10 @@
         var region = selected();
         $('#inspector-empty').toggle(!region);
         $('#inspector-content').toggle(!!region);
-        if (!region) return;
+        if (!region) {
+            $('#book-navigation-notice').prop('hidden', true);
+            return;
+        }
         fieldLock = true;
         $('#inspector-title').text(region.name);
         $('#region-name').val(region.name);
@@ -339,6 +346,9 @@
         $('#door-gateway-exit').prop('checked', gatewayExitSelected(region.id));
         $('#static-door-fields').toggle(!gatewayExitSelected(region.id) && !reservedReturn);
         if (logicEditor) logicEditor.setRegion(region);
+        var bookRole = bookEditor ? bookEditor.navigationRole(region.id) : '';
+        $('#book-navigation-notice').prop('hidden', !bookRole);
+        if (bookRole) $('#book-navigation-title').text(bookRole === 'previous' ? 'Built-in previous-page control' : 'Built-in next-page control');
         renderCapturedOverlaySummary();
         updateBoundsReadout(region);
         fieldLock = false;
@@ -375,6 +385,7 @@
         $('#door-reserved-return').prop('hidden', !reservedReturn);
         $('#static-door-fields').toggle(!gatewayExit && !reservedReturn);
         if (previousKind !== region.kind && logicEditor) logicEditor.refresh();
+        if (bookEditor) bookEditor.refreshRegions();
         markDirty();
         renderRegions();
         if (previousKind !== region.kind) renderGatewaySettings();
@@ -512,6 +523,7 @@
         if (bounds.width > 18 && bounds.height > 18) {
             var region = blankRegion(bounds);
             regions.push(region);
+            if (bookEditor) bookEditor.refreshRegions();
             stopDrawing();
             selectRegion(region.id);
             markDirty();
@@ -551,6 +563,7 @@
     });
     $('#delete-region').on('click', function () {
         if (!selectedId || !window.confirm('Delete this clickable region?')) return;
+        if (bookEditor) bookEditor.clearRegion(selectedId);
         gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== String(selectedId); });
         regions = regions.filter(function (region) { return region.id !== selectedId; });
         selectedId = null;
@@ -620,6 +633,7 @@
         if (isObject) {
             payload.portable = $('#object-portable').prop('checked');
             payload.inventoryKey = $('#inventory-key').val().trim();
+            if (bookEditor && bookEditor.enabled()) payload.data.book = bookEditor.value();
         } else {
             payload.gateway = {
                 enabled: !!gateway.enabled,
@@ -632,6 +646,14 @@
     }
 
     function saveRoom() {
+        if (isObject && bookEditor) {
+            var bookValidationError = bookEditor.validate();
+            if (bookValidationError) {
+                var invalidBook = new Error(bookValidationError);
+                toast(invalidBook.message, true);
+                return Promise.reject(invalidBook);
+            }
+        }
         if (!isObject && gateway.enabled) {
             var required = Math.max(1, parseInt(gateway.destinationCount, 10) || 1);
             if (gateway.exitRegionIds.length < required || gateway.candidateClusterIds.length < required) {
@@ -657,12 +679,14 @@
                 return value;
             }
             regions = replaceAssets(regions);
+            if (bookEditor) bookEditor.replaceAssets(replacements);
             if (result.backgroundAsset) {
                 image.onload = null;
                 image.src = result.backgroundAsset;
             }
             room.backgroundAsset = result.backgroundAsset || image.getAttribute('src');
             room.data = { version: 2, canvas: canvas, regions: regions };
+            if (bookEditor && bookEditor.enabled()) room.data.book = bookEditor.value();
             room.id = result.id;
             $('#room-slug').val(result.slug);
             if (isObject) {
@@ -785,6 +809,17 @@
         uploadOverlay: uploadAssetPromise,
         generateOverlay: generateOverlay
     });
+    if (isObject && window.NLBookEditor) {
+        bookEditor = window.NLBookEditor.create({
+            root: '#book-settings',
+            enabledInput: '#object-book',
+            book: room.data && room.data.book,
+            getRegions: function () { return regions; },
+            upload: uploadAssetPromise,
+            onChange: function () { markDirty(); renderRegions(); fillInspector(); },
+            notify: toast
+        });
+    }
 
     function setBackground(url, updateDimensions) {
         image.onload = function () {
@@ -832,6 +867,7 @@
             keptRegions.push(region);
         });
         regions = keptRegions;
+        if (bookEditor) bookEditor.refreshRegions();
         if (selectedId && !selected()) selectedId = null;
         canvas = { width: width, height: height };
         image.onload = function () {

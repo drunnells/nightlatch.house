@@ -18,6 +18,13 @@ $requiredIds = array(
     'capture-region-overlay',
     'captured-overlay-summary',
     'object-portable',
+    'object-book',
+    'book-settings',
+    'book-previous-region',
+    'book-next-region',
+    'book-pages',
+    'add-book-page',
+    'book-navigation-notice',
     'inventory-key',
     'player-description',
     'save-room',
@@ -52,11 +59,21 @@ if (strpos($html, 'js/object-image-tools.js') === false
 
 $styles = file_get_contents(dirname(__DIR__) . '/assets/css/admin.css');
 $editorScript = file_get_contents(dirname(__DIR__) . '/assets/js/room-editor.js');
+$bookEditorScript = file_get_contents(dirname(__DIR__) . '/assets/js/book-editor.js');
 $logicScript = file_get_contents(dirname(__DIR__) . '/assets/js/logic-editor.js');
 $imageEditScript = file_get_contents(dirname(__DIR__) . '/assets/js/image-area-editor.js');
 $objectEditorMarkup = file_get_contents(dirname(__DIR__) . '/admin/object-edit.php');
 if ($styles === false || $editorScript === false || $logicScript === false || $imageEditScript === false || $objectEditorMarkup === false) {
     fwrite(STDERR, "Object editor layout assets could not be read.\n");
+    exit(1);
+}
+if ($bookEditorScript === false
+    || strpos($html, 'js/book-editor.js') === false
+    || strpos($bookEditorScript, 'navigationRole') === false
+    || strpos($bookEditorScript, 'book-page-upload') === false
+    || strpos($bookEditorScript, 'Choose a saved overlay') === false
+    || strpos($editorScript, 'payload.data.book = bookEditor.value()') === false) {
+    fwrite(STDERR, "Object editor is missing built-in book authoring controls.\n");
     exit(1);
 }
 if (strpos($logicScript, 'logic-add-branch') === false

@@ -135,6 +135,56 @@ try {
 $legacy = array('version' => 1, 'regions' => array(array('condition' => array('source' => 'always'))));
 nightlatch_validate_interactive_data($legacy, 'room');
 
+$bookRegion = array(
+    'kind' => 'interaction',
+    'logic' => array(
+        'branches' => array(array('when' => array('type' => 'group', 'match' => 'all', 'children' => array()), 'actions' => array())),
+        'elseActions' => array(),
+    ),
+);
+$bookData = array(
+    'version' => 2,
+    'regions' => array(
+        array_merge($bookRegion, array('id' => 'previous-page')),
+        array_merge($bookRegion, array('id' => 'next-page')),
+    ),
+    'book' => array(
+        'enabled' => true,
+        'previousRegionId' => 'previous-page',
+        'nextRegionId' => 'next-page',
+        'pages' => array(array('asset' => '../page-one.png'), array('asset' => '../page-two.png')),
+    ),
+);
+nightlatch_validate_interactive_data($bookData, 'object');
+
+$invalidBook = $bookData;
+$invalidBook['book']['nextRegionId'] = 'previous-page';
+try {
+    nightlatch_validate_interactive_data($invalidBook, 'object');
+    fwrite(STDERR, "A book reused one region for both navigation directions.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+$invalidBook = $bookData;
+$invalidBook['book']['pages'][0]['asset'] = '';
+try {
+    nightlatch_validate_interactive_data($invalidBook, 'object');
+    fwrite(STDERR, "An enabled book accepted a page without an overlay.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+try {
+    nightlatch_validate_interactive_data($bookData, 'room');
+    fwrite(STDERR, "A room accepted object-only book settings.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
 try {
     nightlatch_validate_interactive_data(array('version' => 2, 'regions' => array(array('kind' => 'interaction'))), 'room');
     fwrite(STDERR, "Version 2 data without branch logic was accepted.\n");

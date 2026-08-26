@@ -23,7 +23,8 @@ if (nightlatch_local_temporary_asset_file($url) !== $realPath
 }
 
 $references = nightlatch_content_local_asset_files('', array(
-    'regions' => array(array('overlayLibrary' => array(array('asset' => $url)))),
+    'regions' => array(),
+    'book' => array('enabled' => true, 'pages' => array(array('asset' => $url))),
 ));
 if (!isset($references[$realPath])) {
     fwrite(STDERR, "Saved local asset references were not collected.\n");

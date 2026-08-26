@@ -71,6 +71,20 @@ function nightlatch_player_runtime_data($value)
         if ($key === 'overlayLibrary' || $key === 'prompt') {
             continue;
         }
+        if ($key === 'book' && is_array($child)) {
+            if (empty($child['enabled'])) continue;
+            $pages = array();
+            foreach (isset($child['pages']) && is_array($child['pages']) ? $child['pages'] : array() as $page) {
+                if (is_array($page) && isset($page['asset'])) $pages[] = array('asset' => $page['asset']);
+            }
+            $result[$key] = array(
+                'enabled' => true,
+                'previousRegionId' => isset($child['previousRegionId']) ? (string) $child['previousRegionId'] : '',
+                'nextRegionId' => isset($child['nextRegionId']) ? (string) $child['nextRegionId'] : '',
+                'pages' => $pages,
+            );
+            continue;
+        }
         $result[$key] = is_array($child) ? nightlatch_player_runtime_data($child) : $child;
     }
     return $result;

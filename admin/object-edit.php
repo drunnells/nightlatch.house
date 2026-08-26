@@ -109,6 +109,18 @@ require __DIR__ . '/_header.php';
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="5"><?php echo nightlatch_h($object['description']); ?></textarea>
             <label class="check-row portable-setting"><input id="object-portable" type="checkbox"<?php echo !empty($object['portable']) ? ' checked' : ''; ?>><span>Player can carry this object</span></label>
             <div id="inventory-key-fields"><label for="inventory-key">Inventory key</label><input id="inventory-key" value="<?php echo nightlatch_h($object['inventoryKey']); ?>" placeholder="defaults-to-object-slug"><p class="hint">Grant this key from a successful room or object region to put the object in the player inventory.</p></div>
+            <label class="check-row book-type-setting"><input id="object-book" type="checkbox"><span><strong>Use built-in book behavior</strong><small>Turn this object into a page-through book.</small></span></label>
+            <div class="book-settings" id="book-settings" hidden>
+                <div class="book-settings-heading"><div><span class="eyebrow">Book navigation</span><h3>Pages and controls</h3></div><span id="book-page-count">0 pages</span></div>
+                <p class="hint">Draw two ordinary interaction regions on the object, then reserve them for previous and next page. Their click logic is bypassed while book behavior is enabled.</p>
+                <div class="book-region-fields">
+                    <label for="book-previous-region">Previous-page region<select id="book-previous-region"></select></label>
+                    <label for="book-next-region">Next-page region<select id="book-next-region"></select></label>
+                </div>
+                <div class="book-page-toolbar"><span>Page overlays</span><button type="button" class="btn-ghost" id="add-book-page"><i class="fa-solid fa-plus"></i> Add page</button></div>
+                <p class="hint">Each page is a full-canvas overlay. Transparent areas reveal the object artwork beneath it.</p>
+                <div class="book-pages" id="book-pages"></div>
+            </div>
             <p class="hint">Saved artwork and overlays are stored in DigitalOcean Spaces. Room-bound objects open only from regions that reference them; portable objects also appear in inventory while owned.</p>
             <?php if ($id): ?><button class="danger-button" id="delete-room"><i class="fa-solid fa-trash"></i> Delete object</button><?php endif; ?>
         </div>
@@ -143,6 +155,7 @@ require __DIR__ . '/_header.php';
                 <button type="button" class="btn-ghost btn-block" id="capture-region-overlay"><i class="fa-solid fa-crop-simple"></i> Capture current region</button>
                 <div class="captured-overlay-summary" id="captured-overlay-summary"><span>No captured appearances yet.</span></div>
             </div>
+            <div class="book-navigation-notice" id="book-navigation-notice" hidden><i class="fa-solid fa-book-open"></i><span><strong id="book-navigation-title">Built-in book control</strong><small>Page turning replaces click logic for this region while book behavior is enabled. Automatic behaviors still work normally.</small></span></div>
             <div class="region-logic-editor" id="region-logic-editor"></div>
             <div class="bounds-readout"><span>Position</span><code id="region-bounds">x 0 · y 0 · w 0 · h 0</code></div>
         </div>
@@ -178,6 +191,7 @@ require __DIR__ . '/_header.php';
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/region-bounds.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/book-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/object-image-tools.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/image-area-editor.js')); ?>"></script>

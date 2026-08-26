@@ -39,7 +39,32 @@ try {
     <p>The first room is still being prepared. Please return soon.</p>
 </main>
 <?php else: ?>
-<div class="player-app" id="player-app">
+<section class="player-entry" id="player-entry" aria-labelledby="player-entry-title">
+    <div class="entry-mist entry-mist-one" aria-hidden="true"></div>
+    <div class="entry-mist entry-mist-two" aria-hidden="true"></div>
+    <div class="entry-house" aria-hidden="true">
+        <div class="entry-house-roof"></div>
+        <div class="entry-house-face">
+            <span class="entry-window entry-window-left"></span>
+            <span class="entry-window entry-window-right"></span>
+            <span class="entry-door"><i class="fa-solid fa-key"></i></span>
+        </div>
+    </div>
+    <div class="entry-content">
+        <div class="entry-brand-mark" aria-hidden="true"><i class="fa-solid fa-key"></i></div>
+        <p class="entry-kicker">A point-and-click mystery</p>
+        <h1 id="player-entry-title">Nightlatch <span>House</span></h1>
+        <p class="entry-intro">The door is waiting. What the house keeps hidden is yours to uncover.</p>
+        <button type="button" class="enter-house-button" id="enter-house">
+            <span class="enter-house-icon" aria-hidden="true"><i class="fa-solid fa-door-open"></i></span>
+            <span><strong id="entry-action-label">Enter the house</strong><small id="entry-action-detail">Begin a new game</small></span>
+            <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+        </button>
+        <p class="entry-save-note"><i class="fa-regular fa-floppy-disk" aria-hidden="true"></i> Progress is saved on this device.</p>
+    </div>
+</section>
+
+<div class="player-app" id="player-app" hidden>
     <header class="player-header">
         <div class="player-brand" aria-label="Nightlatch House">
             <span class="player-brand-mark" aria-hidden="true"><i class="fa-solid fa-key"></i></span>
@@ -66,21 +91,20 @@ try {
         </nav>
     </header>
 
-    <button type="button" class="immersive-exit" id="exit-immersive" aria-label="Restore game controls" title="Restore game controls">
-        <i class="fa-solid fa-compress" aria-hidden="true"></i>
-    </button>
-
     <main class="player-main">
         <section class="player-stage" id="player-stage" aria-label="Current room">
             <div class="room-canvas" id="room-canvas" tabindex="-1" style="aspect-ratio:<?php echo (int) $startRoom['data']['canvas']['width']; ?>/<?php echo (int) $startRoom['data']['canvas']['height']; ?>">
                 <img id="room-image" src="<?php echo nightlatch_h($startRoom['backgroundAsset']); ?>" alt="<?php echo nightlatch_h($startRoom['title']); ?>">
                 <div class="content-overlay-layer" id="room-overlay-layer" aria-hidden="true"></div>
                 <svg class="interaction-layer" id="room-regions" viewBox="0 0 <?php echo (int) $startRoom['data']['canvas']['width']; ?> <?php echo (int) $startRoom['data']['canvas']['height']; ?>" preserveAspectRatio="none" aria-label="Room interactions"></svg>
+                <button type="button" class="canvas-fullscreen-button" id="toggle-room-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
+                    <i class="fa-solid fa-expand" aria-hidden="true"></i><span class="fullscreen-label">Full screen</span>
+                </button>
             </div>
             <p class="player-touch-hint" id="player-touch-hint"><i class="fa-regular fa-hand-pointer" aria-hidden="true"></i> Explore the room</p>
         </section>
 
-        <section class="player-message-tray" id="player-message" aria-live="polite" aria-atomic="true" aria-hidden="true">
+        <section class="player-message-tray transient-text-rail" id="player-message" aria-live="polite" aria-atomic="true" aria-hidden="true">
             <div class="message-glyph" aria-hidden="true"><i class="fa-solid fa-quote-left"></i></div>
             <div class="message-copy">
                 <span id="player-message-context">Room</span>
@@ -113,12 +137,12 @@ try {
         <div class="drawer-body" id="inventory-objects"></div>
     </aside>
 
-    <aside class="player-drawer description-drawer" id="room-description-panel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="room-description-title">
-        <header class="drawer-header">
+    <aside class="text-rail description-drawer" id="room-description-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="room-description-title">
+        <header class="text-rail-header">
             <div><span class="drawer-kicker">Look around</span><h2 id="room-description-title">Room</h2></div>
             <button type="button" class="drawer-close" id="close-room-description" aria-label="Close room description"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
         </header>
-        <div class="drawer-body description-copy"><p id="room-player-description"></p></div>
+        <div class="text-rail-body description-copy"><p id="room-player-description"></p></div>
     </aside>
 
     <div class="object-viewer" id="object-modal" hidden role="dialog" aria-modal="true" aria-labelledby="object-modal-title">
@@ -127,7 +151,10 @@ try {
             <header class="object-viewer-header">
                 <div><span class="drawer-kicker">Examining</span><h2 id="object-modal-title">Object</h2></div>
                 <div class="object-viewer-actions">
+                    <button type="button" class="player-icon-button" id="toggle-object-sound" aria-label="Mute sound" aria-pressed="false" title="Mute sound"><i class="fa-solid fa-volume-high" aria-hidden="true"></i></button>
                     <button type="button" class="player-icon-button" id="toggle-object-description" aria-label="Read object description" aria-expanded="false" title="Read description"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+                    <button type="button" class="player-icon-button inventory-toggle" id="toggle-object-inventory" aria-label="Open inventory" aria-expanded="false" title="Inventory"><i class="fa-solid fa-suitcase" aria-hidden="true"></i><span id="object-inventory-count" aria-label="0 items">0</span></button>
+                    <button type="button" class="player-icon-button" id="open-object-game-menu" aria-label="Open game menu" aria-expanded="false" title="Menu"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
                     <button type="button" class="object-close" id="close-object" aria-label="Close object"><i class="fa-solid fa-xmark" aria-hidden="true"></i><span>Close</span></button>
                 </div>
             </header>
@@ -136,13 +163,16 @@ try {
                     <img id="object-image" alt="">
                     <div class="content-overlay-layer" id="object-overlay-layer" aria-hidden="true"></div>
                     <svg class="interaction-layer" id="object-regions" preserveAspectRatio="none" aria-label="Object interactions"></svg>
+                    <button type="button" class="canvas-fullscreen-button" id="toggle-object-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
+                        <i class="fa-solid fa-expand" aria-hidden="true"></i><span class="fullscreen-label">Full screen</span>
+                    </button>
                 </div>
-                <aside class="object-description" id="object-description-panel" hidden>
+                <aside class="object-description text-rail" id="object-description-panel" aria-hidden="true">
                     <header><span>Description</span><button type="button" id="close-object-description" aria-label="Close object description"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
                     <p id="object-player-description"></p>
                 </aside>
             </div>
-            <section class="player-message-tray object-message-tray" id="object-player-message" aria-live="polite" aria-atomic="true" aria-hidden="true">
+            <section class="player-message-tray transient-text-rail object-message-tray" id="object-player-message" aria-live="polite" aria-atomic="true" aria-hidden="true">
                 <div class="message-glyph" aria-hidden="true"><i class="fa-solid fa-quote-left"></i></div>
                 <div class="message-copy">
                     <span id="object-player-message-context">Object</span>
@@ -158,13 +188,19 @@ try {
             <header><span class="player-brand-mark" aria-hidden="true"><i class="fa-solid fa-key"></i></span><div><span class="drawer-kicker">Nightlatch House</span><h2 id="game-menu-title">Game menu</h2></div></header>
             <div class="game-menu-actions" id="game-menu-actions">
                 <button type="button" id="continue-game"><i class="fa-solid fa-play" aria-hidden="true"></i><span><strong>Continue</strong><small>Return to the house</small></span></button>
-                <button type="button" id="toggle-immersive" aria-pressed="false"><i class="fa-solid fa-expand" aria-hidden="true"></i><span><strong id="immersive-menu-label">Expand room</strong><small id="immersive-menu-detail">Hide controls and use the available screen</small></span></button>
+                <button type="button" id="toggle-menu-fullscreen" aria-pressed="false"><i class="fa-solid fa-expand" aria-hidden="true"></i><span><strong id="fullscreen-menu-label">Full screen</strong><small id="fullscreen-menu-detail">Use the entire display with controls visible</small></span></button>
                 <button type="button" id="request-new-game"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i><span><strong>Start over</strong><small>Clear this saved run</small></span></button>
+                <button type="button" class="exit-game-action" id="request-exit-game"><i class="fa-solid fa-door-open" aria-hidden="true"></i><span><strong>Exit game</strong><small>Leave the house and erase this run</small></span></button>
             </div>
             <div class="new-game-confirm" id="new-game-confirm" hidden>
                 <h3>Begin again?</h3>
                 <p>Your current room, inventory, and puzzle progress on this device will be cleared.</p>
                 <div><button type="button" id="cancel-new-game">Keep playing</button><button type="button" class="confirm-reset" id="start-new-game">Start over</button></div>
+            </div>
+            <div class="new-game-confirm" id="exit-game-confirm" hidden>
+                <h3>Leave the house?</h3>
+                <p>This ends the current game and permanently clears its room, inventory, and puzzle progress from this device.</p>
+                <div><button type="button" id="cancel-exit-game">Stay inside</button><button type="button" class="confirm-reset" id="exit-game">Exit and erase</button></div>
             </div>
         </section>
     </div>

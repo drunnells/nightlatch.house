@@ -10,6 +10,7 @@
 
     var RUN_STORAGE_KEY = 'nightlatch.player.run.v1';
     var SOUND_STORAGE_KEY = 'nightlatch.player.sound-muted.v1';
+    var MESSAGE_DISPLAY_MS = 4200;
     var roomById = {};
     var roomBySlug = {};
     var objectBySlug = {};
@@ -31,13 +32,19 @@
     var navigationStack = [];
     var activeDrawer = null;
     var drawerTrigger = null;
+    var roomDescriptionTrigger = null;
     var objectTrigger = null;
     var menuTrigger = null;
     var ambientPending = false;
     var soundMuted = false;
     var saveTimer = null;
     var nativeFullscreenEntered = false;
+    var insideHouse = false;
+    var pendingInitialEntry = false;
+    var messageHideTimers = { room: null, object: null };
+    var lastFullscreenTrigger = null;
 
+    var playerEntry = document.getElementById('player-entry');
     var playerApp = document.getElementById('player-app');
     var playerStage = document.getElementById('player-stage');
     var roomCanvas = document.getElementById('room-canvas');
@@ -187,7 +194,7 @@
     }
 
     function saveRun() {
-        if (!state || !room) return;
+        if (!insideHouse || !state || !room) return;
         try {
             window.localStorage.setItem(RUN_STORAGE_KEY, JSON.stringify({
                 version: 1,
@@ -281,7 +288,18 @@
         objectCanvas.style.height = Math.max(1, Math.floor(height * scale)) + 'px';
     }
 
+    function messageTimerKey(target) {
+        return target && target.id === 'object-player-message' ? 'object' : 'room';
+    }
+
+    function clearMessageTimer(target) {
+        var key = messageTimerKey(target);
+        window.clearTimeout(messageHideTimers[key]);
+        messageHideTimers[key] = null;
+    }
+
     function setMessageVisible(target, visible) {
+        if (!visible) clearMessageTimer(target);
         target.classList.toggle('has-message', visible);
         target.setAttribute('aria-hidden', visible ? 'false' : 'true');
     }
@@ -295,7 +313,12 @@
         byId(isObjectMessage ? 'object-player-message-context' : 'player-message-context').textContent = context || (activeObject ? activeObject.title : room.title);
         byId(isObjectMessage ? 'object-player-message-text' : 'player-message-text').textContent = message;
         setMessageVisible(other, false);
+        clearMessageTimer(target);
         setMessageVisible(target, true);
+        var timerKey = messageTimerKey(target);
+        messageHideTimers[timerKey] = window.setTimeout(function () {
+            setMessageVisible(target, false);
+        }, MESSAGE_DISPLAY_MS);
     }
 
     function hideMessage() {
@@ -304,12 +327,13 @@
     }
 
     function updateSoundControl() {
-        var button = byId('toggle-sound');
-        var icon = button.querySelector('i');
-        button.setAttribute('aria-pressed', soundMuted ? 'true' : 'false');
-        button.setAttribute('aria-label', soundMuted ? 'Turn sound on' : 'Mute sound');
-        button.setAttribute('title', soundMuted ? 'Turn sound on' : 'Mute sound');
-        icon.className = soundMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+        [byId('toggle-sound'), byId('toggle-object-sound')].forEach(function (button) {
+            var icon = button.querySelector('i');
+            button.setAttribute('aria-pressed', soundMuted ? 'true' : 'false');
+            button.setAttribute('aria-label', soundMuted ? 'Turn sound on' : 'Mute sound');
+            button.setAttribute('title', soundMuted ? 'Turn sound on' : 'Mute sound');
+            icon.className = soundMuted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+        });
     }
 
     function loadSoundPreference() {
@@ -359,6 +383,10 @@
     }
 
     function syncAmbientSound(candidateRoom) {
+        if (!insideHouse) {
+            stopAmbientSound();
+            return;
+        }
         var clusterId = clusterByRoomId[String(candidateRoom.id)];
         var cluster = clusterById[clusterId] || null;
         var soundId = cluster && cluster.ambientSoundId ? String(cluster.ambientSoundId) : '';
@@ -511,6 +539,8 @@
         byId('inventory-count').textContent = count;
         byId('inventory-count').setAttribute('aria-label', count + (owned.length === 1 ? ' item' : ' items'));
         byId('mobile-inventory-count').textContent = count;
+        byId('object-inventory-count').textContent = count;
+        byId('object-inventory-count').setAttribute('aria-label', count + (owned.length === 1 ? ' item' : ' items'));
         var container = byId('inventory-objects');
         container.textContent = '';
         if (!owned.length) {
@@ -626,13 +656,13 @@
     }
 
     function closeDrawers(restoreFocus) {
-        var panels = [byId('inventory-panel'), byId('room-description-panel')];
+        var panels = [byId('inventory-panel')];
         panels.forEach(function (panel) {
             panel.classList.remove('visible');
             panel.setAttribute('aria-hidden', 'true');
         });
         byId('toggle-inventory').setAttribute('aria-expanded', 'false');
-        byId('toggle-room-description').setAttribute('aria-expanded', 'false');
+        byId('toggle-object-inventory').setAttribute('aria-expanded', 'false');
         byId('panel-scrim').hidden = true;
         activeDrawer = null;
         if (restoreFocus !== false && drawerTrigger && document.contains(drawerTrigger)) drawerTrigger.focus();
@@ -646,8 +676,10 @@
         panel.classList.add('visible');
         panel.setAttribute('aria-hidden', 'false');
         byId('panel-scrim').hidden = false;
-        if (panel.id === 'inventory-panel') byId('toggle-inventory').setAttribute('aria-expanded', 'true');
-        if (panel.id === 'room-description-panel') byId('toggle-room-description').setAttribute('aria-expanded', 'true');
+        if (panel.id === 'inventory-panel') {
+            byId('toggle-inventory').setAttribute('aria-expanded', 'true');
+            byId('toggle-object-inventory').setAttribute('aria-expanded', 'true');
+        }
         window.requestAnimationFrame(function () {
             var closeButton = panel.querySelector('.drawer-close');
             if (closeButton) closeButton.focus();
@@ -656,21 +688,51 @@
 
     function toggleInventory(trigger) {
         if (activeDrawer && activeDrawer.id === 'inventory-panel') closeDrawers(true);
-        else openDrawer(byId('inventory-panel'), trigger);
+        else {
+            setRoomDescriptionOpen(false, null, false);
+            openDrawer(byId('inventory-panel'), trigger);
+        }
+    }
+
+    function setRoomDescriptionOpen(open, trigger, restoreFocus) {
+        var panel = byId('room-description-panel');
+        var wasOpen = panel.classList.contains('visible');
+        renderDescriptions();
+        if (open) {
+            closeDrawers(false);
+            hideMessage();
+            roomDescriptionTrigger = trigger || document.activeElement;
+            panel.classList.add('visible');
+            panel.setAttribute('aria-hidden', 'false');
+            byId('toggle-room-description').setAttribute('aria-expanded', 'true');
+            window.requestAnimationFrame(function () { byId('close-room-description').focus(); });
+            return;
+        }
+        panel.classList.remove('visible');
+        panel.setAttribute('aria-hidden', 'true');
+        byId('toggle-room-description').setAttribute('aria-expanded', 'false');
+        if (wasOpen && restoreFocus !== false && roomDescriptionTrigger && document.contains(roomDescriptionTrigger)) {
+            roomDescriptionTrigger.focus();
+        }
+        roomDescriptionTrigger = null;
     }
 
     function toggleRoomDescription(trigger) {
-        renderDescriptions();
-        if (activeDrawer && activeDrawer.id === 'room-description-panel') closeDrawers(true);
-        else openDrawer(byId('room-description-panel'), trigger);
+        var open = !byId('room-description-panel').classList.contains('visible');
+        setRoomDescriptionOpen(open, trigger, true);
     }
 
-    function setObjectDescriptionOpen(open) {
+    function setObjectDescriptionOpen(open, restoreFocus) {
         if (!activeObject) return;
         renderDescriptions();
-        byId('object-description-panel').hidden = !open;
+        var panel = byId('object-description-panel');
+        var wasOpen = panel.classList.contains('visible');
+        if (open) hideMessage();
+        panel.classList.toggle('visible', open);
+        panel.setAttribute('aria-hidden', open ? 'false' : 'true');
         byId('toggle-object-description').setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) window.requestAnimationFrame(function () { byId('close-object-description').focus(); });
+        else if (wasOpen && restoreFocus !== false) byId('toggle-object-description').focus();
     }
 
     function openObject(slug, trigger) {
@@ -679,8 +741,9 @@
         objectTrigger = trigger || document.activeElement;
         hideMessage();
         closeDrawers(false);
+        setRoomDescriptionOpen(false, null, false);
         activeObject = object;
-        setObjectDescriptionOpen(false);
+        setObjectDescriptionOpen(false, false);
         byId('object-modal-title').textContent = object.title;
         objectImage.src = object.backgroundAsset;
         objectImage.alt = object.title;
@@ -703,7 +766,8 @@
         activeObject = null;
         objectModal.hidden = true;
         playerApp.classList.remove('object-open');
-        byId('object-description-panel').hidden = true;
+        byId('object-description-panel').classList.remove('visible');
+        byId('object-description-panel').setAttribute('aria-hidden', 'true');
         setMessageVisible(byId('object-player-message'), false);
         byId('toggle-object-description').setAttribute('aria-expanded', 'false');
         if (restoreFocus !== false && objectTrigger && document.contains(objectTrigger) && objectTrigger.offsetParent !== null) {
@@ -822,6 +886,7 @@
         if (!nextRoom) return;
         if (activeObject) closeObject(false);
         closeDrawers(false);
+        setRoomDescriptionOpen(false, null, false);
         hideMessage();
         room = nextRoom;
         regions = room.data.regions || [];
@@ -883,7 +948,41 @@
         });
     }
 
-    function startNewGame(showNotice) {
+    function updateEntryAction(hasSavedRun) {
+        byId('entry-action-label').textContent = hasSavedRun ? 'Return to the house' : 'Enter the house';
+        byId('entry-action-detail').textContent = hasSavedRun ? 'Continue your saved game' : 'Begin a new game';
+    }
+
+    function showEntryScreen(hasSavedRun) {
+        insideHouse = false;
+        soundPlayer.pause();
+        stopAmbientSound();
+        playerApp.hidden = true;
+        playerEntry.hidden = false;
+        updateEntryAction(hasSavedRun);
+        window.requestAnimationFrame(function () { byId('enter-house').focus(); });
+    }
+
+    function enterHouse() {
+        playerEntry.hidden = true;
+        playerApp.hidden = false;
+        insideHouse = true;
+        if (pendingInitialEntry) {
+            pendingInitialEntry = false;
+            runActivationBehaviors('room_enter', 'room', room);
+            renderAll();
+        }
+        syncAmbientSound(room);
+        saveRun();
+        window.requestAnimationFrame(function () {
+            fitRoomToStage();
+            fitObjectToModal();
+            roomCanvas.focus();
+        });
+    }
+
+    function resetRunState(runActivation) {
+        window.clearTimeout(saveTimer);
         try { window.localStorage.removeItem(RUN_STORAGE_KEY); } catch (_error) {}
         state = emptyState();
         addInitiallyUnlockedDoors(state);
@@ -894,26 +993,48 @@
         stopAmbientSound();
         if (activeObject) closeObject(false);
         closeDrawers(false);
-        setActiveRoom(startRoom, '', true);
+        setRoomDescriptionOpen(false, null, false);
+        hideMessage();
+        setActiveRoom(startRoom, '', runActivation);
+    }
+
+    function startNewGame(showNotice) {
+        insideHouse = true;
+        pendingInitialEntry = false;
+        resetRunState(true);
         if (showNotice) showMessage('Your previous progress has been cleared.', startRoom.title);
         saveRun();
     }
 
+    function exitGameToEntry() {
+        closeGameMenu(false);
+        insideHouse = false;
+        pendingInitialEntry = true;
+        leaveFullscreenMode(false);
+        resetRunState(false);
+        showEntryScreen(false);
+    }
+
     function openGameMenu(trigger) {
         closeDrawers(false);
+        setRoomDescriptionOpen(false, null, false);
         menuTrigger = trigger || document.activeElement;
         byId('game-menu-actions').hidden = false;
         byId('new-game-confirm').hidden = true;
+        byId('exit-game-confirm').hidden = true;
         gameMenu.hidden = false;
         byId('open-game-menu').setAttribute('aria-expanded', 'true');
+        byId('open-object-game-menu').setAttribute('aria-expanded', 'true');
         window.requestAnimationFrame(function () { byId('continue-game').focus(); });
     }
 
     function closeGameMenu(restoreFocus) {
         gameMenu.hidden = true;
         byId('open-game-menu').setAttribute('aria-expanded', 'false');
+        byId('open-object-game-menu').setAttribute('aria-expanded', 'false');
         byId('game-menu-actions').hidden = false;
         byId('new-game-confirm').hidden = true;
+        byId('exit-game-confirm').hidden = true;
         if (restoreFocus !== false && menuTrigger && document.contains(menuTrigger)) menuTrigger.focus();
         menuTrigger = null;
     }
@@ -921,6 +1042,7 @@
     function requestNewGame() {
         byId('game-menu-actions').hidden = true;
         byId('new-game-confirm').hidden = false;
+        byId('exit-game-confirm').hidden = true;
         byId('cancel-new-game').focus();
     }
 
@@ -930,47 +1052,67 @@
         byId('continue-game').focus();
     }
 
+    function requestExitGame() {
+        byId('game-menu-actions').hidden = true;
+        byId('new-game-confirm').hidden = true;
+        byId('exit-game-confirm').hidden = false;
+        byId('cancel-exit-game').focus();
+    }
+
+    function cancelExitGame() {
+        byId('game-menu-actions').hidden = false;
+        byId('exit-game-confirm').hidden = true;
+        byId('continue-game').focus();
+    }
+
     function currentFullscreenElement() {
         return document.fullscreenElement || document.webkitFullscreenElement || null;
     }
 
-    function updateImmersiveControls() {
-        var enabled = playerApp.classList.contains('immersive-mode');
-        var button = byId('toggle-immersive');
-        button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-        button.querySelector('i').className = enabled ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-        byId('immersive-menu-label').textContent = enabled ? 'Restore interface' : 'Expand room';
-        byId('immersive-menu-detail').textContent = enabled
-            ? 'Show the room title and game controls'
-            : 'Hide controls and use the available screen';
+    function updateFullscreenControls() {
+        var enabled = playerApp.classList.contains('fullscreen-mode');
+        var menuButton = byId('toggle-menu-fullscreen');
+        menuButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+        menuButton.querySelector('i').className = enabled ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+        byId('fullscreen-menu-label').textContent = enabled ? 'Exit full screen' : 'Full screen';
+        byId('fullscreen-menu-detail').textContent = enabled
+            ? 'Return to the browser window'
+            : 'Use the entire display with controls visible';
+        [byId('toggle-room-fullscreen'), byId('toggle-object-fullscreen')].forEach(function (button) {
+            button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+            button.setAttribute('aria-label', enabled ? 'Exit full screen' : 'Enter full screen');
+            button.setAttribute('title', enabled ? 'Exit full screen' : 'Enter full screen');
+            button.querySelector('i').className = enabled ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+            button.querySelector('.fullscreen-label').textContent = enabled ? 'Exit full screen' : 'Full screen';
+        });
     }
 
-    function setImmersiveMode(enabled) {
-        playerApp.classList.toggle('immersive-mode', enabled);
-        updateImmersiveControls();
+    function setFullscreenMode(enabled) {
+        playerApp.classList.toggle('fullscreen-mode', enabled);
+        updateFullscreenControls();
         window.requestAnimationFrame(function () {
             fitRoomToStage();
             fitObjectToModal();
         });
     }
 
-    function enterImmersiveMode() {
-        closeGameMenu(false);
-        setImmersiveMode(true);
+    function enterFullscreenMode(trigger) {
+        if (!gameMenu.hidden) closeGameMenu(false);
+        lastFullscreenTrigger = trigger || document.activeElement;
+        setFullscreenMode(true);
         var requestFullscreen = playerApp.requestFullscreen || playerApp.webkitRequestFullscreen;
         if (requestFullscreen) {
             try {
                 var request = requestFullscreen.call(playerApp);
                 if (request && typeof request.catch === 'function') request.catch(function () {});
             } catch (_error) {
-                // CSS immersive mode remains available when native fullscreen is unavailable.
+                // The CSS fullscreen presentation remains available when the native API is unavailable.
             }
         }
-        window.requestAnimationFrame(function () { byId('exit-immersive').focus(); });
     }
 
-    function leaveImmersiveMode() {
-        setImmersiveMode(false);
+    function leaveFullscreenMode(restoreFocus) {
+        setFullscreenMode(false);
         if (currentFullscreenElement() === playerApp) {
             var exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
             if (exitFullscreen) {
@@ -980,18 +1122,26 @@
                 } catch (_error) {}
             }
         }
-        roomCanvas.focus();
+        if (restoreFocus !== false && lastFullscreenTrigger && document.contains(lastFullscreenTrigger) && lastFullscreenTrigger.offsetParent !== null) {
+            lastFullscreenTrigger.focus();
+        }
+        lastFullscreenTrigger = null;
+    }
+
+    function toggleFullscreenMode(trigger) {
+        if (playerApp.classList.contains('fullscreen-mode')) leaveFullscreenMode(true);
+        else enterFullscreenMode(trigger);
     }
 
     function handleFullscreenChange() {
         if (currentFullscreenElement() === playerApp) {
             nativeFullscreenEntered = true;
-            if (!playerApp.classList.contains('immersive-mode')) setImmersiveMode(true);
+            if (!playerApp.classList.contains('fullscreen-mode')) setFullscreenMode(true);
             return;
         }
         if (nativeFullscreenEntered) {
             nativeFullscreenEntered = false;
-            if (playerApp.classList.contains('immersive-mode')) setImmersiveMode(false);
+            if (playerApp.classList.contains('fullscreen-mode')) setFullscreenMode(false);
         }
     }
 
@@ -1039,12 +1189,15 @@
         activateRegionFromEvent(event, objectSvg, function () { return activeObject ? activeObject.data.regions || [] : []; }, clickObjectRegion);
     });
 
+    byId('enter-house').addEventListener('click', enterHouse);
     byId('toggle-sound').addEventListener('click', toggleSound);
+    byId('toggle-object-sound').addEventListener('click', toggleSound);
     byId('toggle-inventory').addEventListener('click', function () { toggleInventory(this); });
     byId('mobile-inventory').addEventListener('click', function () { toggleInventory(this); });
+    byId('toggle-object-inventory').addEventListener('click', function () { toggleInventory(this); });
     byId('close-inventory').addEventListener('click', function () { closeDrawers(true); });
     byId('toggle-room-description').addEventListener('click', function () { toggleRoomDescription(this); });
-    byId('close-room-description').addEventListener('click', function () { closeDrawers(true); });
+    byId('close-room-description').addEventListener('click', function () { setRoomDescriptionOpen(false, null, true); });
     byId('panel-scrim').addEventListener('click', function () { closeDrawers(true); });
     byId('inventory-objects').addEventListener('click', function (event) {
         var button = event.target.closest('.inventory-object');
@@ -1053,21 +1206,23 @@
     byId('toggle-object-description').addEventListener('click', function () {
         setObjectDescriptionOpen(this.getAttribute('aria-expanded') !== 'true');
     });
-    byId('close-object-description').addEventListener('click', function () { setObjectDescriptionOpen(false); });
+    byId('close-object-description').addEventListener('click', function () { setObjectDescriptionOpen(false, true); });
     byId('close-object').addEventListener('click', function () { closeObject(true); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-close-object]'), function (element) {
         element.addEventListener('click', function () { closeObject(true); });
     });
     byId('back-room').addEventListener('click', returnToPreviousRoom);
     byId('open-game-menu').addEventListener('click', function () { openGameMenu(this); });
+    byId('open-object-game-menu').addEventListener('click', function () { openGameMenu(this); });
     byId('continue-game').addEventListener('click', function () { closeGameMenu(true); });
-    byId('toggle-immersive').addEventListener('click', function () {
-        if (playerApp.classList.contains('immersive-mode')) leaveImmersiveMode();
-        else enterImmersiveMode();
-    });
-    byId('exit-immersive').addEventListener('click', leaveImmersiveMode);
+    byId('toggle-menu-fullscreen').addEventListener('click', function () { toggleFullscreenMode(this); });
+    byId('toggle-room-fullscreen').addEventListener('click', function () { toggleFullscreenMode(this); });
+    byId('toggle-object-fullscreen').addEventListener('click', function () { toggleFullscreenMode(this); });
     byId('request-new-game').addEventListener('click', requestNewGame);
     byId('cancel-new-game').addEventListener('click', cancelNewGame);
+    byId('request-exit-game').addEventListener('click', requestExitGame);
+    byId('cancel-exit-game').addEventListener('click', cancelExitGame);
+    byId('exit-game').addEventListener('click', exitGameToEntry);
     byId('start-new-game').addEventListener('click', function () {
         closeGameMenu(false);
         startNewGame(true);
@@ -1086,14 +1241,6 @@
             } else trapFocus(event, gameMenu);
             return;
         }
-        if (!objectModal.hidden) {
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                if (!byId('object-description-panel').hidden) setObjectDescriptionOpen(false);
-                else closeObject(true);
-            } else trapFocus(event, byId('object-description-panel').hidden ? objectModal : byId('object-description-panel'));
-            return;
-        }
         if (activeDrawer) {
             if (event.key === 'Escape') {
                 event.preventDefault();
@@ -1101,9 +1248,25 @@
             } else trapFocus(event, activeDrawer);
             return;
         }
-        if (event.key === 'Escape' && playerApp.classList.contains('immersive-mode')) {
+        if (!objectModal.hidden) {
+            var objectDescriptionOpen = byId('object-description-panel').classList.contains('visible');
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                if (objectDescriptionOpen) setObjectDescriptionOpen(false, true);
+                else closeObject(true);
+            } else trapFocus(event, objectDescriptionOpen ? byId('object-description-panel') : objectModal);
+            return;
+        }
+        if (byId('room-description-panel').classList.contains('visible')) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setRoomDescriptionOpen(false, null, true);
+            } else trapFocus(event, byId('room-description-panel'));
+            return;
+        }
+        if (event.key === 'Escape' && playerApp.classList.contains('fullscreen-mode')) {
             event.preventDefault();
-            leaveImmersiveMode();
+            leaveFullscreenMode(true);
         }
     });
     document.addEventListener('pointerdown', resumePendingAmbientSound, true);
@@ -1123,11 +1286,19 @@
         addInitiallyUnlockedDoors(state);
         navigationStack = savedRun.navigationStack;
         setActiveRoom(savedRun.room, savedRun.entryRegionId, false);
+        pendingInitialEntry = false;
     } else {
-        startNewGame(false);
+        state = emptyState();
+        addInitiallyUnlockedDoors(state);
+        navigationStack = [];
+        currentEntryRegionId = '';
+        setActiveRoom(startRoom, '', false);
+        pendingInitialEntry = true;
     }
 
-    fitRoomToStage();
+    updateFullscreenControls();
+    showEntryScreen(!!savedRun);
+
     if (window.ResizeObserver) {
         new ResizeObserver(fitRoomToStage).observe(playerStage);
         new ResizeObserver(fitObjectToModal).observe(objectModalBody);

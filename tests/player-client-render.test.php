@@ -80,11 +80,19 @@ foreach ($files as $name => $contents) {
 $expectations = array(
     array('index', 'nightlatch_find_start_room', 'The root player does not load the authored start room.'),
     array('index', 'id="player-stage"', 'The player stage is missing.'),
+    array('index', 'id="player-entry"', 'The outside-house player entry screen is missing.'),
+    array('index', 'id="enter-house"', 'The player entry screen has no enter/resume action.'),
     array('index', 'id="player-message"', 'The room message tray is missing.'),
     array('index', 'id="object-player-message"', 'The object message tray is missing.'),
     array('index', 'id="inventory-panel"', 'The player inventory is missing.'),
-    array('index', 'id="toggle-immersive"', 'The game menu is missing the immersive room control.'),
-    array('index', 'id="exit-immersive"', 'Immersive room mode has no persistent restore control.'),
+    array('index', 'id="toggle-menu-fullscreen"', 'The game menu is missing the fullscreen control.'),
+    array('index', 'id="toggle-room-fullscreen"', 'The room canvas has no visible fullscreen control.'),
+    array('index', 'id="toggle-object-fullscreen"', 'The object canvas has no visible fullscreen control.'),
+    array('index', 'id="request-exit-game"', 'The game menu has no exit-and-reset action.'),
+    array('index', 'id="exit-game-confirm"', 'The destructive game exit is missing confirmation.'),
+    array('index', 'id="toggle-object-sound"', 'The object viewer does not retain sound controls.'),
+    array('index', 'id="toggle-object-inventory"', 'The object viewer does not retain inventory controls.'),
+    array('index', 'id="open-object-game-menu"', 'The object viewer does not retain game-menu controls.'),
     array('index', "nightlatch_asset('js/room-rules.js'", 'The player does not load the shared rule evaluator.'),
     array('catalog', 'nightlatch_load_topology', 'The shared play catalog does not load canonical topology.'),
     array('catalog', 'nightlatch_apply_topology_to_rooms', 'The shared play catalog does not mirror canonical topology into room data.'),
@@ -96,12 +104,17 @@ $expectations = array(
     array('playerJs', 'assignGatewayDestinations', 'The player is missing stable Gateway assignment behavior.'),
     array('playerJs', 'window.NLRoomRules.canExit', 'The player is missing authored door access behavior.'),
     array('playerJs', 'syncAmbientSound', 'The player is missing cluster ambience behavior.'),
-    array('playerJs', 'requestFullscreen', 'The player does not request native fullscreen for immersive mode.'),
+    array('playerJs', 'requestFullscreen', 'The player does not request native fullscreen.'),
+    array('playerJs', 'MESSAGE_DISPLAY_MS = 4200', 'Transient player text has no timed slide-out lifecycle.'),
+    array('playerJs', 'exitGameToEntry', 'The player has no exit-to-entry reset lifecycle.'),
+    array('playerJs', 'showEntryScreen', 'The player does not return to the outside-house entry screen.'),
     array('playerJs', 'window.localStorage.setItem(RUN_STORAGE_KEY', 'The anonymous player run is not persisted.'),
     array('playerCss', '.player-main', 'The player layout styles are missing.'),
     array('playerCss', '.player-message-tray', 'Player messages are not styled outside the interaction canvas.'),
     array('playerCss', '.player-message-tray.has-message', 'Player message visibility does not preserve the desktop layout.'),
-    array('playerCss', '.player-app.immersive-mode', 'The player has no immersive room layout.'),
+    array('playerCss', '.player-app.fullscreen-mode', 'The player has no desktop/mobile fullscreen layout.'),
+    array('playerCss', '.canvas-fullscreen-button', 'The canvas fullscreen affordance is not styled.'),
+    array('playerCss', '.text-rail.visible', 'Explicit descriptions have no persistent slide-out presentation.'),
     array('playerCss', '@media (max-width: 760px)', 'The player has no mobile layout.'),
     array('playerCss', '(max-height: 560px) and (orientation: landscape)', 'The player has no compact mobile landscape layout.'),
     array('playerCss', 'height: 100dvh', 'The player does not account for mobile viewport height.'),
@@ -116,6 +129,11 @@ foreach ($expectations as $expectation) {
 if (strpos($files['index'], 'dismiss-player-message') !== false
     || strpos($files['index'], 'dismiss-object-player-message') !== false) {
     fwrite(STDERR, "Player narration must not expose controls that resize the interaction area.\n");
+    exit(1);
+}
+if (strpos($files['playerCss'], '.fullscreen-mode .player-header') !== false
+    || strpos($files['playerCss'], '.fullscreen-mode .player-travel-bar') !== false) {
+    fwrite(STDERR, "Fullscreen mode must retain the player controls.\n");
     exit(1);
 }
 if (strpos($files['playerJs'], "createElementNS('http://www.w3.org/2000/svg', 'title')") !== false

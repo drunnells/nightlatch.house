@@ -22,6 +22,7 @@ $requiredIds = array(
     'book-settings',
     'book-previous-region',
     'book-next-region',
+    'book-page-sound-picker',
     'book-pages',
     'add-book-page',
     'book-navigation-notice',
@@ -71,7 +72,15 @@ if ($bookEditorScript === false
     || strpos($html, 'js/book-editor.js') === false
     || strpos($bookEditorScript, 'navigationRole') === false
     || strpos($bookEditorScript, 'book-page-upload') === false
+    || strpos($bookEditorScript, 'book-page-generate') === false
+    || strpos($bookEditorScript, 'book-page-prompt') === false
+    || strpos($bookEditorScript, 'book-sound-option') === false
+    || strpos($bookEditorScript, 'pickerTooltip(sound.name, slug)') === false
     || strpos($bookEditorScript, 'Choose a saved overlay') === false
+    || strpos($editorScript, 'function generateBookPage') === false
+    || strpos($editorScript, 'width: canvas.width, height: canvas.height') === false
+    || strpos($editorScript, 'generatePage: generateBookPage') === false
+    || strpos($editorScript, 'sounds: window.NL_EDITOR_SOUNDS') === false
     || strpos($editorScript, 'payload.data.book = bookEditor.value()') === false) {
     fwrite(STDERR, "Object editor is missing built-in book authoring controls.\n");
     exit(1);

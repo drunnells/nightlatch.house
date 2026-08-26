@@ -9,14 +9,24 @@
         return esc(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    function pickerTooltip(label, detail) {
+        label = String(label === undefined || label === null ? '' : label);
+        detail = String(detail === undefined || detail === null ? '' : detail);
+        return detail && detail !== label ? label + '\n' + detail : label;
+    }
+
     function normalizeBook(value) {
         value = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
         return {
             enabled: !!value.enabled,
             previousRegionId: String(value.previousRegionId || ''),
             nextRegionId: String(value.nextRegionId || ''),
+            pageTurnSoundSlug: String(value.pageTurnSoundSlug || ''),
             pages: (Array.isArray(value.pages) ? value.pages : []).map(function (page) {
-                return { asset: page && page.asset ? String(page.asset) : '' };
+                return {
+                    asset: page && page.asset ? String(page.asset) : '',
+                    prompt: page && page.prompt ? String(page.prompt) : ''
+                };
             })
         };
     }
@@ -27,6 +37,8 @@
         var enabledInput = $(options.enabledInput);
         var book = normalizeBook(options.book);
         var upload = options.upload;
+        var generatePage = options.generatePage;
+        var sounds = Array.isArray(options.sounds) ? options.sounds : [];
         var onChange = options.onChange || function () {};
         var notify = options.notify || function () {};
 
@@ -73,6 +85,28 @@
             root.find('#book-next-region').html(regionOptionMarkup(book.nextRegionId, 'Next page'));
         }
 
+        function soundOptionMarkup() {
+            var selected = book.pageTurnSoundSlug;
+            var html = '<button type="button" class="logic-picker-option book-sound-option" title="No page flip sound&#10;Turn pages silently" data-value="" data-search="clear sound silent"><span><strong>No page flip sound</strong><small>Turn pages silently</small></span>' + (!selected ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            sounds.forEach(function (sound) {
+                var slug = String(sound.slug || '');
+                var search = [sound.name, slug, sound.originalFilename || ''].join(' ').toLowerCase();
+                html += '<button type="button" class="logic-picker-option book-sound-option" title="' + escAttr(pickerTooltip(sound.name, slug)) + '" role="option" aria-selected="' + (selected === slug ? 'true' : 'false') + '" data-value="' + escAttr(slug) + '" data-search="' + escAttr(search) + '"><span><strong>' + esc(sound.name) + '</strong><small>' + esc(slug) + '</small></span>' + (selected === slug ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+            });
+            if (!sounds.length) html += '<p class="logic-picker-empty">Upload sounds from the top-level Sounds tab before selecting one here.</p>';
+            return html;
+        }
+
+        function renderSoundPicker() {
+            var selected = sounds.find(function (sound) { return String(sound.slug || '') === book.pageTurnSoundSlug; }) || null;
+            var label = selected ? selected.name : (book.pageTurnSoundSlug ? 'Unavailable sound' : 'No page flip sound');
+            var detail = selected ? selected.slug : (book.pageTurnSoundSlug || (sounds.length ? 'Search saved sounds' : 'No saved sounds available'));
+            root.find('#book-page-sound-picker').html(
+                '<button type="button" class="logic-picker-toggle" id="book-page-sound-toggle" title="' + escAttr(pickerTooltip(label, detail)) + '" aria-haspopup="listbox" aria-expanded="false"><span><strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small></span><i class="fa-solid fa-chevron-down"></i></button>' +
+                '<div class="logic-picker-menu"><label class="logic-picker-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="book-page-sound-search" placeholder="Search sounds by name or slug" aria-label="Search sounds by name or slug"></label><div class="logic-picker-options" id="book-page-sound-options" role="listbox">' + soundOptionMarkup() + '</div></div>'
+            );
+        }
+
         function updateSelectTooltips() {
             root.find('select').each(function () {
                 var option = this.options[this.selectedIndex];
@@ -98,6 +132,8 @@
                     '<div class="book-page-preview">' + (page.asset ? '<img src="' + escAttr(page.asset) + '" alt="Page ' + (index + 1) + ' overlay preview">' : '<span><i class="fa-regular fa-image"></i> Add an overlay</span>') + '</div>' +
                     '<label>Reuse a saved region overlay<select class="book-page-library" title="Choose an overlay already saved on this object">' + choiceMarkup + '</select></label>' +
                     '<label class="book-page-upload-label"><span><i class="fa-solid fa-cloud-arrow-up"></i> Upload page overlay</span><input class="book-page-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>' +
+                    '<button type="button" class="overlay-generator-toggle book-page-generator-toggle" aria-expanded="' + (page._generatorExpanded ? 'true' : 'false') + '"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate page with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>' +
+                    '<div class="overlay-generator book-page-generator' + (page._generatorExpanded ? ' visible' : '') + '"><p class="hint">Gemini receives ' + (page.asset ? 'the current page overlay as its exact reference' : 'the full object artwork') + '. Describe the page content to add or change.</p><label>Page generation prompt</label><textarea class="book-page-prompt" rows="4" maxlength="2000" placeholder="Fill the open pages with faded botanical illustrations, pressed leaves, and diagram marks.">' + esc(page.prompt) + '</textarea><div class="prompt-meta"><span><i class="' + (page.asset ? 'fa-regular fa-images' : 'fa-solid fa-book-open') + '"></i> ' + (page.asset ? 'Uses current page' : 'Uses object artwork') + '</span><span class="book-page-prompt-count">' + page.prompt.length + ' / 2000</span></div><button type="button" class="btn-forge btn-block book-page-generate"><i class="fa-solid fa-sparkles"></i> ' + (page.asset ? 'Regenerate page overlay' : 'Generate page overlay') + '</button><div class="generation-status book-page-generation-status' + (page._generationMessage ? ' visible' : '') + '">' + esc(page._generationMessage || '') + '</div></div>' +
                     '</article>';
             });
             root.find('#book-pages').html(html || '<div class="book-pages-empty"><i class="fa-regular fa-file-image"></i><p>No pages yet.</p></div>');
@@ -109,6 +145,7 @@
             enabledInput.prop('checked', book.enabled);
             root.prop('hidden', !book.enabled);
             renderNavigation();
+            renderSoundPicker();
             renderPages();
         }
 
@@ -119,7 +156,7 @@
 
         enabledInput.on('change', function () {
             book.enabled = this.checked;
-            if (book.enabled && !book.pages.length) book.pages.push({ asset: '' });
+            if (book.enabled && !book.pages.length) book.pages.push({ asset: '', prompt: '' });
             render();
             changed();
         });
@@ -129,12 +166,27 @@
         }).on('change', '#book-next-region', function () {
             book.nextRegionId = String($(this).val() || '');
             changed();
+        }).on('click', '#book-page-sound-toggle', function () {
+            var picker = root.find('#book-page-sound-picker');
+            var opening = !picker.hasClass('open');
+            picker.toggleClass('open', opening);
+            $(this).attr('aria-expanded', opening ? 'true' : 'false');
+            if (opening) root.find('#book-page-sound-search').val('').trigger('input').focus();
+        }).on('input', '#book-page-sound-search', function () {
+            var query = $(this).val().trim().toLowerCase();
+            root.find('.book-sound-option[data-search]').each(function () {
+                $(this).toggle(!query || String($(this).attr('data-search') || '').indexOf(query) !== -1);
+            });
+        }).on('click', '.book-sound-option', function () {
+            book.pageTurnSoundSlug = String($(this).attr('data-value') || '');
+            renderSoundPicker();
+            changed();
         }).on('click', '#add-book-page', function () {
             if (book.pages.length >= 100) {
                 notify('A book may contain at most 100 pages.', true);
                 return;
             }
-            book.pages.push({ asset: '' });
+            book.pages.push({ asset: '', prompt: '' });
             renderPages();
             changed();
         }).on('click', '.book-page-remove', function () {
@@ -174,6 +226,48 @@
                 input.value = '';
                 notify(error.message, true);
             });
+        }).on('click', '.book-page-generator-toggle', function () {
+            var index = parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10);
+            if (!book.pages[index]) return;
+            book.pages[index]._generatorExpanded = !book.pages[index]._generatorExpanded;
+            renderPages();
+        }).on('input', '.book-page-prompt', function () {
+            var index = parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10);
+            if (!book.pages[index]) return;
+            book.pages[index].prompt = $(this).val();
+            $(this).siblings('.prompt-meta').find('.book-page-prompt-count').text(book.pages[index].prompt.length + ' / 2000');
+            changed();
+        }).on('click', '.book-page-generate', function () {
+            if (typeof generatePage !== 'function') return;
+            var card = $(this).closest('[data-page-index]');
+            var index = parseInt(card.attr('data-page-index'), 10);
+            var targetPage = book.pages[index];
+            if (!targetPage) return;
+            var prompt = String(targetPage.prompt || '').trim();
+            if (prompt.length < 3) return notify('Describe the page content first.', true);
+            targetPage._generatorExpanded = true;
+            targetPage._generationMessage = 'Preparing the page reference and sending it to Gemini. This may take a minute.';
+            card.find('.book-page-generate').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Generating page…');
+            card.find('.book-page-generation-status').text(targetPage._generationMessage).addClass('visible');
+            generatePage(prompt, targetPage.asset).then(function (result) {
+                if (book.pages.indexOf(targetPage) === -1) return;
+                targetPage.asset = result.url;
+                targetPage.prompt = prompt;
+                targetPage._generationMessage = 'Page overlay ready at ' + result.width + ' × ' + result.height + ' pixels. Save this object to keep it.';
+                renderPages();
+                changed();
+                notify('Gemini book page created');
+            }).catch(function (error) {
+                if (book.pages.indexOf(targetPage) === -1) return;
+                targetPage._generationMessage = error.message;
+                renderPages();
+                notify(error.message, true);
+            });
+        });
+
+        root.on('click', '#book-page-sound-picker', function (event) { event.stopPropagation(); });
+        $(document).on('click.nlBookEditor', function () {
+            root.find('#book-page-sound-picker').removeClass('open').find('.logic-picker-toggle').attr('aria-expanded', 'false');
         });
 
         render();

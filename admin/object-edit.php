@@ -117,6 +117,9 @@ require __DIR__ . '/_header.php';
                     <label for="book-previous-region">Previous-page region<select id="book-previous-region"></select></label>
                     <label for="book-next-region">Next-page region<select id="book-next-region"></select></label>
                 </div>
+                <label>Page flip sound</label>
+                <div class="logic-inventory-picker book-sound-picker" id="book-page-sound-picker"></div>
+                <p class="hint">Optional. This saved sound plays whenever the player successfully turns forward or backward.</p>
                 <div class="book-page-toolbar"><span>Page overlays</span><button type="button" class="btn-ghost" id="add-book-page"><i class="fa-solid fa-plus"></i> Add page</button></div>
                 <p class="hint">Each page is a full-canvas overlay. Transparent areas reveal the object artwork beneath it.</p>
                 <div class="book-pages" id="book-pages"></div>

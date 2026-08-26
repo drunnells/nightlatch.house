@@ -177,20 +177,22 @@
         button.attr('aria-expanded', open ? 'true' : 'false');
     }
 
-    function playEvaluationSounds(evaluation) {
-        (evaluation && evaluation.effects && evaluation.effects.sounds || []).forEach(function (slug) {
-            var sound = soundBySlug[slug];
-            if (!sound || !sound.assetUrl) {
-                logEvent('Sound: ' + slug, false, 'The selected sound is unavailable in this debugger.', 'audio');
-                return;
-            }
-            soundPlayer.pause();
-            soundPlayer.src = sound.assetUrl;
-            soundPlayer.currentTime = 0;
-            soundPlayer.play().catch(function () {
-                logEvent('Sound: ' + sound.name, false, 'The browser could not play this sound.', 'audio');
-            });
+    function playSoundSlug(slug) {
+        var sound = soundBySlug[slug];
+        if (!sound || !sound.assetUrl) {
+            logEvent('Sound: ' + slug, false, 'The selected sound is unavailable in this debugger.', 'audio');
+            return;
+        }
+        soundPlayer.pause();
+        soundPlayer.src = sound.assetUrl;
+        soundPlayer.currentTime = 0;
+        soundPlayer.play().catch(function () {
+            logEvent('Sound: ' + sound.name, false, 'The browser could not play this sound.', 'audio');
         });
+    }
+
+    function playEvaluationSounds(evaluation) {
+        (evaluation && evaluation.effects && evaluation.effects.sounds || []).forEach(playSoundSlug);
     }
 
     function stopAmbientSound() {
@@ -729,6 +731,7 @@
         var pageTurn = window.NLRoomRules.turnBookPage(object.data && object.data.book, activeBookPageIndex, region.id);
         if (pageTurn.handled) {
             activeBookPageIndex = pageTurn.pageIndex;
+            if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug);
             var pageMessage = pageTurn.moved
                 ? 'Page ' + (pageTurn.pageIndex + 1) + ' of ' + pageTurn.pageCount + '.'
                 : (pageTurn.direction === 'previous' ? 'Already at the first page.' : 'Already at the last page.');

@@ -358,17 +358,19 @@
         updateSoundControl();
     }
 
-    function playEvaluationSounds(evaluation) {
+    function playSoundSlug(slug) {
         if (soundMuted) return;
-        (evaluation && evaluation.effects && evaluation.effects.sounds || []).forEach(function (slug) {
-            var sound = soundBySlug[slug];
-            if (!sound || !sound.assetUrl) return;
-            soundPlayer.pause();
-            soundPlayer.src = sound.assetUrl;
-            soundPlayer.currentTime = 0;
-            var playPromise = soundPlayer.play();
-            if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(function () {});
-        });
+        var sound = soundBySlug[slug];
+        if (!sound || !sound.assetUrl) return;
+        soundPlayer.pause();
+        soundPlayer.src = sound.assetUrl;
+        soundPlayer.currentTime = 0;
+        var playPromise = soundPlayer.play();
+        if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(function () {});
+    }
+
+    function playEvaluationSounds(evaluation) {
+        (evaluation && evaluation.effects && evaluation.effects.sounds || []).forEach(playSoundSlug);
     }
 
     function stopAmbientSound() {
@@ -910,6 +912,7 @@
         if (pageTurn.handled) {
             activeBookPageIndex = pageTurn.pageIndex;
             renderObjectOverlays();
+            if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug);
             var pageMessage = pageTurn.moved
                 ? 'Page ' + (pageTurn.pageIndex + 1) + ' of ' + pageTurn.pageCount + '.'
                 : (pageTurn.direction === 'previous' ? 'You are at the first page.' : 'There are no more pages.');

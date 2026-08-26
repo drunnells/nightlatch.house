@@ -169,8 +169,10 @@ function nightlatch_validate_book_data($book, $regions, $contentKind)
 
     $previousRegionId = isset($book['previousRegionId']) ? $book['previousRegionId'] : '';
     $nextRegionId = isset($book['nextRegionId']) ? $book['nextRegionId'] : '';
+    $pageTurnSoundSlug = isset($book['pageTurnSoundSlug']) ? $book['pageTurnSoundSlug'] : '';
     nightlatch_logic_string($previousRegionId, 190, 'Previous-page region ID');
     nightlatch_logic_string($nextRegionId, 190, 'Next-page region ID');
+    nightlatch_logic_string($pageTurnSoundSlug, 190, 'Book page-turn sound slug');
     $previousRegionId = trim((string) $previousRegionId);
     $nextRegionId = trim((string) $nextRegionId);
 
@@ -183,7 +185,9 @@ function nightlatch_validate_book_data($book, $regions, $contentKind)
             throw new RuntimeException('Every book page must be an object.');
         }
         $asset = isset($page['asset']) ? $page['asset'] : '';
+        $prompt = isset($page['prompt']) ? $page['prompt'] : '';
         nightlatch_logic_string($asset, 2048, 'Book page overlay asset');
+        nightlatch_logic_string($prompt, 2000, 'Book page generation prompt');
         $asset = trim((string) $asset);
         if (!empty($book['enabled']) && $asset === '') {
             throw new RuntimeException('Every enabled book page must have an overlay asset.');

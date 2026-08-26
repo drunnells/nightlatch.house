@@ -396,6 +396,7 @@
             enabled: !!book.enabled,
             previousRegionId: String(book.previousRegionId || ''),
             nextRegionId: String(book.nextRegionId || ''),
+            pageTurnSoundSlug: String(book.pageTurnSoundSlug || ''),
             pages: (Array.isArray(book.pages) ? book.pages : []).map(function (page) {
                 return { asset: page && page.asset ? String(page.asset) : '' };
             })
@@ -415,7 +416,7 @@
         regionId = String(regionId || '');
         var direction = regionId === book.previousRegionId ? 'previous' : (regionId === book.nextRegionId ? 'next' : '');
         if (!book.enabled || !book.pages.length || !direction) {
-            return { handled: false, moved: false, direction: '', pageIndex: pageIndex, pageCount: book.pages.length };
+            return { handled: false, moved: false, direction: '', pageIndex: pageIndex, pageCount: book.pages.length, soundSlug: '' };
         }
         var nextIndex = direction === 'previous'
             ? Math.max(0, pageIndex - 1)
@@ -425,7 +426,8 @@
             moved: nextIndex !== pageIndex,
             direction: direction,
             pageIndex: nextIndex,
-            pageCount: book.pages.length
+            pageCount: book.pages.length,
+            soundSlug: nextIndex !== pageIndex ? book.pageTurnSoundSlug : ''
         };
     }
 

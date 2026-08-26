@@ -57,8 +57,9 @@ $privateCatalog = array(
                 'enabled' => true,
                 'previousRegionId' => 'page-left',
                 'nextRegionId' => 'page-right',
+                'pageTurnSoundSlug' => 'paper-turn',
                 'designerNote' => 'Private book note',
-                'pages' => array(array('asset' => 'objects/journal/overlays/page-one.png', 'caption' => 'Private page note')),
+                'pages' => array(array('asset' => 'objects/journal/overlays/page-one.png', 'prompt' => 'Private generation prompt', 'caption' => 'Private page note')),
             ),
         ),
     )),
@@ -81,7 +82,8 @@ if (isset($publicRoom['description']) || isset($publicRoom['backgroundPrompt'])
     || isset($publicCatalog['topology']['clusters'][0]['description'])
     || isset($publicCatalog['topology']['nodes'][0]['x'])
     || isset($publicCatalog['objects'][0]['description']) || isset($publicCatalog['objects'][0]['backgroundPrompt'])
-    || isset($publicBook['designerNote']) || isset($publicBook['pages'][0]['caption'])
+    || isset($publicBook['designerNote']) || isset($publicBook['pages'][0]['caption']) || isset($publicBook['pages'][0]['prompt'])
+    || $publicBook['pageTurnSoundSlug'] !== 'paper-turn'
     || $publicBook['pages'][0]['asset'] !== 'objects/journal/overlays/page-one.png'
     || $publicAction['asset'] !== 'rooms/start/overlays/runtime.jpg') {
     fwrite(STDERR, "The public play catalog leaked authoring metadata or removed runtime data.\n");
@@ -130,8 +132,10 @@ $expectations = array(
     array('playerJs', 'window.NLRoomRules.runRegion', 'The player does not evaluate shared room rules.'),
     array('playerJs', 'window.NLRoomRules.turnBookPage', 'The player is missing shared built-in book navigation.'),
     array('playerJs', 'window.NLRoomRules.bookPage', 'The player does not render book page overlays.'),
+    array('playerJs', 'if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug)', 'The player does not play the per-book page flip sound.'),
     array('debugJs', 'window.NLRoomRules.turnBookPage', 'Debug play is missing shared built-in book navigation.'),
     array('debugJs', 'window.NLRoomRules.bookPage', 'Debug play does not render book page overlays.'),
+    array('debugJs', 'if (pageTurn.soundSlug) playSoundSlug(pageTurn.soundSlug)', 'Debug play does not play the per-book page flip sound.'),
     array('playerJs', 'runActivationBehaviors', 'The player is missing automatic activation behaviors.'),
     array('playerJs', 'maximumRuns: 100', 'The player is missing the guarded automatic-behavior queue.'),
     array('playerJs', 'assignGatewayDestinations', 'The player is missing stable Gateway assignment behavior.'),

@@ -152,7 +152,11 @@ $bookData = array(
         'enabled' => true,
         'previousRegionId' => 'previous-page',
         'nextRegionId' => 'next-page',
-        'pages' => array(array('asset' => '../page-one.png'), array('asset' => '../page-two.png')),
+        'pageTurnSoundSlug' => 'paper-turn',
+        'pages' => array(
+            array('asset' => '../page-one.png', 'prompt' => 'Add a faded botanical illustration.'),
+            array('asset' => '../page-two.png', 'prompt' => ''),
+        ),
     ),
 );
 nightlatch_validate_interactive_data($bookData, 'object');
@@ -162,6 +166,26 @@ $invalidBook['book']['nextRegionId'] = 'previous-page';
 try {
     nightlatch_validate_interactive_data($invalidBook, 'object');
     fwrite(STDERR, "A book reused one region for both navigation directions.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+$invalidBook = $bookData;
+$invalidBook['book']['pages'][0]['prompt'] = str_repeat('x', 2001);
+try {
+    nightlatch_validate_interactive_data($invalidBook, 'object');
+    fwrite(STDERR, "A book accepted an oversized page generation prompt.\n");
+    exit(1);
+} catch (RuntimeException $exception) {
+    // Expected.
+}
+
+$invalidBook = $bookData;
+$invalidBook['book']['pageTurnSoundSlug'] = array('invalid');
+try {
+    nightlatch_validate_interactive_data($invalidBook, 'object');
+    fwrite(STDERR, "A book accepted an invalid page-turn sound slug.\n");
     exit(1);
 } catch (RuntimeException $exception) {
     // Expected.

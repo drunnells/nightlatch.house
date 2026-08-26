@@ -70,6 +70,10 @@ if ($bookEditorScript === false
     || strpos($bookEditorScript, 'book-page-upload') === false
     || strpos($bookEditorScript, 'book-page-generate') === false
     || strpos($bookEditorScript, 'book-page-prompt') === false
+    || strpos($bookEditorScript, 'book-page-reference') === false
+    || strpos($bookEditorScript, 'Previous page · Page') === false
+    || strpos($bookEditorScript, 'pageReference(targetPage, index)') === false
+    || strpos($bookEditorScript, 'generatePage(prompt, reference.asset, reference.mode)') === false
     || strpos($bookEditorScript, 'book-sound-option') === false
     || strpos($bookEditorScript, 'pickerTooltip(sound.name, slug)') === false
     || strpos($bookEditorScript, 'Choose a saved overlay') === false
@@ -143,7 +147,10 @@ if ($captureEndpoint === false || $overlayEndpoint === false
     exit(1);
 }
 if (strpos($editorScript, 'payload.referenceOverlayAsset = referenceOverlayAsset') === false
-    || strpos($overlayEndpoint, "\$referenceKind = \$referenceOverlayAsset ? 'overlay' : 'region'") === false
+    || strpos($editorScript, 'payload.referenceContext = referenceContext') === false
+    || strpos($editorScript, "referenceMode === 'previous' ? 'book_page_previous'") === false
+    || strpos($overlayEndpoint, "\$referenceKind = \$referenceOverlayAsset ? \$referenceContext : 'region'") === false
+    || strpos($overlayEndpoint, "'book_page_current', 'book_page_previous'") === false
     || strpos($overlayEndpoint, 'nightlatch_local_content_asset_path($sourceAsset, $assetType)') === false
     || strpos($styles, '.logic-overlay-reference-choice') === false) {
     fwrite(STDERR, "Object editor is missing Gemini editing from a saved overlay reference.\n");

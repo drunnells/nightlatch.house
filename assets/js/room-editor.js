@@ -717,7 +717,7 @@
         }, $('.upload-drop'));
     });
 
-    function requestGeneratedOverlay(prompt, bounds, referenceOverlayAsset) {
+    function requestGeneratedOverlay(prompt, bounds, referenceOverlayAsset, referenceContext) {
         var payload = {
             prompt: prompt,
             backgroundAsset: image.getAttribute('src'),
@@ -725,7 +725,10 @@
             canvas: canvas,
             bounds: bounds
         };
-        if (referenceOverlayAsset) payload.referenceOverlayAsset = referenceOverlayAsset;
+        if (referenceOverlayAsset) {
+            payload.referenceOverlayAsset = referenceOverlayAsset;
+            if (referenceContext) payload.referenceContext = referenceContext;
+        }
         return fetch('api/gemini-generate-overlay.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
@@ -743,8 +746,9 @@
         return requestGeneratedOverlay(prompt, region.bounds, referenceOverlayAsset);
     }
 
-    function generateBookPage(prompt, referenceOverlayAsset) {
-        return requestGeneratedOverlay(prompt, { x: 0, y: 0, width: canvas.width, height: canvas.height }, referenceOverlayAsset);
+    function generateBookPage(prompt, referenceOverlayAsset, referenceMode) {
+        var referenceContext = referenceMode === 'previous' ? 'book_page_previous' : (referenceMode === 'current' ? 'book_page_current' : '');
+        return requestGeneratedOverlay(prompt, { x: 0, y: 0, width: canvas.width, height: canvas.height }, referenceOverlayAsset, referenceContext);
     }
 
     function uploadAssetPromise(file, loadingElement) {

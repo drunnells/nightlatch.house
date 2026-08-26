@@ -559,6 +559,8 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 .book-page-upload-label:hover > span { color: var(--gold-light); border-color: var(--gold-dark); }
 .book-page-upload-label input { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .book-page-card.loading { opacity: .65; pointer-events: none; }
+.book-page-reference { font-size: 9px; }
+.book-page-reference-help { margin-top: 7px !important; }
 .book-page-generator textarea { font-size: 10px; }
 .book-pages-empty { min-height: 80px; padding: 18px; border: 1px dashed #35403b; }
 /* Object image extraction and Gemini reference selection */

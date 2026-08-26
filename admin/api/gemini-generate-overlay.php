@@ -30,6 +30,16 @@ try {
     if (strlen($referenceOverlayAsset) > 2048) {
         throw new RuntimeException('The reference overlay path is too long.');
     }
+    if (isset($payload['referenceContext']) && !is_string($payload['referenceContext'])) {
+        throw new RuntimeException('The reference image context is invalid.');
+    }
+    $referenceContext = trim(isset($payload['referenceContext']) ? $payload['referenceContext'] : 'overlay');
+    if (!in_array($referenceContext, array('overlay', 'book_page_current', 'book_page_previous'), true)) {
+        throw new RuntimeException('The reference image context is unsupported.');
+    }
+    if (!$referenceOverlayAsset && isset($payload['referenceContext'])) {
+        throw new RuntimeException('A reference image context requires a reference image.');
+    }
     if ($referenceOverlayAsset && $outputKind !== 'overlay') {
         throw new RuntimeException('An overlay reference may only be used to generate another overlay.');
     }
@@ -37,7 +47,7 @@ try {
         throw new RuntimeException('Select a valid region before generating an image edit.');
     }
 
-    $referenceKind = $referenceOverlayAsset ? 'overlay' : 'region';
+    $referenceKind = $referenceOverlayAsset ? $referenceContext : 'region';
     $sourceAsset = $referenceOverlayAsset ? $referenceOverlayAsset : $payload['backgroundAsset'];
     $backgroundPath = nightlatch_local_content_asset_path($sourceAsset, $assetType);
     $sourceInfo = getimagesize($backgroundPath);

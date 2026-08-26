@@ -38,9 +38,15 @@ function nightlatch_overlay_template_spec($sourceWidth, $sourceHeight)
 
 function nightlatch_overlay_edit_prompt($userPrompt, $spec, $referenceKind = 'region')
 {
-    $sourceDescription = $referenceKind === 'overlay'
-        ? 'The source inside the guide is an existing region overlay. Treat it as the exact visual reference and preserve its alignment, composition, and recognizable details except where the requested edit requires a change. '
-        : 'The source inside the guide is the exact room or object region crop. ';
+    if ($referenceKind === 'book_page_previous') {
+        $sourceDescription = 'The source inside the guide is an earlier book-page overlay selected as the visual design reference for a new page. Preserve its page geometry, placement, scale, perspective, materials, layout system, typography style, and overall art direction. Create the newly requested page content rather than copying the source text or illustrations unless the user explicitly asks for them. ';
+    } elseif ($referenceKind === 'book_page_current') {
+        $sourceDescription = 'The source inside the guide is this book page’s current overlay. Treat it as the exact visual reference and preserve its alignment, composition, and recognizable details except where the requested edit requires a change. ';
+    } elseif ($referenceKind === 'overlay') {
+        $sourceDescription = 'The source inside the guide is an existing region overlay. Treat it as the exact visual reference and preserve its alignment, composition, and recognizable details except where the requested edit requires a change. ';
+    } else {
+        $sourceDescription = 'The source inside the guide is the exact room or object region crop. ';
+    }
     return "This is a precision image-editing task for a point-and-click game overlay.\n"
         . "The attached PNG is a 1024 by 1024 template. The source image to edit is inside the cyan guide rectangle "
         . "at x={$spec['x']}, y={$spec['y']}, width={$spec['width']}, height={$spec['height']}.\n"

@@ -76,6 +76,23 @@ if (strpos($referencePrompt, 'existing region overlay') === false
     exit(1);
 }
 
+$currentPagePrompt = nightlatch_overlay_edit_prompt('Make the ink slightly more faded.', $wide, 'book_page_current');
+if (strpos($currentPagePrompt, 'current overlay') === false
+    || strpos($currentPagePrompt, 'exact visual reference') === false
+    || strpos($currentPagePrompt, 'Make the ink slightly more faded.') === false) {
+    fwrite(STDERR, "Current-page edit prompt is missing exact-reference instructions.\n");
+    exit(1);
+}
+
+$previousPagePrompt = nightlatch_overlay_edit_prompt('Create a page of mushroom sketches.', $wide, 'book_page_previous');
+if (strpos($previousPagePrompt, 'earlier book-page overlay') === false
+    || strpos($previousPagePrompt, 'visual design reference for a new page') === false
+    || strpos($previousPagePrompt, 'rather than copying the source text or illustrations') === false
+    || strpos($previousPagePrompt, 'Create a page of mushroom sketches.') === false) {
+    fwrite(STDERR, "Previous-page reference prompt is missing design-continuity instructions.\n");
+    exit(1);
+}
+
 if (extension_loaded('gd')) {
     $source = imagecreatetruecolor(400, 100);
     $red = imagecolorallocate($source, 180, 20, 20);

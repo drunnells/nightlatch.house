@@ -91,10 +91,55 @@
             });
         }
 
+        function pageReference(page, index) {
+            if (page._referenceMode === 'object') {
+                return { key: 'object', mode: 'object', asset: '', label: 'Object artwork' };
+            }
+            if (page._referenceMode === 'current' && page.asset) {
+                return { key: 'current', mode: 'current', asset: page.asset, label: 'Current page overlay' };
+            }
+            if (page._referenceMode === 'previous') {
+                var previousIndex = book.pages.indexOf(page._referencePage);
+                if (previousIndex >= 0 && previousIndex < index && page._referencePage.asset) {
+                    return {
+                        key: 'previous:' + previousIndex,
+                        mode: 'previous',
+                        asset: page._referencePage.asset,
+                        label: 'Page ' + (previousIndex + 1)
+                    };
+                }
+            }
+            return page.asset
+                ? { key: 'current', mode: 'current', asset: page.asset, label: 'Current page overlay' }
+                : { key: 'object', mode: 'object', asset: '', label: 'Object artwork' };
+        }
+
+        function pageReferenceMarkup(page, index, selectedReference) {
+            var html = '<option value="object" title="Object artwork\nUse the full object canvas as the starting image"' + (selectedReference.key === 'object' ? ' selected' : '') + '>Object artwork</option>';
+            if (page.asset) {
+                var currentFilename = String(page.asset).split('/').pop();
+                html += '<option value="current" title="Current page overlay\n' + escAttr(currentFilename) + '"' + (selectedReference.key === 'current' ? ' selected' : '') + '>Current page overlay</option>';
+            }
+            book.pages.slice(0, index).forEach(function (previousPage, previousIndex) {
+                if (!previousPage.asset) return;
+                var filename = String(previousPage.asset).split('/').pop();
+                var key = 'previous:' + previousIndex;
+                html += '<option value="' + key + '" title="Page ' + (previousIndex + 1) + '\n' + escAttr(filename) + '"' + (selectedReference.key === key ? ' selected' : '') + '>Previous page · Page ' + (previousIndex + 1) + '</option>';
+            });
+            return html;
+        }
+
+        function pageReferenceHelp(reference) {
+            if (reference.mode === 'previous') return 'Gemini uses ' + reference.label + ' as the visual design reference for this new page without replacing the source page.';
+            if (reference.mode === 'current') return 'Gemini edits the current page overlay as its exact reference. The current asset remains available until normal cleanup.';
+            return 'Gemini uses the full object artwork as the starting reference for this page.';
+        }
+
         function renderPages() {
             var choices = overlayChoices();
             var html = '';
             book.pages.forEach(function (page, index) {
+                var reference = pageReference(page, index);
                 var filename = page.asset ? String(page.asset).split('/').pop() : 'No overlay selected';
                 var choiceMarkup = '<option value="">Choose a saved overlay</option>';
                 choices.forEach(function (choice) {
@@ -110,7 +155,7 @@
                     '<label>Reuse a saved region overlay<select class="book-page-library" title="Choose an overlay already saved on this object">' + choiceMarkup + '</select></label>' +
                     '<label class="book-page-upload-label"><span><i class="fa-solid fa-cloud-arrow-up"></i> Upload page overlay</span><input class="book-page-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>' +
                     '<button type="button" class="overlay-generator-toggle book-page-generator-toggle" aria-expanded="' + (page._generatorExpanded ? 'true' : 'false') + '"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate page with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>' +
-                    '<div class="overlay-generator book-page-generator' + (page._generatorExpanded ? ' visible' : '') + '"><p class="hint">Gemini receives ' + (page.asset ? 'the current page overlay as its exact reference' : 'the full object artwork') + '. Describe the page content to add or change.</p><label>Page generation prompt</label><textarea class="book-page-prompt" rows="4" maxlength="2000" placeholder="Fill the open pages with faded botanical illustrations, pressed leaves, and diagram marks.">' + esc(page.prompt) + '</textarea><div class="prompt-meta"><span><i class="' + (page.asset ? 'fa-regular fa-images' : 'fa-solid fa-book-open') + '"></i> ' + (page.asset ? 'Uses current page' : 'Uses object artwork') + '</span><span class="book-page-prompt-count">' + page.prompt.length + ' / 2000</span></div><button type="button" class="btn-forge btn-block book-page-generate"><i class="fa-solid fa-sparkles"></i> ' + (page.asset ? 'Regenerate page overlay' : 'Generate page overlay') + '</button><div class="generation-status book-page-generation-status' + (page._generationMessage ? ' visible' : '') + '">' + esc(page._generationMessage || '') + '</div></div>' +
+                    '<div class="overlay-generator book-page-generator' + (page._generatorExpanded ? ' visible' : '') + '"><label>Reference image<select class="book-page-reference">' + pageReferenceMarkup(page, index, reference) + '</select></label><p class="hint book-page-reference-help">' + esc(pageReferenceHelp(reference)) + '</p><label>Page generation prompt</label><textarea class="book-page-prompt" rows="4" maxlength="2000" placeholder="Fill the open pages with faded botanical illustrations, pressed leaves, and diagram marks.">' + esc(page.prompt) + '</textarea><div class="prompt-meta"><span><i class="' + (reference.mode === 'object' ? 'fa-solid fa-book-open' : 'fa-regular fa-images') + '"></i> Uses ' + esc(reference.label) + '</span><span class="book-page-prompt-count">' + page.prompt.length + ' / 2000</span></div><button type="button" class="btn-forge btn-block book-page-generate"><i class="fa-solid fa-sparkles"></i> ' + (page.asset ? 'Regenerate page overlay' : 'Generate page overlay') + '</button><div class="generation-status book-page-generation-status' + (page._generationMessage ? ' visible' : '') + '">' + esc(page._generationMessage || '') + '</div></div>' +
                     '</article>';
             });
             root.find('#book-pages').html(html || '<div class="book-pages-empty"><i class="fa-regular fa-file-image"></i><p>No pages yet.</p></div>');
@@ -201,6 +246,16 @@
             if (!book.pages[index]) return;
             book.pages[index]._generatorExpanded = !book.pages[index]._generatorExpanded;
             renderPages();
+        }).on('change', '.book-page-reference', function () {
+            var index = parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10);
+            var targetPage = book.pages[index];
+            if (!targetPage) return;
+            var value = String($(this).val() || 'object');
+            targetPage._referenceMode = value === 'current' ? 'current' : (value.indexOf('previous:') === 0 ? 'previous' : 'object');
+            targetPage._referencePage = targetPage._referenceMode === 'previous'
+                ? book.pages[parseInt(value.split(':')[1], 10)] || null
+                : null;
+            renderPages();
         }).on('input', '.book-page-prompt', function () {
             var index = parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10);
             if (!book.pages[index]) return;
@@ -215,11 +270,12 @@
             if (!targetPage) return;
             var prompt = String(targetPage.prompt || '').trim();
             if (prompt.length < 3) return notify('Describe the page content first.', true);
+            var reference = pageReference(targetPage, index);
             targetPage._generatorExpanded = true;
-            targetPage._generationMessage = 'Preparing the page reference and sending it to Gemini. This may take a minute.';
+            targetPage._generationMessage = 'Preparing ' + reference.label + ' and sending it to Gemini. This may take a minute.';
             card.find('.book-page-generate').prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Generating page…');
             card.find('.book-page-generation-status').text(targetPage._generationMessage).addClass('visible');
-            generatePage(prompt, targetPage.asset).then(function (result) {
+            generatePage(prompt, reference.asset, reference.mode).then(function (result) {
                 if (book.pages.indexOf(targetPage) === -1) return;
                 targetPage.asset = result.url;
                 targetPage.prompt = prompt;

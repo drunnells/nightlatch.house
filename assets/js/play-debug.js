@@ -801,7 +801,8 @@
     $(document).on('keydown', function (event) {
         resumePendingAmbientSound();
         if (event.key !== 'Escape') return;
-        if (activeObject) closeObject(true); else closeInventory();
+        if ($('#inventory-panel').hasClass('visible')) closeInventory();
+        else if (activeObject) closeObject(true);
     });
     document.addEventListener('pointerdown', resumePendingAmbientSound, true);
 

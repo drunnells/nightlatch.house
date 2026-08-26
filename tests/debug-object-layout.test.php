@@ -24,8 +24,9 @@ if ($debugConsolePosition === false || $roomMessagePosition === false || $object
     exit(1);
 }
 if (strpos($styles, '.object-modal { position: absolute;') === false
-    || strpos($styles, '.object-modal-card { position: relative; z-index: 1; width: 80%; height: 80%;') === false) {
-    fwrite(STDERR, "The object modal is not sized relative to the room canvas.\n");
+    || strpos($styles, '.object-modal-card { position: relative; z-index: 1; width: 80%; height: 80%;') === false
+    || strpos($styles, '.inventory-panel { position: absolute; z-index: 12;') === false) {
+    fwrite(STDERR, "The debug object modal or inventory stacking is incomplete.\n");
     exit(1);
 }
 $debugScript = file_get_contents(dirname(__DIR__) . '/assets/js/play-debug.js');
@@ -50,6 +51,7 @@ if (strpos($debugMarkup, 'id="back-room"') === false
     || strpos($debugScript, 'syncAmbientSound') === false
     || strpos($debugScript, 'renderDescriptions') === false
     || strpos($debugScript, 'useActiveBookControl') === false
+    || strpos($debugScript, "if (\$('#inventory-panel').hasClass('visible')) closeInventory();") === false
     || strpos($styles, '.book-control-left { left: 9px;') === false
     || strpos($styles, '.book-control-right { right: 9px;') === false
     || strpos($debugScript, 'syncPlayerMessagePanel') === false

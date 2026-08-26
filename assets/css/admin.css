@@ -482,7 +482,7 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 #back-room { max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
 #back-room-label { max-width: 150px; display: inline-block; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 #inventory-count { min-width: 17px; height: 17px; display: inline-grid; place-items: center; color: #17150f; background: var(--gold); border-radius: 9px; font-size: 9px; }
-.inventory-panel { position: absolute; z-index: 8; top: 18px; right: 18px; bottom: 18px; width: min(350px, calc(100% - 36px)); padding: 18px; color: var(--text); background: rgba(15,21,22,.98); border: 1px solid #4b4634; box-shadow: 0 18px 60px #000; transform: translateX(calc(100% + 30px)); visibility: hidden; opacity: 0; pointer-events: none; transition: transform .2s ease, opacity .2s ease, visibility 0s linear .2s; overflow-y: auto; }
+.inventory-panel { position: absolute; z-index: 12; top: 18px; right: 18px; bottom: 18px; width: min(350px, calc(100% - 36px)); padding: 18px; color: var(--text); background: rgba(15,21,22,.98); border: 1px solid #4b4634; box-shadow: 0 18px 60px #000; transform: translateX(calc(100% + 30px)); visibility: hidden; opacity: 0; pointer-events: none; transition: transform .2s ease, opacity .2s ease, visibility 0s linear .2s; overflow-y: auto; }
 .inventory-panel.visible { transform: translateX(0); visibility: visible; opacity: 1; pointer-events: auto; transition-delay: 0s; }
 .inventory-heading { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .inventory-heading h2 { font-family: Cinzel, serif; font-size: 20px; }

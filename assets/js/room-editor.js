@@ -888,14 +888,17 @@
 
     function updatePromptCount() { $('#prompt-count').text($('#gemini-prompt').val().length + ' / 2000'); }
     $('#gemini-prompt').on('input', updatePromptCount); updatePromptCount();
-    $('#generate-image').on('click', function () {
-        var prompt = $('#gemini-prompt').val().trim();
-        var button = $(this);
+    function generateBackground(prompt) {
+        prompt = String(prompt || '').trim();
+        if (!prompt) return Promise.reject(new Error('Enter an image prompt before generating a ' + contentLabel + ' background.'));
+        $('#gemini-prompt').val(prompt);
+        updatePromptCount();
+        var button = $('#generate-image');
         var generationPayload = { prompt: prompt, assetType: editor.assetType };
         if (isObject && window.NL_OBJECT_REFERENCE) generationPayload.reference = window.NL_OBJECT_REFERENCE;
         button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Building the ' + contentLabel + '…');
         $('#generation-status').text(window.NL_OBJECT_REFERENCE ? 'Gemini is using the selected reference crop. Generation may take a minute.' : 'Gemini image generation may take a minute.').addClass('visible');
-        fetch('api/gemini-generate.php', {
+        return fetch('api/gemini-generate.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
             body: JSON.stringify(generationPayload)
@@ -905,10 +908,15 @@
             setBackground(result.url, true);
             $('#generation-status').text('New image ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + (result.referenceUsed ? ' · reference crop applied' : '') + '. Save the ' + contentLabel + ' to keep this selection.');
             toast('Gemini ' + (isObject ? 'object image' : 'background') + ' created');
+            return result;
         }).catch(function (error) {
             $('#generation-status').text(error.message);
             toast(error.message, true);
+            throw error;
         }).finally(function () { button.prop('disabled', false).html('<i class="fa-solid fa-sparkles"></i> Generate ' + (isObject ? 'object image' : 'background')); });
+    }
+    $('#generate-image').on('click', function () {
+        generateBackground($('#gemini-prompt').val()).catch(function () {});
     });
 
     $('#delete-room').on('click', function () {
@@ -1146,6 +1154,7 @@
         applyPatch: agentApplyPatch,
         simulate: agentSimulate,
         generateOverlay: agentGenerateOverlay,
+        generateBackground: generateBackground,
         save: saveRoom,
         discard: function () {
             cleanupTrackedTemporaryAssets(false).finally(function () { window.location.reload(); });

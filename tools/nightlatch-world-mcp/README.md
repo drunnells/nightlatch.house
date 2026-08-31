@@ -50,9 +50,10 @@ The pairing code lasts five minutes. The paired connection survives navigation a
 - Inspect an open room/object draft, canvas, regions, rules, flags, inventory objects, rooms, and sounds.
 - Add/select/edit regions; set metadata; replace click or automatic rule logic; add reusable overlay library entries.
 - Simulate a region against flags and inventory without saving.
+- Generate a Gemini room/object background from the user-requested prompt; the prompt and resulting artwork remain visibly unsaved for review.
 - Request a human-approved Gemini overlay generation or save/discard.
 
-Map, sound-library, and background-generation adapters are deliberately not exposed yet. They need their own visible draft adapters and confirmation flows; this server does not bypass the admin UI to reach those APIs.
+Map and sound-library adapters are deliberately not exposed yet. They need their own visible draft adapters and confirmation flows; this server does not bypass the admin UI to reach those APIs.
 
 ## Security model
 

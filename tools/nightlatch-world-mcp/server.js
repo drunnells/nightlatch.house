@@ -77,14 +77,14 @@ function requireBridge() {
     }
 }
 
-function callBridge(command, args = {}) {
+function callBridge(command, args = {}, timeoutMs = commandLifetimeMs) {
     requireBridge();
     const id = randomToken(12);
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
             pendingCommands.delete(id);
             reject(new Error('The paired admin tab did not respond. Confirm it is still open and connected.'));
-        }, commandLifetimeMs);
+        }, timeoutMs);
         pendingCommands.set(id, { resolve, reject, timeout });
         bridgeSocket.send(JSON.stringify({ type: 'command', id, command, args }));
     });
@@ -242,6 +242,18 @@ server.tool('simulate_region', 'Evaluate the current draft logic for one room/ob
 }, async ({ regionId, flags, items }) => {
     try {
         return text(await callBridge('simulate', { regionId, state: { flags: flags || {}, items: items || {} } }));
+    } catch (error) {
+        return fail(error.message);
+    }
+});
+
+server.tool('generate_background', 'Use the configured Gemini model to generate a background for the open room or object. Call this directly when the human asks for a new background: it visibly writes the prompt into the editor, starts generation immediately, and leaves the result unsaved for human review.', {
+    prompt: z.string().min(1).max(2000)
+}, async ({ prompt }) => {
+    try {
+        const result = await callBridge('generate_background', { prompt }, 120000);
+        addAudit('Generated a visible Gemini background draft.');
+        return text(result);
     } catch (error) {
         return fail(error.message);
     }

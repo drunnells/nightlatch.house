@@ -127,7 +127,7 @@ The S3 config shape currently includes:
 - Debug-play ambience uses a dedicated looping audio player so interaction sound effects do not interrupt it. It continues between rooms in the same cluster and changes or stops when the active cluster changes.
 - The player client and debug-play page must load the same authored catalog through `app/play-catalog.php`. The player uses `assets/js/play-player.js` for presentation and anonymous-run persistence while reusing `assets/js/room-rules.js` for evaluation; the debugger keeps its author-only state controls and event trace.
 - The optional local world-builder MCP integration uses `tools/nightlatch-world-mcp` and the authenticated browser bridge in `assets/js/agent-bridge.js`. Keep agent mutations as typed, visible editor-draft operations; do not expose arbitrary browser execution, direct database access, config values, cookies, or CSRF tokens to MCP.
-- The browser alone performs the existing authenticated save and image-generation requests. Save, discard, and Gemini-generation actions must stay visibly human-approved in the Agent session panel; room/object adapters must continue using `assets/js/room-editor.js` and the existing shared rule semantics.
+- The browser alone performs the existing authenticated save and image-generation requests. Save, discard, and overlay-generation actions must stay visibly human-approved in the Agent session panel. An explicit user request for a room/object background authorizes the MCP to run the normal Gemini background workflow, which must visibly populate the prompt, keep its result unsaved for review, and continue using `assets/js/room-editor.js` and the existing shared rule semantics.
 
 ## Generated Image Workflow
 

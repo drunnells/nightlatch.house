@@ -144,6 +144,17 @@
                 commandResult(message.id, true, current.simulate(args));
                 return;
             }
+            if (message.command === 'generate_background') {
+                if (!current) throw new Error('Open a room or object editor before generating a background.');
+                current.generateBackground(args.prompt || '').then(function (result) {
+                    commandResult(message.id, true, result);
+                    updatePageSummary();
+                    addLog('Agent generated a new ' + (current.snapshot().kind === 'object' ? 'object' : 'room') + ' background');
+                }).catch(function (error) {
+                    commandResult(message.id, false, null, error && error.message ? error.message : String(error));
+                });
+                return;
+            }
             if (message.command === 'request_approval') {
                 if (!current) throw new Error('Open a room or object editor before requesting approval.');
                 showApproval(args);

@@ -9,3 +9,4 @@ assets/graphics/objects/generated/*
 !assets/graphics/objects/generated/.gitkeep
 assets/sounds/uploads/*
 !assets/sounds/uploads/.gitkeep
+tools/nightlatch-world-mcp/node_modules/

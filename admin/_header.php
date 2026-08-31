@@ -32,10 +32,22 @@ $admin = nightlatch_admin();
             <a href="admins.php"><i class="fa-solid fa-user-shield"></i> Admins</a>
         </nav>
         <div class="admin-account">
+            <button type="button" class="agent-session-button" id="agent-session-launch" title="Connect a local world-building agent"><i class="fa-solid fa-wand-magic-sparkles"></i> Agent session</button>
             <span class="status-dot"></span>
             <span><?php echo nightlatch_h($admin['display_name']); ?></span>
             <a href="logout.php" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
         </div>
     <?php endif; ?>
 </header>
+<aside class="agent-session" id="agent-session" hidden aria-label="World-building agent session">
+    <header><div><span class="eyebrow">Local world builder</span><h2>Agent session</h2></div><button type="button" class="icon-button" id="agent-session-close" aria-label="Close agent session"><i class="fa-solid fa-xmark"></i></button></header>
+    <p class="hint">Pair a local MCP server. The agent can edit the open draft, but you approve saves, discards, and image generation here.</p>
+    <label for="agent-bridge-url">Local bridge URL</label><input id="agent-bridge-url" value="ws://127.0.0.1:8321" inputmode="url" autocomplete="off">
+    <label for="agent-pairing-code">Pairing code</label><input id="agent-pairing-code" placeholder="Paste the code from the agent" autocomplete="off">
+    <button type="button" class="btn-forge btn-block" id="agent-session-connect"><i class="fa-solid fa-plug"></i> Connect local agent</button>
+    <div class="agent-session-state" id="agent-session-state" aria-live="polite">Not connected</div>
+    <div class="agent-session-page" id="agent-session-page">Open a room or object editor to begin.</div>
+    <div class="agent-session-approval" id="agent-session-approval" hidden></div>
+    <ol class="agent-session-log" id="agent-session-log" aria-label="Agent session activity"></ol>
+</aside>
 <main class="admin-main">

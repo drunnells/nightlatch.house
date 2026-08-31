@@ -949,6 +949,211 @@
         window.setTimeout(function () { $('#toast').removeClass('visible'); }, 3200);
     }
 
+    function agentCopy(value) {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function agentRegion(regionId) {
+        var region = regions.find(function (candidate) { return String(candidate.id) === String(regionId); });
+        if (!region) throw new Error('That region is not present in the open ' + contentLabel + '.');
+        return region;
+    }
+
+    function agentBounds(bounds) {
+        bounds = bounds || {};
+        var source = {
+            x: Number(bounds.x), y: Number(bounds.y), width: Number(bounds.width), height: Number(bounds.height)
+        };
+        if (!isFinite(source.x)) source.x = 0;
+        if (!isFinite(source.y)) source.y = 0;
+        if (!isFinite(source.width) || source.width < 1) source.width = 1;
+        if (!isFinite(source.height) || source.height < 1) source.height = 1;
+        var positioned = window.NLRegionBounds.move(source, 0, 0, canvas);
+        return window.NLRegionBounds.resize(positioned, 0, 0, canvas, 1);
+    }
+
+    function agentSnapshot() {
+        return {
+            kind: editor.kind,
+            id: room.id || 0,
+            title: $('#room-title').val().trim(),
+            slug: $('#room-slug').val().trim(),
+            description: $('#room-description').val(),
+            playerDescription: $('#player-description').val(),
+            backgroundAsset: image.getAttribute('src'),
+            backgroundPrompt: $('#gemini-prompt').val(),
+            canvas: agentCopy(canvas),
+            regions: agentCopy(regions),
+            selectedRegionId: selectedId || '',
+            dirty: $('#save-indicator').hasClass('dirty'),
+            portable: isObject ? $('#object-portable').prop('checked') : false,
+            inventoryKey: isObject ? $('#inventory-key').val().trim() : '',
+            gateway: isObject ? null : agentCopy(gateway),
+            availableObjects: agentCopy(window.NL_EDITOR_OBJECTS || []),
+            availableFlags: agentCopy(window.NL_EDITOR_FLAGS || []),
+            availableRooms: agentCopy(window.NL_EDITOR_ROOMS || []),
+            availableSounds: agentCopy(window.NL_EDITOR_SOUNDS || [])
+        };
+    }
+
+    function agentSetMetadata(operation) {
+        var values = {
+            title: '#room-title', slug: '#room-slug', description: '#room-description',
+            playerDescription: '#player-description', backgroundPrompt: '#gemini-prompt'
+        };
+        Object.keys(values).forEach(function (field) {
+            if (Object.prototype.hasOwnProperty.call(operation, field)) $(values[field]).val(String(operation[field] || ''));
+        });
+        if (isObject && Object.prototype.hasOwnProperty.call(operation, 'portable')) {
+            $('#object-portable').prop('checked', !!operation.portable);
+            updatePortableFields();
+        }
+        if (isObject && Object.prototype.hasOwnProperty.call(operation, 'inventoryKey')) $('#inventory-key').val(String(operation.inventoryKey || ''));
+    }
+
+    function agentSetDoor(region, door) {
+        if (isObject || !door || typeof door !== 'object') return;
+        if (region.kind !== 'door') return;
+        region.door = $.extend({}, region.door || {}, {
+            targetRoom: door.targetRoom === undefined ? (region.door ? region.door.targetRoom : '') : String(door.targetRoom || ''),
+            unlocked: door.unlocked === undefined ? !!(region.door && region.door.unlocked) : !!door.unlocked,
+            connectionMode: door.connectionMode === 'gateway' ? 'gateway' : 'static',
+            returnMode: door.returnMode || (region.door && region.door.returnMode) || 'behind',
+            targetRegionId: door.targetRegionId === undefined ? (region.door && region.door.targetRegionId ? region.door.targetRegionId : '') : String(door.targetRegionId || '')
+        });
+    }
+
+    function agentApplyPatch(operations) {
+        if (!Array.isArray(operations) || !operations.length) throw new Error('Provide at least one draft operation.');
+        var results = [];
+        var changed = false;
+        operations.forEach(function (operation) {
+            if (!operation || typeof operation !== 'object') throw new Error('Every draft operation must be an object.');
+            var type = operation.type;
+            if (type === 'set_metadata') {
+                agentSetMetadata(operation);
+                results.push({ type: type });
+                changed = true;
+                return;
+            }
+            if (type === 'add_region') {
+                var newRegion = blankRegion(agentBounds(operation.bounds));
+                newRegion.name = String(operation.name || 'New region').trim() || 'New region';
+                newRegion.kind = !isObject && operation.kind === 'door' ? 'door' : 'interaction';
+                if (operation.logic) newRegion.logic = window.NLRoomRules.normalizeLogic({ logic: operation.logic });
+                if (operation.automaticBehaviors) newRegion.automaticBehaviors = window.NLRoomRules.normalizeAutomaticBehaviors({ automaticBehaviors: operation.automaticBehaviors });
+                agentSetDoor(newRegion, operation.door || {});
+                regions.push(newRegion);
+                if (bookEditor) bookEditor.refreshRegions();
+                selectRegion(newRegion.id);
+                results.push({ type: type, regionId: newRegion.id });
+                changed = true;
+                return;
+            }
+            if (type === 'update_region') {
+                var region = agentRegion(operation.regionId);
+                if (Object.prototype.hasOwnProperty.call(operation, 'name')) region.name = String(operation.name || 'Untitled region').trim() || 'Untitled region';
+                if (!isObject && (operation.kind === 'door' || operation.kind === 'interaction')) {
+                    var previousKind = region.kind;
+                    region.kind = operation.kind;
+                    if (previousKind === 'door' && region.kind !== 'door') {
+                        [region.logic].concat((region.automaticBehaviors || []).map(function (behavior) { return behavior.logic; })).forEach(function (logic) {
+                            logic.branches.forEach(function (branch) {
+                                branch.actions = branch.actions.filter(function (action) { return action.type !== 'unlock_door'; });
+                            });
+                            logic.elseActions = logic.elseActions.filter(function (action) { return action.type !== 'unlock_door'; });
+                        });
+                        gateway.exitRegionIds = gateway.exitRegionIds.filter(function (candidate) { return String(candidate) !== String(region.id); });
+                    }
+                }
+                if (operation.bounds) region.bounds = agentBounds(operation.bounds);
+                if (operation.door) agentSetDoor(region, operation.door);
+                results.push({ type: type, regionId: region.id });
+                changed = true;
+                return;
+            }
+            if (type === 'replace_logic') {
+                var logicRegion = agentRegion(operation.regionId);
+                logicRegion.logic = window.NLRoomRules.normalizeLogic({ logic: operation.logic || {} });
+                results.push({ type: type, regionId: logicRegion.id });
+                changed = true;
+                return;
+            }
+            if (type === 'replace_automatic_behaviors') {
+                var behaviorRegion = agentRegion(operation.regionId);
+                behaviorRegion.automaticBehaviors = window.NLRoomRules.normalizeAutomaticBehaviors({ automaticBehaviors: operation.automaticBehaviors || [] });
+                results.push({ type: type, regionId: behaviorRegion.id });
+                changed = true;
+                return;
+            }
+            if (type === 'add_overlay_library_item') {
+                var overlayRegion = agentRegion(operation.regionId);
+                var asset = String(operation.asset || '').trim();
+                if (!asset) throw new Error('An overlay library item needs an asset URL.');
+                overlayRegion.overlayLibrary = Array.isArray(overlayRegion.overlayLibrary) ? overlayRegion.overlayLibrary : [];
+                if (overlayRegion.overlayLibrary.length >= 100) throw new Error('This region already has the maximum 100 saved overlays.');
+                overlayRegion.overlayLibrary.push({ asset: asset, prompt: String(operation.prompt || ''), source: String(operation.source || 'selected') });
+                results.push({ type: type, regionId: overlayRegion.id, asset: asset });
+                changed = true;
+                return;
+            }
+            if (type === 'select_region') {
+                var selectedRegion = agentRegion(operation.regionId);
+                selectRegion(selectedRegion.id);
+                results.push({ type: type, regionId: selectedRegion.id });
+                return;
+            }
+            throw new Error('Unsupported draft operation: ' + String(type || 'unknown') + '.');
+        });
+        renderRegions();
+        fillInspector();
+        renderGatewaySettings();
+        if (changed) {
+            markDirty();
+            toast('Agent draft updated');
+        }
+        return { operations: results, snapshot: agentSnapshot() };
+    }
+
+    function agentSimulate(options) {
+        options = options || {};
+        var region = agentRegion(options.regionId || selectedId);
+        var state = agentCopy(options.state || {});
+        state.flags = state.flags || {};
+        state.items = state.items || {};
+        return window.NLRoomRules.runRegion(region, state, { regionId: region.id, regionKind: region.kind });
+    }
+
+    function agentGenerateOverlay(options) {
+        options = options || {};
+        var region = agentRegion(options.regionId || selectedId);
+        var prompt = String(options.prompt || '').trim();
+        if (!prompt) return Promise.reject(new Error('An overlay generation request needs a prompt.'));
+        selectRegion(region.id);
+        return generateOverlay(prompt, options.referenceOverlayAsset || '').then(function (result) {
+            region.overlayLibrary = Array.isArray(region.overlayLibrary) ? region.overlayLibrary : [];
+            if (region.overlayLibrary.length >= 100) throw new Error('This region already has the maximum 100 saved overlays.');
+            region.overlayLibrary.push({ asset: result.url, prompt: prompt, source: 'generated' });
+            markDirty();
+            if (logicEditor) logicEditor.refresh();
+            renderCapturedOverlaySummary();
+            return result;
+        });
+    }
+
+    window.NLRoomEditorBridge = {
+        snapshot: agentSnapshot,
+        applyPatch: agentApplyPatch,
+        simulate: agentSimulate,
+        generateOverlay: agentGenerateOverlay,
+        save: saveRoom,
+        discard: function () {
+            cleanupTrackedTemporaryAssets(false).finally(function () { window.location.reload(); });
+            return { reloading: true };
+        }
+    };
+    window.dispatchEvent(new CustomEvent('nl-agent-bridge-ready'));
+
     if (isObject) {
         window.NLObjectEditorBridge = {
             getBackgroundAsset: function () { return image.getAttribute('src'); },

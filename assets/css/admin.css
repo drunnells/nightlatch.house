@@ -41,8 +41,28 @@ code { color: #c0aaa0; background: #0a0e0f; padding: 2px 6px; border-radius: 3px
 .admin-nav a:hover { color: var(--text); background: #101617; }
 .admin-account { margin-left: auto; display: flex; align-items: center; gap: 9px; padding: 0 20px; color: #abb3b1; font-size: 12px; }
 .admin-account a { margin-left: 8px; color: #727e7d; }
+.agent-session-button { height: 30px; border: 1px solid #4b4935; border-radius: 3px; color: #d8c58c; background: #181912; padding: 0 10px; font-size: 11px; cursor: pointer; }
+.agent-session-button:hover { border-color: var(--gold); color: #f0d99b; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #70a47e; box-shadow: 0 0 8px #70a47e; }
 .admin-main { min-height: calc(100vh - 62px); }
+
+/* Local MCP world-builder session */
+.agent-session { position: fixed; z-index: 80; top: 74px; right: 18px; width: min(390px, calc(100vw - 36px)); max-height: calc(100vh - 92px); overflow: auto; padding: 17px; border: 1px solid #5a5138; background: #111718; box-shadow: 0 20px 55px rgba(0, 0, 0, .55); }
+.agent-session[hidden] { display: none; }
+.agent-session > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.agent-session h2 { font-size: 18px; }
+.agent-session label { display: block; margin: 14px 0 6px; color: #bdc6c2; font-size: 11px; }
+.agent-session input { width: 100%; height: 36px; border: 1px solid #374443; color: #e7e3d8; background: #0c1112; padding: 0 10px; }
+.agent-session-state, .agent-session-page { margin-top: 12px; padding: 9px 10px; border: 1px solid #263332; background: #0b1011; color: #98a5a1; font-size: 11px; line-height: 1.45; }
+.agent-session-state.connected { border-color: #416e5d; color: #9ac6ad; }
+.agent-session-approval { margin-top: 13px; padding: 12px; border: 1px solid #8d753f; background: #1d1a12; }
+.agent-session-approval strong, .agent-session-approval small { display: block; }
+.agent-session-approval small { margin-top: 5px; color: #b8ad8d; line-height: 1.45; }
+.agent-session-approval .agent-approval-actions { display: flex; gap: 8px; margin-top: 11px; }
+.agent-session-approval .agent-approval-actions button { flex: 1; }
+.agent-session-log { display: grid; gap: 7px; padding: 0; margin: 14px 0 0; list-style: none; }
+.agent-session-log li { padding: 8px 9px; border-left: 2px solid #3e504c; background: #0d1314; color: #aeb8b5; font-size: 11px; line-height: 1.4; }
+.agent-session-log li.error { border-color: var(--danger); color: #ddaaa4; }
 
 .page-wrap { width: min(1220px, calc(100% - 64px)); margin: 0 auto; padding: 54px 0 80px; }
 .narrow-wrap { width: min(1050px, calc(100% - 64px)); }

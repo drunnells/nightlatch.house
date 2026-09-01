@@ -475,6 +475,20 @@ function nightlatch_delete_local_temporary_asset_files($paths, $referencedFiles 
 
 function nightlatch_asset_mime_type($path)
 {
+    // Generated backgrounds are progressive JPEGs. Some MIME databases label
+    // them image/pjpeg even though they are ordinary JPEG files, so identify
+    // supported raster assets from their image data before asking finfo about
+    // SVG and audio assets.
+    $imageInfo = @getimagesize($path);
+    if (is_array($imageInfo) && isset($imageInfo[2])) {
+        $rasterMimeTypes = array(
+            IMAGETYPE_PNG => 'image/png',
+            IMAGETYPE_JPEG => 'image/jpeg',
+            IMAGETYPE_WEBP => 'image/webp',
+        );
+        $imageType = (int) $imageInfo[2];
+        if (isset($rasterMimeTypes[$imageType])) return $rasterMimeTypes[$imageType];
+    }
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime = (string) $finfo->file($path);
     $allowed = array(

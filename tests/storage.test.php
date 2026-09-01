@@ -64,4 +64,18 @@ if ($localDemo !== NIGHTLATCH_ROOT . '/assets/graphics/rooms/demo-room.svg') {
     exit(1);
 }
 
+if (extension_loaded('gd')) {
+    $generatedJpeg = tempnam(sys_get_temp_dir(), 'nightlatch-storage-jpeg-');
+    $image = imagecreatetruecolor(2, 2);
+    imagefill($image, 0, 0, imagecolorallocate($image, 40, 60, 80));
+    imageinterlace($image, true);
+    imagejpeg($image, $generatedJpeg, 80);
+    $generatedMime = nightlatch_asset_mime_type($generatedJpeg);
+    @unlink($generatedJpeg);
+    if ($generatedMime !== 'image/jpeg') {
+        fwrite(STDERR, "Generated progressive JPEG assets were not normalized for storage.\n");
+        exit(1);
+    }
+}
+
 fwrite(STDOUT, "storage tests passed\n");

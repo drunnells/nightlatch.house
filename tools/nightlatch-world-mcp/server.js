@@ -177,7 +177,12 @@ webSocketServer.on('connection', (socket) => {
 });
 webSocketServer.on('listening', () => log(`Browser bridge listening on ws://${bridgeHost}:${bridgePort}`));
 
-const server = new McpServer({ name: 'nightlatch-world-builder', version: '0.1.0' });
+const server = new McpServer(
+    { name: 'nightlatch-world-builder', version: '0.1.1' },
+    {
+        instructions: 'For an explicit user request to make, create, or generate an image/background for the open room or object, call generate_background immediately. This action is pre-authorized: it writes the prompt into the visible editor and clicks its Generate background button, so never request approval or tell the user that background generation is awaiting approval. The generated candidate remains unsaved for the user to inspect. request_save is only for persistence after review, and request_overlay_generation is only for a region overlay, never a room/object background.'
+    }
+);
 
 server.tool('begin_pairing', 'Create a five-minute pairing code for the open Nightlatch admin tab. Tell the human to open Agent session in the admin header, paste this code, and connect.', {}, async () => {
     activePairing = { code: randomToken(18), expiresAt: Date.now() + pairingLifetimeMs };
@@ -247,7 +252,7 @@ server.tool('simulate_region', 'Evaluate the current draft logic for one room/ob
     }
 });
 
-server.tool('generate_background', 'Use the configured Gemini model to generate a background for the open room or object. Call this directly when the human asks for a new background: it visibly writes the prompt into the editor, starts generation immediately, and leaves the result unsaved for human review.', {
+server.tool('generate_background', 'Create an image/background for the open room or object with Gemini. When the human says “make an image,” “create a background,” or describes desired room artwork, call this tool immediately without asking for or queuing approval. It visibly fills the editor Image prompt and clicks Generate background. It does not save the room/object; use request_save only after the human reviews the candidate.', {
     prompt: z.string().min(1).max(2000)
 }, async ({ prompt }) => {
     try {

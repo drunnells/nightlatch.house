@@ -63,6 +63,10 @@ if ($localDemo !== NIGHTLATCH_ROOT . '/assets/graphics/rooms/demo-room.svg') {
     fwrite(STDERR, "Local editor asset resolution changed unexpectedly.\n");
     exit(1);
 }
+if (nightlatch_asset_mime_type($localDemo) !== 'image/svg+xml') {
+    fwrite(STDERR, "Default SVG room artwork was not normalized for storage.\n");
+    exit(1);
+}
 
 if (extension_loaded('gd')) {
     $generatedJpeg = tempnam(sys_get_temp_dir(), 'nightlatch-storage-jpeg-');

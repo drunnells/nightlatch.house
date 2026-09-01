@@ -489,6 +489,11 @@ function nightlatch_asset_mime_type($path)
         $imageType = (int) $imageInfo[2];
         if (isset($rasterMimeTypes[$imageType])) return $rasterMimeTypes[$imageType];
     }
+    // The default editor artwork is SVG. Some production MIME databases report
+    // SVG files as plain text, so recognize SVG markup directly and keep its
+    // stored content type consistent.
+    $svgSource = @file_get_contents($path, false, null, 0, 65536);
+    if (is_string($svgSource) && preg_match('/<svg(?:\\s|>)/i', $svgSource)) return 'image/svg+xml';
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime = (string) $finfo->file($path);
     $allowed = array(

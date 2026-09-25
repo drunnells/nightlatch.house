@@ -71,6 +71,7 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
     assert.strictEqual(button.disabled, true);
     button.trigger('click');
     assert.strictEqual(h.pending.length, 1, 'Repeated clicks must not send duplicate requests');
+    assert.strictEqual(h.pending[0].url, 'api/generate-room-description.php');
     assert.strictEqual(JSON.parse(h.pending[0].options.body).backgroundAsset, '../assets/graphics/rooms/uploads/room.png');
     assert.strictEqual(h.pending[0].options.headers['X-CSRF-Token'], 'test-token');
     h.pending.shift().resolve({ ok: true, description: 'Moonlight spills across the empty study.' });

@@ -118,7 +118,7 @@
         updateDescriptionButton();
         descriptionButton.html('<i class="fa-solid fa-spinner fa-spin"></i>');
         $('#description-generation-status').text('Writing a short description from the room image…');
-        fetch('api/gemini-room-description.php', {
+        fetch('api/generate-room-description.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
             body: JSON.stringify({ backgroundAsset: asset })

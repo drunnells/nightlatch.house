@@ -132,7 +132,7 @@ The S3 config shape currently includes:
 ## Generated Image Workflow
 
 - Room backgrounds and object close-up images may be uploaded or generated with the configured Google Gemini image model. Room generation may use a full reference image uploaded for the session or selected from saved backgrounds, overlays, and book pages. References are author-only, are cleared on save or exit, and uploaded references use the existing temporary-asset cleanup.
-- The Room settings description wand uses the current raster background to draft at most 40 words of player-facing text. It uses the Gemini `description_model` (default `gemini-2.5-flash`) and leaves the result editable until normal Save; stale responses must not overwrite newer artwork or description edits.
+- The Room settings description wand uses the current raster background to draft at most 40 words of player-facing text. It uses `ai.openai.api_key` and `ai.openai.model` through the OpenAI Responses API; the configured model must support image inputs. It leaves the result editable until normal Save; stale responses must not overwrite newer artwork or description edits.
 - Object artwork may be cropped with a rectangle or point-by-point lasso. Lasso output is a transparent PNG outside the selected polygon, and existing object region bounds must be remapped or removed when they fall outside the crop.
 - Object generation may use a rectangular reference crop selected from a searchable thumbnail library of saved raster room and object images. Validate and extract the selected reference area on the server before sending it to Gemini.
 - A branch-specific region overlay may be uploaded or generated from an image-editing prompt.
@@ -181,6 +181,7 @@ The S3 config shape currently includes:
 - Lint changed PHP files directly, or enumerate PHP files while explicitly excluding `config/config.php`.
 - Run the relevant focused tests after changes:
   - `php tests/gemini-request.test.php`
+  - `php tests/openai-request.test.php`
   - `php tests/image-assets.test.php`
   - `node tests/room-image-tools.test.js`
   - `php tests/image.test.php`
@@ -202,4 +203,4 @@ The S3 config shape currently includes:
   - `node tests/region-bounds.test.js`
 - Run `node --check` on changed browser JavaScript files.
 - Run `git diff --check` before handing off changes.
-- Do not make a live Gemini generation request during routine verification because it consumes external API usage. Use the request-builder and image-processing tests unless the user explicitly asks for a live generation test.
+- Do not make live Gemini or OpenAI generation requests during routine verification because they consume external API usage. Use the request-builder and image-processing tests unless the user explicitly asks for a live generation test.

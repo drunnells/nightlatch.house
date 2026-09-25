@@ -53,33 +53,4 @@ if ($roomReference['generationConfig']['imageConfig']['aspectRatio'] !== '16:9'
     || strpos($roomReference['contents'][0]['parts'][0]['text'], 'Match the blue wallpaper.') === false) {
     throw new RuntimeException('Room references must preserve the author prompt, image, and landscape output.');
 }
-$descriptionRequest = nightlatch_gemini_room_description_request('room-bytes', 'image/jpeg');
-if ($descriptionRequest['generationConfig']['responseModalities'] !== array('TEXT')
-    || isset($descriptionRequest['generationConfig']['imageConfig'])
-    || base64_decode($descriptionRequest['contents'][0]['parts'][1]['inlineData']['data']) !== 'room-bytes') {
-    throw new RuntimeException('Room descriptions must send the artwork and request only text.');
-}
-$descriptionResponse = array('candidates' => array(array('finishReason' => 'STOP', 'content' => array('parts' => array(
-    array('thought' => true, 'text' => 'Private reasoning must not appear.'),
-    array('text' => "Moonlight falls across a dusty desk.\nA tall clock stands beside the door."),
-)))));
-if (nightlatch_gemini_room_description_text($descriptionResponse) !== 'Moonlight falls across a dusty desk. A tall clock stands beside the door.') {
-    throw new RuntimeException('Descriptions must omit thought parts and normalize whitespace.');
-}
-$invalidResponses = array(array(), array('candidates' => array(array('finishReason' => 'SAFETY'))));
-$tooLong = $descriptionResponse;
-$tooLong['candidates'][0]['content']['parts'] = array(array('text' => str_repeat('word ', 41)));
-$invalidResponses[] = $tooLong;
-$truncated = $descriptionResponse;
-$truncated['candidates'][0]['finishReason'] = 'MAX_TOKENS';
-$invalidResponses[] = $truncated;
-foreach ($invalidResponses as $invalid) {
-    try {
-        nightlatch_gemini_room_description_text($invalid);
-    } catch (RuntimeException $exception) {
-        continue;
-    }
-    throw new RuntimeException('Empty, blocked, truncated, and overlong descriptions must be rejected.');
-}
-
 fwrite(STDOUT, "gemini-request tests passed\n");

@@ -72,7 +72,12 @@ $privateCatalog = array(
         'gateways' => array(),
     ),
 );
+$useCondition = array('type' => 'condition', 'source' => 'use', 'key' => 'brass_key', 'operator' => 'exists', 'value' => '');
+$privateCatalog['objects'][0]['data']['regions'][] = array('id' => 'lock', 'logic' => array('branches' => array(array('when' => $useCondition, 'actions' => array()))));
 $publicCatalog = nightlatch_public_play_catalog($privateCatalog);
+if ($publicCatalog['objects'][0]['data']['regions'][0]['logic']['branches'][0]['when'] !== $useCondition) {
+    throw new RuntimeException('The public catalog must preserve Use conditions.');
+}
 $publicRoom = $publicCatalog['rooms'][0];
 $publicRegion = $publicRoom['data']['regions'][0];
 $publicAction = $publicRegion['logic']['branches'][0]['actions'][0];
@@ -119,6 +124,8 @@ $expectations = array(
     array('index', 'id="toggle-room-description"', 'The room artwork has no visible description control.'),
     array('index', 'id="toggle-room-fullscreen"', 'The room canvas has no visible fullscreen control.'),
     array('index', 'id="toggle-object-description"', 'The object artwork has no visible description control.'),
+    array('index', 'id="use-object-item"', 'The object viewer has no inventory Use control.'),
+    array('playerJs', 'runObjectUse(object, item.inventoryKey, state)', 'The player must use shared inventory Use semantics.'),
     array('index', 'id="toggle-object-fullscreen"', 'The object canvas has no visible fullscreen control.'),
     array('index', 'id="close-object"', 'The object artwork has no visible close control.'),
     array('index', 'id="object-book-controls"', 'The object artwork has no built-in book controls.'),

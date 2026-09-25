@@ -29,7 +29,7 @@
         return {
             id: logicId('condition', id),
             type: 'condition',
-            source: source === 'item' ? 'item' : 'flag',
+            source: source === 'use' ? 'use' : (source === 'item' ? 'item' : 'flag'),
             key: key || '',
             operator: operator || 'equals',
             value: value === undefined || value === null ? '' : String(value)
@@ -159,13 +159,20 @@
         return (region && Array.isArray(region.automaticBehaviors) ? region.automaticBehaviors : []).map(normalizeAutomaticBehavior);
     }
 
+    // Use conditions belong to a discrete inventory-selection event, never saved state.
+    function expressionUsesItem(expression, key) {
+        if (!expression) return false;
+        if (expression.type === 'group') return (expression.children || []).some(function (child) { return expressionUsesItem(child, key); });
+        return expression.source === 'use' && (key === undefined || (key && expression.key === key));
+    }
+
     function regionAcceptsPlayerClick(region) {
         region = region || {};
         if (region.kind === 'door') return true;
         if (region.logic && Array.isArray(region.logic.branches)) {
             return region.logic.branches.some(function (branch) {
-                return !!branch && Array.isArray(branch.actions) && branch.actions.length > 0;
-            }) || (Array.isArray(region.logic.elseActions) && region.logic.elseActions.length > 0);
+                return !!branch && !expressionUsesItem(branch.when) && Array.isArray(branch.actions) && branch.actions.length > 0;
+            }) || (region.logic.branches.some(function (branch) { return branch && !expressionUsesItem(branch.when); }) && Array.isArray(region.logic.elseActions) && region.logic.elseActions.length > 0);
         }
         var outcomes = [region.success, region.failure];
         return outcomes.some(function (outcome) {
@@ -186,17 +193,21 @@
         return state.flags || {};
     }
 
-    function conditionPasses(condition, state) {
+    function conditionPasses(condition, state, interaction) {
         if (!condition || condition.source === 'always') return true;
         if (condition.type === 'group') {
             var children = condition.children || [];
             if (!children.length) return true;
             if (condition.match === 'any') {
-                return children.some(function (child) { return conditionPasses(child, state); });
+                return children.some(function (child) { return conditionPasses(child, state, interaction); });
             }
-            return children.every(function (child) { return conditionPasses(child, state); });
+            return children.every(function (child) { return conditionPasses(child, state, interaction); });
         }
         if (!condition.key) return false;
+        if (condition.source === 'use') {
+            return condition.operator === 'exists' && !!interaction && interaction.usedItemKey === condition.key
+                && Object.prototype.hasOwnProperty.call((state && state.items) || {}, condition.key);
+        }
         var bucket = stateBucket(state, condition.source);
         var exists = Object.prototype.hasOwnProperty.call(bucket, condition.key);
         if (condition.operator === 'exists') return exists;
@@ -205,11 +216,11 @@
         return exists && String(bucket[condition.key]) === String(condition.value);
     }
 
-    function conditionTrace(condition, state, trace) {
+    function conditionTrace(condition, state, trace, interaction) {
         trace = trace || [];
         if (!condition || condition.source === 'always') return trace;
         if (condition.type === 'group') {
-            (condition.children || []).forEach(function (child) { conditionTrace(child, state, trace); });
+            (condition.children || []).forEach(function (child) { conditionTrace(child, state, trace, interaction); });
             return trace;
         }
         trace.push({
@@ -217,18 +228,21 @@
             key: condition.key,
             operator: condition.operator,
             value: condition.value,
-            passed: conditionPasses(condition, state)
+            passed: conditionPasses(condition, state, interaction)
         });
         return trace;
     }
 
-    function evaluateLogic(rawLogic, state) {
+    function evaluateLogic(rawLogic, state, interaction) {
         var logic = normalizeLogic({ logic: rawLogic });
         var testedBranches = [];
         for (var index = 0; index < logic.branches.length; index += 1) {
             var branch = logic.branches[index];
-            var passed = conditionPasses(branch.when, state);
-            var trace = conditionTrace(branch.when, state);
+            var eligible = interaction && interaction.usedItemKey
+                ? expressionUsesItem(branch.when, interaction.usedItemKey) : !expressionUsesItem(branch.when);
+            if (!eligible) continue;
+            var passed = conditionPasses(branch.when, state, interaction);
+            var trace = conditionTrace(branch.when, state, [], interaction);
             testedBranches.push({
                 branchId: branch.id,
                 branchIndex: index,
@@ -255,7 +269,7 @@
             conditionMatched: false,
             trace: [],
             testedBranches: testedBranches,
-            actions: logic.elseActions
+            actions: testedBranches.length ? logic.elseActions : []
         };
     }
 
@@ -354,6 +368,30 @@
             if (!options.regionKind) options.regionKind = region.kind;
         }
         return runLogic(normalizeLogic(region), state, options);
+    }
+
+    function runObjectUse(object, itemKey, state) {
+        var result = null;
+        var fallback = null;
+        if (itemKey && Object.prototype.hasOwnProperty.call((state && state.items) || {}, itemKey)) {
+            var regions = object && object.data && object.data.regions || [];
+            for (var index = 0; index < regions.length; index += 1) {
+                var region = regions[index];
+                var evaluation = evaluateLogic(normalizeLogic(region), state, { usedItemKey: itemKey });
+                if (!evaluation.testedBranches.length) continue;
+                evaluation.region = region;
+                if (evaluation.conditionMatched) { result = evaluation; break; }
+                if (!fallback) fallback = evaluation;
+            }
+        }
+        result = result || fallback || {
+            region: null, branchId: null, branchIndex: -1, branchLabel: 'USE', conditionMatched: false,
+            trace: [], testedBranches: [], actions: []
+        };
+        var key = result.region ? 'object:' + object.slug + ':' + result.region.id : '';
+        result.effects = applyActions(result.actions, state, { overlayKey: key, doorKey: key, regionKind: 'interaction' });
+        if (!result.effects.applied.length) result.effects.message = 'Nothing happens.';
+        return result;
     }
 
     function applySuccess(region, state, options) {
@@ -482,6 +520,8 @@
     }
 
     return {
+        runObjectUse: runObjectUse,
+        expressionUsesItem: expressionUsesItem,
         conditionNode: conditionNode,
         conditionGroup: conditionGroup,
         defaultLogic: defaultLogic,

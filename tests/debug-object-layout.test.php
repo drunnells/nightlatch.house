@@ -33,6 +33,8 @@ $debugScript = file_get_contents(dirname(__DIR__) . '/assets/js/play-debug.js');
 if (strpos($debugMarkup, 'id="back-room"') === false
     || strpos($debugMarkup, 'id="toggle-room-description"') === false
     || strpos($debugMarkup, 'id="toggle-object-description"') === false
+    || strpos($debugMarkup, 'id="use-object-item"') === false
+    || strpos($debugScript, 'runObjectUse(object, item.inventoryKey, state)') === false
     || strpos($debugMarkup, 'id="debug-book-controls"') === false
     || strpos($debugMarkup, 'id="debug-book-open"') === false
     || strpos($debugMarkup, 'id="debug-book-next"') === false

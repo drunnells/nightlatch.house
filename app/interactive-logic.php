@@ -16,7 +16,7 @@ function nightlatch_logic_string($value, $maximum, $label)
     }
 }
 
-function nightlatch_validate_condition_expression($expression, $depth, &$conditionCount)
+function nightlatch_validate_condition_expression($expression, $depth, &$conditionCount, $allowUse = false)
 {
     if (!is_array($expression)) {
         throw new RuntimeException('Every logic condition must be an object.');
@@ -35,7 +35,7 @@ function nightlatch_validate_condition_expression($expression, $depth, &$conditi
             throw new RuntimeException('A condition group must contain a condition list.');
         }
         foreach ($children as $child) {
-            nightlatch_validate_condition_expression($child, $depth + 1, $conditionCount);
+            nightlatch_validate_condition_expression($child, $depth + 1, $conditionCount, $allowUse);
         }
         return;
     }
@@ -48,11 +48,14 @@ function nightlatch_validate_condition_expression($expression, $depth, &$conditi
     }
     $source = isset($expression['source']) ? $expression['source'] : '';
     $operator = isset($expression['operator']) ? $expression['operator'] : '';
-    if (!in_array($source, array('flag', 'item'), true)) {
-        throw new RuntimeException('Conditions may inspect only flags or inventory items.');
+    if (!in_array($source, $allowUse ? array('flag', 'item', 'use') : array('flag', 'item'), true)) {
+        throw new RuntimeException('Use conditions are allowed only in object player-interaction logic; other conditions must inspect flags or inventory items.');
     }
     if (!in_array($operator, array('equals', 'not_equals', 'exists', 'not_exists'), true)) {
         throw new RuntimeException('Unsupported condition comparison.');
+    }
+    if ($source === 'use' && $operator !== 'exists') {
+        throw new RuntimeException('Use conditions must match the selected inventory object.');
     }
     nightlatch_logic_string(isset($expression['key']) ? $expression['key'] : '', 190, 'Condition key');
     nightlatch_logic_string(isset($expression['value']) ? $expression['value'] : '', 1000, 'Condition value');
@@ -105,7 +108,7 @@ function nightlatch_validate_logic_actions($actions, $contentKind, $regionKind)
     }
 }
 
-function nightlatch_validate_region_logic($logic, $contentKind, $regionKind)
+function nightlatch_validate_region_logic($logic, $contentKind, $regionKind, $automatic = false)
 {
     if (!is_array($logic)) {
         throw new RuntimeException('Region logic must be an object.');
@@ -119,7 +122,7 @@ function nightlatch_validate_region_logic($logic, $contentKind, $regionKind)
             throw new RuntimeException('Every logic branch must be an object.');
         }
         $conditionCount = 0;
-        nightlatch_validate_condition_expression(isset($branch['when']) ? $branch['when'] : array(), 0, $conditionCount);
+        nightlatch_validate_condition_expression(isset($branch['when']) ? $branch['when'] : array(), 0, $conditionCount, $contentKind === 'object' && !$automatic);
         nightlatch_validate_logic_actions(isset($branch['actions']) ? $branch['actions'] : array(), $contentKind, $regionKind);
     }
     nightlatch_validate_logic_actions(isset($logic['elseActions']) ? $logic['elseActions'] : array(), $contentKind, $regionKind);
@@ -154,7 +157,7 @@ function nightlatch_validate_automatic_behaviors($behaviors, $contentKind, $regi
             }
             nightlatch_logic_string(isset($trigger['key']) ? $trigger['key'] : '', 190, 'State-change trigger key');
         }
-        nightlatch_validate_region_logic(isset($behavior['logic']) ? $behavior['logic'] : array(), $contentKind, $regionKind);
+        nightlatch_validate_region_logic(isset($behavior['logic']) ? $behavior['logic'] : array(), $contentKind, $regionKind, true);
     }
 }
 

@@ -29,6 +29,7 @@
     var state = null;
     var currentEntryRegionId = '';
     var activeObject = null;
+    var useTarget = null;
     var activeBookPageIndex = -1;
     var navigationStack = [];
     var activeDrawer = null;
@@ -604,6 +605,7 @@
 
     function renderInventory() {
         var owned = ownedObjects();
+        byId('inventory-title').textContent = useTarget ? 'Use on ' + useTarget.title : 'Inventory';
         var count = String(owned.length);
         byId('inventory-count').textContent = count;
         byId('inventory-count').setAttribute('aria-label', count + (owned.length === 1 ? ' item' : ' items'));
@@ -625,6 +627,7 @@
             button.className = 'inventory-object';
             button.setAttribute('data-object-slug', object.slug);
             button.innerHTML = '<span class="inventory-thumb"><img alt=""></span><span class="inventory-object-copy"><strong></strong><small>Examine</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i>';
+            button.querySelector('small').textContent = useTarget ? 'Use' : 'Examine';
             button.querySelector('img').src = object.backgroundAsset;
             button.querySelector('strong').textContent = object.title;
             container.appendChild(button);
@@ -726,6 +729,8 @@
     }
 
     function closeDrawers(restoreFocus) {
+        useTarget = null;
+        byId('use-object-item').setAttribute('aria-expanded', 'false');
         var panels = [byId('inventory-panel')];
         panels.forEach(function (panel) {
             panel.classList.remove('visible');
@@ -761,6 +766,7 @@
         else {
             setRoomDescriptionOpen(false, null, false);
             openDrawer(byId('inventory-panel'), trigger);
+            renderInventory();
         }
     }
 
@@ -849,6 +855,7 @@
 
     function closeObject(restoreFocus) {
         if (!activeObject) return;
+        if (useTarget) closeDrawers(false);
         setObjectDescriptionOpen(false, false);
         activeObject = null;
         activeBookPageIndex = -1;
@@ -944,6 +951,18 @@
         }
         showMessage(message, sourceRoom.title);
         if (destination && pass && !openedObject) navigateToRoom(destination, message, navigation);
+    }
+
+    function useInventoryItem(slug) {
+        var object = useTarget;
+        var item = objectBySlug[slug];
+        closeDrawers(true);
+        if (!object || activeObject !== object || !item || !item.portable || !item.inventoryKey) return;
+        var evaluation = window.NLRoomRules.runObjectUse(object, item.inventoryKey, state);
+        playEvaluationSounds(evaluation);
+        dispatchStateChanges(evaluation.effects.changes, object.title + ' · Use ' + item.title);
+        renderAll();
+        showMessage(evaluation.effects.message || defaultInteractionMessage(evaluation), object.title);
     }
 
     function clickObjectRegion(region) {
@@ -1287,7 +1306,17 @@
     byId('panel-scrim').addEventListener('click', function () { closeDrawers(true); });
     byId('inventory-objects').addEventListener('click', function (event) {
         var button = event.target.closest('.inventory-object');
-        if (button) openObject(button.getAttribute('data-object-slug'), button);
+        if (!button) return;
+        if (useTarget) useInventoryItem(button.getAttribute('data-object-slug'));
+        else openObject(button.getAttribute('data-object-slug'), button);
+    });
+    byId('use-object-item').addEventListener('click', function () {
+        if (!activeObject) return;
+        if (useTarget) { closeDrawers(true); return; }
+        openDrawer(byId('inventory-panel'), this);
+        useTarget = activeObject;
+        this.setAttribute('aria-expanded', 'true');
+        renderInventory();
     });
     byId('toggle-object-description').addEventListener('click', function () {
         setObjectDescriptionOpen(this.getAttribute('aria-expanded') !== 'true');

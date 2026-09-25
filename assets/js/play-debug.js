@@ -19,6 +19,7 @@
     var regions = room.data.regions || [];
     var state;
     var activeObject = null;
+    var useTarget = null;
     var activeBookPageIndex = -1;
     var navigationStack = [];
     var svg = document.getElementById('play-regions');
@@ -484,6 +485,7 @@
 
     function renderInventory() {
         var owned = ownedObjects();
+        $('#inventory-title').text(useTarget ? 'Use on ' + useTarget.title : 'Inventory');
         $('#inventory-count').text(owned.length);
         if (!owned.length) {
             $('#inventory-objects').html('<div class="inventory-empty"><i class="fa-solid fa-suitcase"></i><p>No portable objects are currently owned.</p><small>Add an object inventory key under Items or grant it from a region.</small></div>');
@@ -491,7 +493,7 @@
         }
         var html = '';
         owned.forEach(function (object) {
-            html += '<button class="inventory-object" data-object-slug="' + esc(object.slug) + '"><span class="inventory-thumb"><img src="' + esc(object.backgroundAsset) + '" alt=""></span><span><strong>' + esc(object.title) + '</strong><small>' + esc(object.inventoryKey) + '</small></span><i class="fa-solid fa-magnifying-glass"></i></button>';
+            html += '<button class="inventory-object" data-object-slug="' + esc(object.slug) + '"><span class="inventory-thumb"><img src="' + esc(object.backgroundAsset) + '" alt=""></span><span><strong>' + esc(object.title) + '</strong><small>' + esc(useTarget ? 'Use · ' + object.inventoryKey : object.inventoryKey) + '</small></span><i class="fa-solid fa-magnifying-glass"></i></button>';
         });
         $('#inventory-objects').html(html);
     }
@@ -540,7 +542,7 @@
                 return;
             }
             branch.trace.forEach(function (condition) {
-                var comparison = condition.operator === 'exists' ? 'exists' : condition.operator === 'not_exists' ? 'does not exist' : condition.operator.replace('_', ' ') + ' “' + condition.value + '”';
+                var comparison = condition.source === 'use' ? 'selected for Use' : condition.operator === 'exists' ? 'exists' : condition.operator === 'not_exists' ? 'does not exist' : condition.operator.replace('_', ' ') + ' “' + condition.value + '”';
                 parts.push((condition.passed ? '✓ ' : '✕ ') + branch.branchLabel + ' · ' + condition.source + ' ' + condition.key + ' ' + comparison);
             });
         });
@@ -690,6 +692,7 @@
 
     function closeObject(logClose) {
         if (!activeObject) return;
+        if (useTarget) closeInventory();
         var title = activeObject.title;
         activeObject = null;
         activeBookPageIndex = -1;
@@ -702,12 +705,20 @@
         if (logClose !== false) logEvent(title, true, 'Closed object viewer and returned to the room.', 'viewer');
     }
 
-    function openInventory() {
+    function openInventory(target) {
+        useTarget = target || null;
+        $('#use-object-item').attr('aria-expanded', useTarget ? 'true' : 'false');
+        renderInventory();
         $('#inventory-panel').addClass('visible').attr('aria-hidden', 'false');
         $('#toggle-inventory').attr('aria-expanded', 'true');
+        document.getElementById('close-inventory').focus();
     }
 
     function closeInventory() {
+        var restoreUseFocus = !!useTarget;
+        useTarget = null;
+        $('#use-object-item').attr('aria-expanded', 'false');
+        if (restoreUseFocus && activeObject) document.getElementById('use-object-item').focus();
         $('#inventory-panel').removeClass('visible').attr('aria-hidden', 'true');
         $('#toggle-inventory').attr('aria-expanded', 'false');
     }
@@ -765,6 +776,20 @@
         if (destination && pass && !openedObject) navigateToRoom(destination, message, navigation);
     }
 
+    function useInventoryItem(slug) {
+        var object = useTarget;
+        var item = objectBySlug[slug];
+        closeInventory();
+        if (!object || activeObject !== object || !item || !item.portable || !item.inventoryKey) return;
+        var evaluation = window.NLRoomRules.runObjectUse(object, item.inventoryKey, state);
+        playEvaluationSounds(evaluation);
+        dispatchStateChanges(evaluation.effects.changes, object.title + ' · Use ' + item.title);
+        var message = evaluation.effects.message || (evaluation.effects.applied.length ? 'Something has changed.' : 'Nothing happens.');
+        renderAll();
+        showMessage(message);
+        logEvent('Use ' + item.title + (evaluation.region ? ' · ' + evaluation.region.name : ''), evaluation.conditionMatched, message, object.title, evaluation);
+    }
+
     function clickObjectRegion(region) {
         if (!activeObject) return;
         var object = activeObject;
@@ -794,7 +819,11 @@
     $('#gateway-return-actions').on('click', '.gateway-return-button', returnThroughGateway);
     $('#toggle-inventory').on('click', function () { $('#inventory-panel').hasClass('visible') ? closeInventory() : openInventory(); });
     $('#close-inventory').on('click', closeInventory);
-    $('#inventory-objects').on('click', '.inventory-object', function () { openObject($(this).attr('data-object-slug'), 'inventory'); });
+    $('#inventory-objects').on('click', '.inventory-object', function () {
+        if (useTarget) useInventoryItem($(this).attr('data-object-slug'));
+        else openObject($(this).attr('data-object-slug'), 'inventory');
+    });
+    $('#use-object-item').on('click', function () { if (activeObject) { if (useTarget) closeInventory(); else openInventory(activeObject); } });
     $('#close-object, [data-close-object]').on('click', function () { closeObject(true); });
     $('#debug-book-controls').on('click', '[data-book-control]', function () {
         if (!this.disabled) useActiveBookControl($(this).attr('data-book-control'), this);
@@ -804,6 +833,13 @@
     $('[data-close-description]').on('click', function () { setDescriptionOpen($(this).attr('data-close-description'), false); });
     $(document).on('keydown', function (event) {
         resumePendingAmbientSound();
+        if (event.key === 'Tab' && $('#inventory-panel').hasClass('visible')) {
+            var controls = $('#inventory-panel').find('button:visible');
+            var first = controls[0];
+            var last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }
         if (event.key !== 'Escape') return;
         if ($('#inventory-panel').hasClass('visible')) closeInventory();
         else if (activeObject) closeObject(true);

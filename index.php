@@ -166,9 +166,12 @@ try {
                         </div>
                     </div>
                     <div class="canvas-context-toolbar" role="group" aria-label="Object controls">
+                        <div class="object-context-actions">
                         <button type="button" class="canvas-action-button canvas-description-button" id="toggle-object-description" aria-label="Describe this object" aria-controls="object-player-message" aria-expanded="false" title="Describe this object">
                             <i class="fa-regular fa-eye" aria-hidden="true"></i><span>Describe</span>
                         </button>
+                        <button type="button" class="canvas-action-button" id="use-object-item" aria-label="Use an inventory item on this object" aria-controls="inventory-panel" aria-expanded="false" title="Use an inventory item"><i class="fa-solid fa-hand-sparkles" aria-hidden="true"></i><span>Use</span></button>
+                        </div>
                         <button type="button" class="canvas-action-button canvas-fullscreen-button" id="toggle-object-fullscreen" aria-label="Enter full screen" aria-pressed="false" title="Enter full screen">
                             <i class="fa-solid fa-expand" aria-hidden="true"></i><span class="fullscreen-label">Full screen</span>
                         </button>

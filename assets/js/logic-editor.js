@@ -276,6 +276,7 @@
         }
 
         function conditionOptions(selected, source) {
+            if (source === 'use') return '<option value="exists">Selected for Use</option>';
             var labels = source === 'item' ? {
                 equals: 'Value equals', not_equals: 'Value does not equal', exists: 'Player has item', not_exists: 'Player lacks item'
             } : {
@@ -287,14 +288,15 @@
         }
 
         function renderCondition(condition) {
-            var hideValue = condition.operator === 'exists' || condition.operator === 'not_exists';
-            var keyField = condition.source === 'item'
+            var hideValue = condition.source === 'use' || condition.operator === 'exists' || condition.operator === 'not_exists';
+            var keyField = condition.source === 'item' || condition.source === 'use'
                 ? inventoryPicker(condition.key)
                 : flagPicker(condition.key);
             return '<div class="logic-condition" data-node-id="' + esc(condition.id) + '">' +
                 '<select class="logic-condition-field logic-source" data-field="source" aria-label="Condition source">' +
                     '<option value="flag"' + (condition.source === 'flag' ? ' selected' : '') + '>Flag</option>' +
                     '<option value="item"' + (condition.source === 'item' ? ' selected' : '') + '>Player item</option>' +
+                    (options.isObject && !activeBehavior() ? '<option value="use"' + (condition.source === 'use' ? ' selected' : '') + '>Use</option>' : '') +
                 '</select>' +
                 keyField +
                 '<select class="logic-condition-field logic-operator" data-field="operator" aria-label="Condition comparison">' + conditionOptions(condition.operator, condition.source) + '</select>' +
@@ -396,7 +398,7 @@
 
         function renderBehaviorNavigation() {
             var html = '<section class="logic-behavior-manager"><div class="logic-behavior-heading"><div><strong>Region behaviors</strong><small>A region can respond to clicks and automatic game events.</small></div><button type="button" class="btn-ghost logic-add-behavior"' + ((region.automaticBehaviors || []).length >= maxAutomaticBehaviors ? ' disabled' : '') + '><i class="fa-solid fa-plus"></i> Automatic</button></div><div class="logic-behavior-tabs">';
-            html += '<button type="button" class="logic-behavior-tab' + (activeBehaviorId === 'click' ? ' active' : '') + '" data-behavior-id="click"><i class="fa-solid fa-hand-pointer"></i><span><strong>Player click</strong><small>When this region is clicked</small></span></button>';
+            html += '<button type="button" class="logic-behavior-tab' + (activeBehaviorId === 'click' ? ' active' : '') + '" data-behavior-id="click"><i class="fa-solid fa-hand-pointer"></i><span><strong>' + (options.isObject ? 'Player interaction' : 'Player click') + '</strong><small>' + (options.isObject ? 'Region clicks and inventory Use' : 'When this region is clicked') + '</small></span></button>';
             (region.automaticBehaviors || []).forEach(function (behavior) {
                 html += '<button type="button" class="logic-behavior-tab' + (activeBehaviorId === behavior.id ? ' active' : '') + '" data-behavior-id="' + esc(behavior.id) + '"><i class="fa-solid fa-bolt"></i><span><strong>' + esc(behavior.name) + '</strong><small>' + esc(triggerSummary(behavior)) + '</small></span></button>';
             });
@@ -428,7 +430,8 @@
             var behavior = activeBehavior();
             var logic = activeLogic();
             if (!logic) return;
-            var html = renderBehaviorNavigation() + renderTriggerSettings(behavior) + '<div class="logic-editor-intro"><strong>' + (behavior ? esc(behavior.name) : 'Click interaction') + ' logic</strong><small>Branches run from top to bottom; the first match wins.</small></div>';
+            var html = renderBehaviorNavigation() + renderTriggerSettings(behavior) + '<div class="logic-editor-intro"><strong>' + (behavior ? esc(behavior.name) : (options.isObject ? 'Click / Use interaction' : 'Click interaction')) + ' logic</strong><small>Branches run from top to bottom; the first match wins.</small></div>';
+            if (options.isObject && !behavior) html += '<p class="hint">Use conditions run when an inventory item is selected in the object viewer. The first matching Use branch across regions wins. An unrecognized item does nothing; a recognized item can run ELSE when other conditions fail. Use branches do not run on region clicks.</p>';
             logic.branches.forEach(function (branch, index) { html += renderBranch(branch, index, logic.branches.length); });
             html += '<button type="button" class="btn-ghost btn-block logic-add-branch"><i class="fa-solid fa-code-branch"></i> Add ELSE IF</button>' +
                 '<section class="logic-branch logic-else" data-branch-id="else"><header class="logic-branch-header"><span class="logic-branch-label">ELSE</span><small>Runs when no branch matches</small></header>' + renderActions(logic.elseActions, 'else') + '</section>';
@@ -511,7 +514,7 @@
             if (field === 'source' && previous !== found.node.source) {
                 found.node.key = '';
                 found.node.value = '';
-                found.node.operator = found.node.source === 'item' ? 'exists' : 'equals';
+                found.node.operator = (found.node.source === 'item' || found.node.source === 'use') ? 'exists' : 'equals';
             }
             changed();
             if (event.type === 'change' && (field === 'source' || field === 'operator')) render();

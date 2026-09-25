@@ -68,7 +68,7 @@ require __DIR__ . '/_header.php';
                 <div class="object-modal" id="object-modal" hidden role="dialog" aria-modal="true" aria-labelledby="object-modal-title">
                     <div class="object-modal-backdrop" data-close-object></div>
                     <section class="object-modal-card">
-                        <header class="object-modal-header"><div><span class="eyebrow">Examining</span><h2 id="object-modal-title">Object</h2></div><div class="object-modal-actions"><button type="button" class="description-eye" id="toggle-object-description" aria-label="Show object description" aria-expanded="false"><i class="fa-solid fa-eye"></i></button><button id="close-object" class="object-close" aria-label="Close object and return to room"><i class="fa-solid fa-xmark"></i><span>Close</span></button></div></header>
+                        <header class="object-modal-header"><div><span class="eyebrow">Examining</span><h2 id="object-modal-title">Object</h2></div><div class="object-modal-actions"><button type="button" class="description-eye" id="toggle-object-description" aria-label="Show object description" aria-expanded="false"><i class="fa-solid fa-eye"></i></button><button type="button" class="btn-ghost" id="use-object-item" aria-controls="inventory-panel" aria-expanded="false"><i class="fa-solid fa-hand-sparkles"></i> Use</button><button id="close-object" class="object-close" aria-label="Close object and return to room"><i class="fa-solid fa-xmark"></i><span>Close</span></button></div></header>
                         <div class="object-modal-body" id="object-modal-body">
                             <div class="object-play-canvas" id="object-play-canvas">
                                 <img id="object-image" alt="">
@@ -90,8 +90,8 @@ require __DIR__ . '/_header.php';
                     </section>
                 </div>
             </div>
-            <aside class="inventory-panel" id="inventory-panel" aria-hidden="true">
-                <div class="inventory-heading"><div><span class="eyebrow">Carried objects</span><h2>Inventory</h2></div><button id="close-inventory" class="icon-button" aria-label="Close inventory"><i class="fa-solid fa-xmark"></i></button></div>
+            <aside class="inventory-panel" id="inventory-panel" role="dialog" aria-modal="true" aria-labelledby="inventory-title" aria-hidden="true">
+                <div class="inventory-heading"><div><span class="eyebrow">Carried objects</span><h2 id="inventory-title">Inventory</h2></div><button id="close-inventory" class="icon-button" aria-label="Close inventory"><i class="fa-solid fa-xmark"></i></button></div>
                 <div id="inventory-objects"></div>
             </aside>
         </div>

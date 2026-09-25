@@ -271,6 +271,8 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     background: rgba(28, 26, 18, .9);
     transform: translateX(-50%);
 }
+.object-context-actions { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+.object-context-actions .canvas-action-button { position: relative; left: auto; transform: none; }
 .canvas-action-button:hover,
 .canvas-action-button[aria-expanded="true"],
 .canvas-action-button[aria-pressed="true"] { color: var(--gold-light); border-color: var(--gold-light); background: rgba(36, 33, 21, .96); }

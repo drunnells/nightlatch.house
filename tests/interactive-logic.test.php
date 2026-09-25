@@ -205,4 +205,24 @@ try {
     // Expected.
 }
 
+$useCondition = array('type' => 'condition', 'source' => 'use', 'key' => 'brass_key', 'operator' => 'exists', 'value' => '');
+$useData = array('version' => 2, 'regions' => array(array('id' => 'lock', 'kind' => 'interaction', 'logic' => array(
+    'branches' => array(array('when' => array('type' => 'group', 'match' => 'all', 'children' => array($useCondition)), 'actions' => array(array('type' => 'message', 'text' => 'Unlocked')))),
+    'elseActions' => array(),
+))));
+nightlatch_validate_interactive_data($useData, 'object');
+$badUses = array(array($useData, 'room'));
+$automaticUse = $useData;
+$automaticUse['regions'][0]['automaticBehaviors'] = array(array('trigger' => array('type' => 'object_open'), 'logic' => $useData['regions'][0]['logic']));
+$badUses[] = array($automaticUse, 'object');
+$negativeUse = $useData;
+$negativeUse['regions'][0]['logic']['branches'][0]['when']['children'][0]['operator'] = 'not_exists';
+$badUses[] = array($negativeUse, 'object');
+foreach ($badUses as $badUse) {
+    try {
+        nightlatch_validate_interactive_data($badUse[0], $badUse[1]);
+    } catch (RuntimeException $expected) { continue; }
+    throw new RuntimeException('Use conditions must be positive object player-interaction conditions.');
+}
+
 fwrite(STDOUT, "interactive-logic tests passed\n");

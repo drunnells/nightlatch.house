@@ -105,6 +105,7 @@ The S3 config shape currently includes:
 - Automatic behaviors may watch an actual change to one flag or inventory item. Room regions may also run when their room is entered, and object regions may run when their object viewer opens.
 - State-change results are coalesced per action list, unchanged values emit no event, and chained automatic behaviors run through a guarded deterministic queue. A remote behavior applies overlays and door state to its owning room/object-qualified region key.
 - Persistent automatic results may run for inactive content, but messages, sounds, and object viewers are presented only when the behavior's owning room or object is active.
+- Object player-interaction branches may use a `source: use` condition with a stable inventory key and `operator: exists`. The object viewer’s Use picker dispatches the selected owned item through the shared rule engine in both clients. Use branches run only for that selection, never for ordinary region clicks or automatic behaviors; Use-only regions are passive to clicks. Across object regions in authored order, the first matching Use branch runs once. If the item is recognized but other conditions fail, the first applicable region’s ELSE runs; unrecognized or unowned items show “Nothing happens.” Use context is transient, and items are consumed only by explicit remove-item results.
 - Conditions are recursive groups that match `all` (AND) or `any` (OR) child conditions. They may inspect string-valued flags or inventory ownership and may be nested at most three group levels deep.
 - An empty condition group is an unconditional match. Blank condition keys must not pass at runtime.
 - Branch results are ordered actions. Supported actions show player messages, show/replace or clear the region overlay, set or clear flags, grant or remove items, unlock a door, open an object viewer, replace a selected room/object player description, or play a selected saved sound.
@@ -200,6 +201,7 @@ The S3 config shape currently includes:
   - `php tests/storage.test.php`
   - `php tests/sounds-editor-render.test.php`
   - `node tests/room-rules.test.js`
+  - `node tests/object-use.test.js`
   - `node tests/region-bounds.test.js`
 - Run `node --check` on changed browser JavaScript files.
 - Run `git diff --check` before handing off changes.

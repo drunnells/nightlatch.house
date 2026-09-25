@@ -216,6 +216,7 @@ require __DIR__ . '/_header.php';
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/logic-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/region-bounds.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/description-tools.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/image-area-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-image-tools.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

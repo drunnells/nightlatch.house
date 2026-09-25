@@ -6,11 +6,7 @@
     var assets = [];
     var selectedUpload = '';
     var referenceRevision = 0;
-    var descriptionRevision = 0;
-    var describing = false;
     var workspace = document.getElementById('room-reference-workspace');
-    var image = document.getElementById('room-image');
-    var descriptionButton = $('#generate-player-description');
 
     function closePicker() {
         workspace.hidden = true;
@@ -102,44 +98,6 @@
             input.prop('disabled', false).val('');
         });
     });
-
-    function updateDescriptionButton() {
-        var available = /\.(png|jpe?g|webp)(?:\?|$)/i.test(bridge.getBackgroundAsset() || '');
-        descriptionButton.prop('hidden', !available).prop('disabled', describing || !available);
-    }
-    new MutationObserver(function () { descriptionRevision += 1; updateDescriptionButton(); }).observe(image, { attributes: true, attributeFilter: ['src'] });
-    $('#player-description').on('input change', function () { descriptionRevision += 1; });
-    descriptionButton.on('click', function () {
-        if (describing) return;
-        var asset = bridge.getBackgroundAsset();
-        var priorDescription = $('#player-description').val();
-        var revision = descriptionRevision;
-        describing = true;
-        updateDescriptionButton();
-        descriptionButton.html('<i class="fa-solid fa-spinner fa-spin"></i>');
-        $('#description-generation-status').text('Writing a short description from the room image…');
-        fetch('api/generate-room-description.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
-            body: JSON.stringify({ backgroundAsset: asset })
-        }).then(function (response) { return response.json(); }).then(function (result) {
-            if (!result.ok) throw new Error(result.error || 'The description could not be generated.');
-            if (revision !== descriptionRevision || asset !== bridge.getBackgroundAsset() || priorDescription !== $('#player-description').val()) {
-                $('#description-generation-status').text('The room image or description changed while generating. Click the wand again to use the current image.');
-                return;
-            }
-            $('#player-description').val(result.description).trigger('input');
-            $('#description-generation-status').text('Description ready. Review it, then save the room to keep it.');
-        }).catch(function (error) {
-            $('#description-generation-status').text(error.message);
-            bridge.toast(error.message, true);
-        }).finally(function () {
-            describing = false;
-            descriptionButton.html('<i class="fa-solid fa-wand-magic-sparkles"></i>');
-            updateDescriptionButton();
-        });
-    });
-    updateDescriptionButton();
 
     $(document).on('keydown', function (event) {
         if (workspace.hidden) return;

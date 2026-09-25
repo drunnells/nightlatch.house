@@ -32,4 +32,14 @@ if ($defaults['version'] !== 1 || $defaults['canvas'] !== array('width' => 1600,
     exit(1);
 }
 
+$bookData = array('version' => 2, 'book' => array('enabled' => true, 'pages' => array(
+    array('asset' => '../assets/graphics/objects/demo-object.svg', 'prompt' => 'Author prompt', 'playerDescription' => 'A map marks a winding trail.'),
+    array('asset' => '../assets/graphics/objects/demo-object.svg'),
+)));
+$loaded = nightlatch_resolve_interactive_asset_urls(nightlatch_interactive_content_data(json_encode($bookData)));
+if ($loaded['book']['pages'][0]['playerDescription'] !== 'A map marks a winding trail.'
+    || $loaded['book']['pages'][0]['prompt'] !== 'Author prompt' || count($loaded['book']['pages']) !== 2) {
+    throw new RuntimeException('Loading saved book JSON must preserve page descriptions, prompts, and legacy pages.');
+}
+
 fwrite(STDOUT, "object-payload tests passed\n");

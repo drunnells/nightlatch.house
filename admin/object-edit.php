@@ -105,7 +105,8 @@ require __DIR__ . '/_header.php';
             <div class="sidebar-heading"><div><span class="eyebrow">Examineable content</span><h2>Object settings</h2></div></div>
             <label for="room-title">Object title</label><input id="room-title" value="<?php echo nightlatch_h($object['title']); ?>">
             <label for="room-slug">Stable slug</label><input id="room-slug" value="<?php echo nightlatch_h($object['slug']); ?>" placeholder="created-from-title"<?php echo $id ? ' readonly' : ''; ?>>
-            <label for="player-description">Player description</label><textarea id="player-description" rows="5" placeholder="An ornate object, cold to the touch."><?php echo nightlatch_h($object['playerDescription']); ?></textarea><p class="hint">Hidden in the object viewer until the player chooses the eye control. Results may replace this text for the current session.</p>
+            <div class="description-label"><label for="player-description">Player description</label><button type="button" class="icon-button gold" id="generate-player-description" title="Generate a short description from the object image" aria-label="Generate a short description from the object image" hidden><i class="fa-solid fa-wand-magic-sparkles"></i></button></div><textarea id="player-description" rows="5" placeholder="An ornate object, cold to the touch."><?php echo nightlatch_h($object['playerDescription']); ?></textarea><p class="hint">Hidden in the object viewer until the player chooses the eye control. Results may replace this text for the current session.</p>
+            <div id="description-generation-status" class="hint" role="status" aria-live="polite"></div>
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="5"><?php echo nightlatch_h($object['description']); ?></textarea>
             <label class="check-row portable-setting"><input id="object-portable" type="checkbox"<?php echo !empty($object['portable']) ? ' checked' : ''; ?>><span>Player can carry this object</span></label>
             <div id="inventory-key-fields"><label for="inventory-key">Inventory key</label><input id="inventory-key" value="<?php echo nightlatch_h($object['inventoryKey']); ?>" placeholder="defaults-to-object-slug"><p class="hint">Grant this key from a successful room or object region to put the object in the player inventory.</p></div>
@@ -160,6 +161,12 @@ require __DIR__ . '/_header.php';
     </aside>
 </div>
 <?php require __DIR__ . '/_image-area-editor.php'; ?>
+<dialog id="book-page-image-dialog" class="book-page-image-dialog" aria-labelledby="book-page-image-title">
+    <section class="book-page-image-card">
+        <header class="image-workspace-header"><h2 id="book-page-image-title">Book page</h2><button type="button" class="object-close" id="close-book-page-image" autofocus><i class="fa-solid fa-xmark"></i><span>Close</span></button></header>
+        <div class="book-page-image-stage"><img id="book-page-image-full" alt="Full book page"></div>
+    </section>
+</dialog>
 <div class="image-workspace" id="object-crop-workspace" hidden role="dialog" aria-modal="true" aria-labelledby="object-crop-title">
     <div class="image-workspace-backdrop" data-close-image-workspace></div>
     <section class="image-workspace-card">
@@ -191,6 +198,7 @@ require __DIR__ . '/_header.php';
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/region-bounds.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/book-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/description-tools.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/object-image-tools.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/image-area-editor.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

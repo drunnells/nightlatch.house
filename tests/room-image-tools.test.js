@@ -6,7 +6,7 @@ const vm = require('vm');
 const path = require('path');
 
 // Minimal DOM adapter for asynchronous editor behavior; no network or AI calls.
-function harness() {
+function harness(assetType = 'rooms') {
     const elements = new Map();
     class Element {
         constructor() { this.handlers = {}; this.attrs = {}; this.value = ''; this.label = ''; this.children = []; this.hidden = false; }
@@ -43,17 +43,18 @@ function harness() {
         NL_CSRF: 'test-token',
         addEventListener: (event, cb) => { events[event] = cb; },
         NLImageAreaEditorBridge: {
-            assetType: 'rooms', getBackgroundAsset: () => source,
+            assetType, getBackgroundAsset: () => source,
             upload: () => new Promise(resolve => uploads.push(resolve)),
             discardTemporaryAsset: url => { discarded.push(url); return Promise.resolve(); },
             toast: message => notices.push(message)
         }
     };
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/js/room-image-tools.js'), 'utf8'), {
+    const context = {
         jQuery: $, window, document,
         MutationObserver: class { constructor(cb) { observer = cb; } observe() {} },
         fetch: (url, options) => new Promise(resolve => pending.push({ url, options, resolve: result => resolve({ json: () => Promise.resolve(result) }) }))
-    });
+    };
+    ['description-tools.js', 'room-image-tools.js'].forEach(file => vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/js/' + file), 'utf8'), context));
     return { $, window, events, pending, uploads, discarded, notices,
         background: value => { source = value; observer(); } };
 }
@@ -71,7 +72,7 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
     assert.strictEqual(button.disabled, true);
     button.trigger('click');
     assert.strictEqual(h.pending.length, 1, 'Repeated clicks must not send duplicate requests');
-    assert.strictEqual(h.pending[0].url, 'api/generate-room-description.php');
+    assert.strictEqual(h.pending[0].url, 'api/generate-description.php');
     assert.strictEqual(JSON.parse(h.pending[0].options.body).backgroundAsset, '../assets/graphics/rooms/uploads/room.png');
     assert.strictEqual(h.pending[0].options.headers['X-CSRF-Token'], 'test-token');
     h.pending.shift().resolve({ ok: true, description: 'Moonlight spills across the empty study.' });
@@ -124,5 +125,16 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
     await settle();
     assert.strictEqual(h.window.NL_ROOM_REFERENCE, null, 'Uploads completing after Save must not revive a cleared reference');
     assert.strictEqual(h.discarded[1], '../assets/graphics/rooms/uploads/late.png');
+    const object = harness('objects');
+    object.background('../assets/graphics/objects/uploads/box.png');
+    object.$('#generate-player-description').trigger('click');
+    assert.strictEqual(JSON.parse(object.pending[0].options.body).kind, 'object');
+    object.pending.shift().resolve({ ok: true, description: 'A box with a brass keyhole.' });
+    await settle();
+    assert.strictEqual(object.$('#player-description').val(), 'A box with a brass keyhole.');
+    const pageDescription = object.window.NLDescriptionGenerator.generate('objects/journal/overlays/page.png', 'book_page');
+    assert.strictEqual(JSON.parse(object.pending[0].options.body).kind, 'book_page');
+    object.pending.shift().resolve({ ok: true, description: 'Faded sketches fill the page.' });
+    assert.strictEqual(await pageDescription, 'Faded sketches fill the page.');
     console.log('room-image-tools tests passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

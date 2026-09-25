@@ -222,11 +222,7 @@
     }
 
     function contentDescription(kind, content) {
-        if (!content) return '';
-        var key = window.NLRoomRules.descriptionKey(kind, content.slug);
-        return Object.prototype.hasOwnProperty.call(state.descriptions, key)
-            ? state.descriptions[key]
-            : (content.playerDescription || '');
+        return window.NLRoomRules.contentDescription(kind, content, state, activeBookPageIndex);
     }
 
     function renderDescriptions() {
@@ -595,7 +591,8 @@
         var message = action === 'open'
             ? 'Opened to page 1 of ' + result.pageCount + '.'
             : (action === 'close' ? 'Closed the book.' : 'Page ' + (result.pageIndex + 1) + ' of ' + result.pageCount + '.');
-        showMessage(message, activeObject.title);
+        if (byId('toggle-object-description').getAttribute('aria-expanded') === 'true') renderDescriptions();
+        else showMessage(message, activeObject.title);
         if (trigger && trigger.disabled) window.requestAnimationFrame(function () { focusAvailableBookControl(action); });
     }
 

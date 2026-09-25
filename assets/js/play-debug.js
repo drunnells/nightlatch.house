@@ -158,9 +158,7 @@
     function esc(value) { return $('<div>').text(value === undefined || value === null ? '' : value).html(); }
 
     function contentDescription(kind, content) {
-        if (!content) return '';
-        var key = window.NLRoomRules.descriptionKey(kind, content.slug);
-        return Object.prototype.hasOwnProperty.call(state.descriptions, key) ? state.descriptions[key] : (content.playerDescription || '');
+        return window.NLRoomRules.contentDescription(kind, content, state, activeBookPageIndex);
     }
 
     function renderDescriptions() {

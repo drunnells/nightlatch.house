@@ -270,4 +270,19 @@ assert.strictEqual(assignedGatewayExits.length, 2, 'a Gateway assigns exactly it
 assert.strictEqual(new Set(assignedGatewayExits.map(function (exitId) { return gatewayAssignments[exitId].clusterId; })).size, 2, 'a Gateway uses distinct destination clusters');
 assert.ok(gatewayAssignments[assignedGatewayExits[0]].entryRoomId, 'Gateway assignments snapshot the cluster entry room');
 
+
+var describedBook = { slug: 'journal', playerDescription: 'A leather journal.', data: { book: {
+    enabled: true, pages: [{ asset: 'page.png', playerDescription: 'A faded map.' }, { asset: 'blank.png' }, { asset: 'space.png', playerDescription: '  ' }]
+} } };
+var descriptionState = { descriptions: { 'object:journal': 'An unlocked journal.' } };
+assert.strictEqual(rules.contentDescription('object', describedBook, {}, -1), 'A leather journal.');
+assert.strictEqual(rules.contentDescription('object', describedBook, descriptionState, 0), 'A faded map.', 'page text takes precedence while open');
+assert.strictEqual(rules.contentDescription('object', describedBook, descriptionState, 1), 'An unlocked journal.', 'legacy pages retain session descriptions');
+assert.strictEqual(rules.contentDescription('object', describedBook, descriptionState, 2), 'An unlocked journal.', 'whitespace falls back');
+assert.strictEqual(rules.contentDescription('object', describedBook, descriptionState, -1), 'An unlocked journal.', 'closing restores the object description');
+assert.strictEqual(rules.contentDescription('room', { slug: 'journal', playerDescription: 'A library.' }, descriptionState, 0), 'A library.', 'page state never changes room descriptions');
+describedBook.data.book.enabled = false;
+assert.strictEqual(rules.contentDescription('object', describedBook, {}, 0), 'A leather journal.', 'disabled books retain object text');
+assert.strictEqual(rules.contentDescription('object', null, {}, 0), '');
+
 console.log('room-rules tests passed');

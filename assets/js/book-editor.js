@@ -23,7 +23,8 @@
             pages: (Array.isArray(value.pages) ? value.pages : []).map(function (page) {
                 return {
                     asset: page && page.asset ? String(page.asset) : '',
-                    prompt: page && page.prompt ? String(page.prompt) : ''
+                    prompt: page && page.prompt ? String(page.prompt) : '',
+                    playerDescription: page && page.playerDescription ? String(page.playerDescription) : ''
                 };
             })
         };
@@ -151,7 +152,9 @@
                     '<button type="button" class="icon-button book-page-down" aria-label="Move page down" title="Move page down"' + (index === book.pages.length - 1 ? ' disabled' : '') + '><i class="fa-solid fa-arrow-down"></i></button>' +
                     '<button type="button" class="icon-button danger book-page-remove" aria-label="Remove page" title="Remove page"><i class="fa-solid fa-trash"></i></button>' +
                     '</div></div>' +
-                    '<div class="book-page-preview">' + (page.asset ? '<img src="' + escAttr(page.asset) + '" alt="Page ' + (index + 1) + ' overlay preview">' : '<span><i class="fa-regular fa-image"></i> Add an overlay</span>') + '</div>' +
+                    '<button type="button" class="book-page-preview" title="View full page image" aria-label="View full image of page ' + (index + 1) + '"' + (page.asset ? '' : ' disabled') + '>' + (page.asset ? '<img src="' + escAttr(page.asset) + '" alt="Page ' + (index + 1) + ' overlay preview">' : '<span><i class="fa-regular fa-image"></i> Add an overlay</span>') + '</button>' +
+                    '<div class="description-label"><label for="book-page-description-' + index + '">Page description</label><button type="button" class="icon-button gold book-page-describe" title="Generate a short description from this page image" aria-label="Generate description for page ' + (index + 1) + '"' + (/\.(png|jpe?g|webp)(?:\?|$)/i.test(page.asset) ? '' : ' hidden') + (page._describing ? ' disabled' : '') + '><i class="fa-solid ' + (page._describing ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles') + '"></i></button></div>' +
+                    '<textarea class="book-page-description" id="book-page-description-' + index + '" rows="3" maxlength="8000" placeholder="What the player notices on this page…">' + esc(page.playerDescription) + '</textarea><p class="hint">Shown by Describe while this page is open. Leave blank to use the object description.</p><div class="hint book-page-description-status" role="status" aria-live="polite">' + esc(page._descriptionMessage || '') + '</div>' +
                     '<label>Reuse a saved region overlay<select class="book-page-library" title="Choose an overlay already saved on this object">' + choiceMarkup + '</select></label>' +
                     '<label class="book-page-upload-label"><span><i class="fa-solid fa-cloud-arrow-up"></i> Upload page overlay</span><input class="book-page-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>' +
                     '<button type="button" class="overlay-generator-toggle book-page-generator-toggle" aria-expanded="' + (page._generatorExpanded ? 'true' : 'false') + '"><i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate page with Gemini</span><i class="fa-solid fa-chevron-down"></i></button>' +
@@ -162,6 +165,73 @@
             root.find('#book-page-count').text(book.pages.length + (book.pages.length === 1 ? ' page' : ' pages'));
             updateSelectTooltips();
         }
+
+        function setPageAsset(page, asset) {
+            page.asset = asset;
+            page._descriptionRevision = (page._descriptionRevision || 0) + 1;
+        }
+
+        function refreshDescription(page, updateText) {
+            var index = book.pages.indexOf(page);
+            if (index === -1) return;
+            var card = root.find('[data-page-index="' + index + '"]');
+            card.find('.book-page-describe').prop('disabled', !!page._describing)
+                .html('<i class="fa-solid ' + (page._describing ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles') + '"></i>');
+            card.find('.book-page-description-status').text(page._descriptionMessage || '');
+            if (updateText) card.find('.book-page-description').val(page.playerDescription);
+        }
+
+        var preview = document.getElementById('book-page-image-dialog');
+        root.on('click', '.book-page-preview', function () {
+            var index = parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10);
+            var page = book.pages[index];
+            if (!preview || !page || !page.asset) return;
+            $('#book-page-image-title').text('Page ' + (index + 1));
+            $('#book-page-image-full').attr('src', page.asset).attr('alt', 'Full image of page ' + (index + 1));
+            preview.showModal();
+        });
+        $('#close-book-page-image').on('click', function () { preview.close(); });
+        if (preview) {
+            preview.addEventListener('keydown', function (event) {
+                if (event.key === 'Tab') { event.preventDefault(); document.getElementById('close-book-page-image').focus(); }
+            });
+            preview.addEventListener('click', function (event) { if (event.target === preview) preview.close(); });
+            preview.addEventListener('close', function () { $('#book-page-image-full').removeAttr('src'); });
+        }
+
+        root.on('input change', '.book-page-description', function () {
+            var page = book.pages[parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10)];
+            if (!page) return;
+            page.playerDescription = $(this).val();
+            page._descriptionRevision = (page._descriptionRevision || 0) + 1;
+            changed();
+        }).on('click', '.book-page-describe', function () {
+            var page = book.pages[parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10)];
+            if (!page || page._describing || !window.NLDescriptionGenerator.available(page.asset)) return;
+            var asset = page.asset;
+            var revision = page._descriptionRevision || 0;
+            page._describing = true;
+            page._descriptionMessage = 'Writing a short description from this page image…';
+            refreshDescription(page);
+            window.NLDescriptionGenerator.generate(asset, 'book_page').then(function (description) {
+                if (book.pages.indexOf(page) === -1) return;
+                if (asset !== page.asset || revision !== (page._descriptionRevision || 0)) {
+                    page._descriptionMessage = 'The image or description changed while generating. Click the wand again to use the current page.';
+                    return;
+                }
+                page.playerDescription = description;
+                page._descriptionMessage = 'Description ready. Review it, then save the object to keep it.';
+                refreshDescription(page, true);
+                changed();
+            }).catch(function (error) {
+                if (book.pages.indexOf(page) === -1) return;
+                page._descriptionMessage = error.message;
+                notify(error.message, true);
+            }).finally(function () {
+                page._describing = false;
+                refreshDescription(page);
+            });
+        });
 
         function render() {
             enabledInput.prop('checked', book.enabled);
@@ -177,7 +247,7 @@
 
         enabledInput.on('change', function () {
             book.enabled = this.checked;
-            if (book.enabled && !book.pages.length) book.pages.push({ asset: '', prompt: '' });
+            if (book.enabled && !book.pages.length) book.pages.push({ asset: '', prompt: '', playerDescription: '' });
             render();
             changed();
         });
@@ -201,7 +271,7 @@
                 notify('A book may contain at most 100 pages.', true);
                 return;
             }
-            book.pages.push({ asset: '', prompt: '' });
+            book.pages.push({ asset: '', prompt: '', playerDescription: '' });
             renderPages();
             changed();
         }).on('click', '.book-page-remove', function () {
@@ -222,7 +292,7 @@
             var index = parseInt($(this).closest('[data-page-index]').attr('data-page-index'), 10);
             var asset = String($(this).val() || '');
             if (!asset) return;
-            book.pages[index].asset = asset;
+            setPageAsset(book.pages[index], asset);
             renderPages();
             changed();
         }).on('change', '.book-page-upload', function () {
@@ -233,7 +303,7 @@
             var targetPage = book.pages[index];
             upload(this.files[0], card).then(function (asset) {
                 if (book.pages.indexOf(targetPage) === -1) return;
-                targetPage.asset = asset;
+                setPageAsset(targetPage, asset);
                 renderPages();
                 changed();
                 notify('Book page overlay uploaded');
@@ -277,7 +347,7 @@
             card.find('.book-page-generation-status').text(targetPage._generationMessage).addClass('visible');
             generatePage(prompt, reference.asset, reference.mode).then(function (result) {
                 if (book.pages.indexOf(targetPage) === -1) return;
-                targetPage.asset = result.url;
+                setPageAsset(targetPage, result.url);
                 targetPage.prompt = prompt;
                 targetPage._generationMessage = 'Page overlay ready at ' + result.width + ' × ' + result.height + ' pixels. Save this object to keep it.';
                 renderPages();
@@ -304,7 +374,7 @@
             refreshRegions: function () { renderPages(); },
             replaceAssets: function (replacements) {
                 book.pages.forEach(function (page) {
-                    if (replacements[page.asset]) page.asset = replacements[page.asset];
+                    if (replacements[page.asset]) setPageAsset(page, replacements[page.asset]);
                 });
                 renderPages();
             },

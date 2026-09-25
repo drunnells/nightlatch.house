@@ -455,7 +455,7 @@
             enabled: !!book.enabled,
             pageTurnSoundSlug: String(book.pageTurnSoundSlug || ''),
             pages: (Array.isArray(book.pages) ? book.pages : []).map(function (page) {
-                return { asset: page && page.asset ? String(page.asset) : '' };
+                return { asset: page && page.asset ? String(page.asset) : '', playerDescription: page && page.playerDescription ? String(page.playerDescription) : '' };
             })
         };
     }
@@ -467,6 +467,15 @@
         if (isNaN(pageIndex) || pageIndex < 0) return null;
         pageIndex = Math.min(book.pages.length - 1, pageIndex);
         return book.pages[pageIndex];
+    }
+
+    function contentDescription(kind, content, state, pageIndex) {
+        if (!content) return '';
+        var page = kind === 'object' ? bookPage(content.data && content.data.book, pageIndex) : null;
+        if (page && page.playerDescription.trim()) return page.playerDescription;
+        var descriptions = state && state.descriptions ? state.descriptions : {};
+        var key = descriptionKey(kind, content.slug);
+        return Object.prototype.hasOwnProperty.call(descriptions, key) ? descriptions[key] : (content.playerDescription || '');
     }
 
     function bookControlState(book, pageIndex) {
@@ -547,6 +556,7 @@
         ownedObjects: ownedObjects,
         normalizeBook: normalizeBook,
         bookPage: bookPage,
+        contentDescription: contentDescription,
         bookControlState: bookControlState,
         useBookControl: useBookControl
     };

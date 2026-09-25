@@ -225,4 +225,14 @@ foreach ($badUses as $badUse) {
     throw new RuntimeException('Use conditions must be positive object player-interaction conditions.');
 }
 
+$describedBook = $bookData;
+$describedBook['book']['pages'][0]['playerDescription'] = 'A faded map shows a winding path.';
+nightlatch_validate_interactive_data($describedBook, 'object');
+foreach (array(str_repeat('x', 8001), array('invalid')) as $invalidDescription) {
+    $describedBook['book']['pages'][0]['playerDescription'] = $invalidDescription;
+    try { nightlatch_validate_interactive_data($describedBook, 'object'); }
+    catch (RuntimeException $expected) { continue; }
+    throw new RuntimeException('Book page descriptions must be strings of at most 8000 bytes.');
+}
+
 fwrite(STDOUT, "interactive-logic tests passed\n");

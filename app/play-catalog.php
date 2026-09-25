@@ -75,7 +75,10 @@ function nightlatch_player_runtime_data($value)
             if (empty($child['enabled'])) continue;
             $pages = array();
             foreach (isset($child['pages']) && is_array($child['pages']) ? $child['pages'] : array() as $page) {
-                if (is_array($page) && isset($page['asset'])) $pages[] = array('asset' => $page['asset']);
+                if (is_array($page) && isset($page['asset'])) $pages[] = array(
+                    'asset' => $page['asset'],
+                    'playerDescription' => isset($page['playerDescription']) ? (string) $page['playerDescription'] : '',
+                );
             }
             $result[$key] = array(
                 'enabled' => true,

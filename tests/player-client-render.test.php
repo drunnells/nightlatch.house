@@ -60,7 +60,7 @@ $privateCatalog = array(
                 'nextRegionId' => 'page-right',
                 'pageTurnSoundSlug' => 'paper-turn',
                 'designerNote' => 'Private book note',
-                'pages' => array(array('asset' => 'objects/journal/overlays/page-one.png', 'prompt' => 'Private generation prompt', 'caption' => 'Private page note')),
+                'pages' => array(array('asset' => 'objects/journal/overlays/page-one.png', 'prompt' => 'Private generation prompt', 'caption' => 'Private page note', 'playerDescription' => 'A map marks the hidden valley.')),
             ),
         ),
     )),
@@ -90,6 +90,7 @@ if (isset($publicRoom['description']) || isset($publicRoom['backgroundPrompt'])
     || isset($publicCatalog['objects'][0]['description']) || isset($publicCatalog['objects'][0]['backgroundPrompt'])
     || isset($publicBook['designerNote']) || isset($publicBook['pages'][0]['caption']) || isset($publicBook['pages'][0]['prompt'])
     || isset($publicBook['previousRegionId']) || isset($publicBook['nextRegionId'])
+    || $publicBook['pages'][0]['playerDescription'] !== 'A map marks the hidden valley.'
     || $publicBook['pageTurnSoundSlug'] !== 'paper-turn'
     || $publicBook['pages'][0]['asset'] !== 'objects/journal/overlays/page-one.png'
     || $publicAction['asset'] !== 'rooms/start/overlays/runtime.jpg') {

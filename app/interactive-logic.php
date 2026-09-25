@@ -185,6 +185,7 @@ function nightlatch_validate_book_data($book, $contentKind)
         $prompt = isset($page['prompt']) ? $page['prompt'] : '';
         nightlatch_logic_string($asset, 2048, 'Book page overlay asset');
         nightlatch_logic_string($prompt, 2000, 'Book page generation prompt');
+        nightlatch_logic_string(isset($page['playerDescription']) ? $page['playerDescription'] : '', 8000, 'Book page player description');
         $asset = trim((string) $asset);
         if (!empty($book['enabled']) && $asset === '') {
             throw new RuntimeException('Every enabled book page must have an overlay asset.');

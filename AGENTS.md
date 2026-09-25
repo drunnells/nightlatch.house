@@ -96,7 +96,7 @@ The S3 config shape currently includes:
 - An object is first-class interactive content with close-up artwork, canvas dimensions, and clickable regions using the same declarative rule semantics as rooms.
 - Rooms and objects store a player-facing description separately from designer notes. Debug play hides that description behind an eye control, and session results may replace a selected room or object's description by stable slug.
 - Objects may be room-bound or portable. Portable objects use a stable inventory key, appear in the debug inventory while owned, and can be examined from there.
-- An object may opt into built-in book behavior through `data.book`. A book starts closed on its base artwork and receives standard viewer controls: Close and Previous Page on the left, Open and Next Page on the right, with unavailable actions disabled. It stores up to 100 ordered full-canvas page overlay assets with author-only Gemini prompts and may select one saved sound slug used for every successful previous/next page turn. Book navigation does not reserve or bypass object regions; every authored region keeps normal declarative rule behavior.
+- An object may opt into built-in book behavior through `data.book`. A book starts closed on its base artwork and receives standard viewer controls: Close and Previous Page on the left, Open and Next Page on the right, with unavailable actions disabled. It stores up to 100 ordered full-canvas page overlay assets with author-only Gemini prompts and optional `playerDescription` text, and may select one saved sound slug used for every successful previous/next page turn. Describe uses the open page’s nonblank `playerDescription`, falling back to the object’s session override or authored description when blank or closed. Page thumbnails open full-image previews in the editor. Book navigation does not reserve or bypass object regions; every authored region keeps normal declarative rule behavior.
 - A successful room result may open an object viewer. In debug play, the viewer is a closable modal nested over the room canvas and sized to 80% of the displayed room image's width and height.
 - A region may be an interaction or a door/exit.
 - A non-door region with no actions in its authored player-click logic is passive at runtime: it may still own overlays and automatic behaviors, but it must not receive pointer or keyboard input or block overlapping clickable regions. Door / exit regions always remain player-clickable.
@@ -133,7 +133,7 @@ The S3 config shape currently includes:
 ## Generated Image Workflow
 
 - Room backgrounds and object close-up images may be uploaded or generated with the configured Google Gemini image model. Room generation may use a full reference image uploaded for the session or selected from saved backgrounds, overlays, and book pages. References are author-only, are cleared on save or exit, and uploaded references use the existing temporary-asset cleanup.
-- The Room settings description wand uses the current raster background to draft at most 40 words of player-facing text. It uses `ai.openai.api_key` and `ai.openai.model` through the OpenAI Responses API; the configured model must support image inputs. It leaves the result editable until normal Save; stale responses must not overwrite newer artwork or description edits.
+- Room, object, and book-page description wands use the selected raster artwork to draft at most 40 words of player-facing text through `admin/api/generate-description.php`. They use `ai.openai.api_key` and `ai.openai.model` through the OpenAI Responses API; the configured model must support image inputs. They leave the result editable until normal Save; stale responses must not overwrite newer artwork or description edits.
 - Object artwork may be cropped with a rectangle or point-by-point lasso. Lasso output is a transparent PNG outside the selected polygon, and existing object region bounds must be remapped or removed when they fall outside the crop.
 - Object generation may use a rectangular reference crop selected from a searchable thumbnail library of saved raster room and object images. Validate and extract the selected reference area on the server before sending it to Gemini.
 - A branch-specific region overlay may be uploaded or generated from an image-editing prompt.
@@ -202,6 +202,7 @@ The S3 config shape currently includes:
   - `php tests/sounds-editor-render.test.php`
   - `node tests/room-rules.test.js`
   - `node tests/object-use.test.js`
+  - `node tests/book-editor.test.js`
   - `node tests/region-bounds.test.js`
 - Run `node --check` on changed browser JavaScript files.
 - Run `git diff --check` before handing off changes.

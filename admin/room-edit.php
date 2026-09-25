@@ -123,6 +123,13 @@ require __DIR__ . '/_header.php';
             <label class="upload-drop" for="asset-upload"><i class="fa-solid fa-cloud-arrow-up"></i><strong>Upload room image</strong><span>PNG, JPG or WebP · up to 12 MB</span><input id="asset-upload" type="file" accept="image/png,image/jpeg,image/webp"></label>
             <button type="button" class="btn-ghost btn-block image-area-edit-launch" id="open-image-area-edit"><i class="fa-solid fa-wand-magic-sparkles"></i> Edit an image area</button>
             <div class="or-divider"><span>or create with Gemini</span></div>
+            <div class="reference-source-card">
+                <div id="room-reference-summary"><span class="eyebrow">Optional Gemini reference</span><strong id="room-reference-title">No reference selected</strong><small id="room-reference-detail">Use an uploaded image or any saved background, overlay, or book page.</small></div>
+                <img id="room-reference-preview" alt="Selected generation reference" hidden>
+                <div class="reference-source-actions"><button type="button" class="btn-ghost" id="room-reference-picker"><i class="fa-regular fa-images"></i> Choose asset</button><button type="button" class="icon-button danger" id="room-reference-clear" title="Clear reference" aria-label="Clear reference" hidden><i class="fa-solid fa-xmark"></i></button></div>
+                <label class="room-reference-upload" for="room-reference-upload">Upload reference · PNG, JPG or WebP · up to 12 MB</label><input id="room-reference-upload" type="file" accept="image/png,image/jpeg,image/webp">
+                <p class="hint">The reference is used for generation only and is cleared when you save or leave.</p>
+            </div>
             <label for="gemini-prompt">Image prompt</label>
             <textarea id="gemini-prompt" rows="8" placeholder="A moody Victorian conservatory at midnight, point-and-click game background, straight-on view, no people..."><?php echo nightlatch_h($room['backgroundPrompt']); ?></textarea>
             <div class="prompt-meta"><span><i class="fa-solid fa-wand-magic-sparkles"></i> Uses configured Gemini model</span><span id="prompt-count">0 / 2000</span></div>
@@ -134,7 +141,8 @@ require __DIR__ . '/_header.php';
             <div class="sidebar-heading"><div><span class="eyebrow">Node details</span><h2>Room settings</h2></div></div>
             <label for="room-title">Room title</label><input id="room-title" value="<?php echo nightlatch_h($room['title']); ?>">
             <label for="room-slug">Slug</label><input id="room-slug" value="<?php echo nightlatch_h($room['slug']); ?>" placeholder="created-from-title">
-            <label for="player-description">Player description</label><textarea id="player-description" rows="5" placeholder="A dark, lonely room."><?php echo nightlatch_h($room['playerDescription']); ?></textarea><p class="hint">Hidden during play until the player chooses the eye control. Results may replace this text for the current session.</p>
+            <div class="description-label"><label for="player-description">Player description</label><button type="button" class="icon-button gold" id="generate-player-description" title="Generate a short description from the room image" aria-label="Generate a short description from the room image" hidden><i class="fa-solid fa-wand-magic-sparkles"></i></button></div><textarea id="player-description" rows="5" placeholder="A dark, lonely room."><?php echo nightlatch_h($room['playerDescription']); ?></textarea><p class="hint">Hidden during play until the player chooses the eye control. Results may replace this text for the current session.</p>
+            <div id="description-generation-status" class="hint" role="status" aria-live="polite"></div>
             <label for="room-description">Designer notes</label><textarea id="room-description" rows="6"><?php echo nightlatch_h($room['description']); ?></textarea>
             <p class="hint">Saved backgrounds and overlays are stored in DigitalOcean Spaces. Local files remain temporary until this room is saved.</p>
             <div class="node-note"><i class="fa-solid fa-circle-nodes"></i><p><strong>Cluster membership and connections live in the Map tab.</strong> This room is <?php echo $roomClusterId ? 'assigned to a cluster' : 'currently unassigned'; ?>.</p></div>
@@ -192,6 +200,16 @@ require __DIR__ . '/_header.php';
         </div>
     </aside>
 </div>
+<div class="image-workspace" id="room-reference-workspace" hidden role="dialog" aria-modal="true" aria-labelledby="room-reference-workspace-title">
+    <div class="image-workspace-backdrop" data-close-room-reference></div>
+    <section class="image-workspace-card reference-workspace-card">
+        <header class="image-workspace-header"><div><span class="eyebrow">Gemini visual reference</span><h2 id="room-reference-workspace-title">Choose a reference image</h2></div><button type="button" class="object-close" data-close-room-reference><i class="fa-solid fa-xmark"></i><span>Close</span></button></header>
+        <div class="asset-library-view">
+            <div class="asset-search"><i class="fa-solid fa-magnifying-glass"></i><input id="room-reference-search" aria-label="Search reference images" placeholder="Search rooms, objects, overlays…"><span id="room-reference-count"></span></div>
+            <div class="asset-thumbnail-grid" id="room-reference-grid"></div>
+        </div>
+    </section>
+</div>
 <?php require __DIR__ . '/_image-area-editor.php'; ?>
 <script>window.NL_ROOM_BOOTSTRAP = <?php echo json_encode($room, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_OBJECTS = <?php echo json_encode($objectOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_FLAGS = <?php echo json_encode($flagOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOMS = <?php echo json_encode($roomOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_SOUNDS = <?php echo json_encode($soundOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_CLUSTERS = <?php echo json_encode($clusterOptions, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_GATEWAY = <?php echo json_encode($roomGateway, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>; window.NL_EDITOR_ROOM_CLUSTER_ID = <?php echo json_encode($roomClusterId); ?>; window.NL_EDITOR_CONTEXT = { kind: 'room', apiUrl: 'api/rooms.php', editUrl: 'room-edit.php', listUrl: 'index.php', debugUrl: 'play-debug.php', assetType: 'rooms' }; window.NL_CSRF = <?php echo json_encode(nightlatch_csrf_token()); ?>;</script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-rules.js')); ?>"></script>
@@ -199,4 +217,5 @@ require __DIR__ . '/_header.php';
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/region-bounds.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/room-editor.js')); ?>"></script>
 <script src="<?php echo nightlatch_h(nightlatch_asset('js/image-area-editor.js')); ?>"></script>
+<script src="<?php echo nightlatch_h(nightlatch_asset('js/room-image-tools.js')); ?>"></script>
 <?php require __DIR__ . '/_footer.php'; ?>

@@ -66,6 +66,7 @@
 
     function cleanupTrackedTemporaryAssets(useBeacon) {
         var assets = Object.keys(temporaryAssets);
+        if (!useBeacon) window.dispatchEvent(new CustomEvent('nl-room-reference-reset'));
         if (!assets.length) return Promise.resolve({ failedCount: 0 });
         var batches = [];
         while (assets.length) batches.push(assets.splice(0, 250));
@@ -889,15 +890,21 @@
     function updatePromptCount() { $('#prompt-count').text($('#gemini-prompt').val().length + ' / 2000'); }
     $('#gemini-prompt').on('input', updatePromptCount); updatePromptCount();
     function generateBackground(prompt) {
+        if (!isObject && window.NL_ROOM_REFERENCE_UPLOADING) {
+            var referenceUploadError = new Error('Wait for the reference image upload to finish before generating.');
+            toast(referenceUploadError.message, true);
+            return Promise.reject(referenceUploadError);
+        }
         prompt = String(prompt || '').trim();
         if (!prompt) return Promise.reject(new Error('Enter an image prompt before generating a ' + contentLabel + ' background.'));
         $('#gemini-prompt').val(prompt);
         updatePromptCount();
         var button = $('#generate-image');
         var generationPayload = { prompt: prompt, assetType: editor.assetType };
-        if (isObject && window.NL_OBJECT_REFERENCE) generationPayload.reference = window.NL_OBJECT_REFERENCE;
+        var reference = isObject ? window.NL_OBJECT_REFERENCE : window.NL_ROOM_REFERENCE;
+        if (reference) generationPayload.reference = reference;
         button.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Building the ' + contentLabel + '…');
-        $('#generation-status').text(window.NL_OBJECT_REFERENCE ? 'Gemini is using the selected reference crop. Generation may take a minute.' : 'Gemini image generation may take a minute.').addClass('visible');
+        $('#generation-status').text(reference ? 'Gemini is using the selected reference image. Generation may take a minute.' : 'Gemini image generation may take a minute.').addClass('visible');
         return fetch('api/gemini-generate.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.NL_CSRF },
@@ -906,7 +913,7 @@
             if (!result.ok) throw new Error(result.error);
             trackTemporaryAsset(result.url);
             setBackground(result.url, true);
-            $('#generation-status').text('New image ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + (result.referenceUsed ? ' · reference crop applied' : '') + '. Save the ' + contentLabel + ' to keep this selection.');
+            $('#generation-status').text('New image ready at ' + result.width + ' × ' + result.height + ' pixels · ' + formatFileSize(result.bytes) + (result.referenceUsed ? ' · reference image applied' : '') + '. Save the ' + contentLabel + ' to keep this selection.');
             toast('Gemini ' + (isObject ? 'object image' : 'background') + ' created');
             return result;
         }).catch(function (error) {
@@ -1177,6 +1184,7 @@
     }
     window.NLImageAreaEditorBridge = {
         assetType: editor.assetType,
+        upload: uploadAssetPromise,
         getBackgroundAsset: function () { return image.getAttribute('src'); },
         getCanvas: function () { return { width: canvas.width, height: canvas.height }; },
         applyBackground: function (url) { setBackground(url, true); },

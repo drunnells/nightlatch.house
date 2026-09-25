@@ -596,6 +596,13 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 #reference-crop-preview[hidden] { display: none; }
 .reference-source-actions { display: flex; gap: 6px; margin-top: 10px; }
 .reference-source-actions .btn-ghost { flex: 1; }
+#room-reference-preview { width: 100%; max-height: 150px; object-fit: contain; margin-top: 10px; background: #070a0b; }
+.room-reference-upload { line-height: 1.5; }
+#room-reference-upload { font-size: 10px; }
+.description-label { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+.description-label label { margin: 0; }
+.description-label .icon-button { flex-shrink: 0; }
+#generate-player-description[hidden], #room-reference-preview[hidden], #room-reference-clear[hidden] { display: none; }
 .image-workspace[hidden], .reference-select-view[hidden], .asset-library-view[hidden] { display: none; }
 .image-workspace { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; }
 .image-workspace-backdrop { position: absolute; inset: 0; background: rgba(3,5,5,.91); backdrop-filter: blur(5px); }

@@ -27,38 +27,31 @@ try {
 
     $reference = isset($payload['reference']) && is_array($payload['reference']) ? $payload['reference'] : null;
     if ($reference) {
-        if ($assetType !== 'objects') {
-            throw new RuntimeException('Reference crops are currently supported for object generation only.');
+        if (!isset($reference['assetType'], $reference['backgroundAsset'])
+            || !in_array($reference['assetType'], array('rooms', 'objects'), true)) {
+            throw new RuntimeException('Choose a valid reference image before generating.');
         }
-        if (!isset($reference['assetType'], $reference['backgroundAsset'], $reference['canvas'], $reference['bounds'])
-            || !in_array($reference['assetType'], array('rooms', 'objects'), true)
-            || !is_array($reference['canvas']) || !is_array($reference['bounds'])) {
-            throw new RuntimeException('Choose a valid reference image area before generating the object.');
-        }
-        $referencePath = nightlatch_local_content_asset_path($reference['backgroundAsset'], $reference['assetType']);
-        $referenceInfo = getimagesize($referencePath);
-        $supportedTypes = array(IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP);
-        if (!$referenceInfo || !in_array($referenceInfo[2], $supportedTypes, true)) {
-            throw new RuntimeException('The reference must be a PNG, JPG, or WebP image.');
-        }
-        if ($referenceInfo[0] > 8192 || $referenceInfo[1] > 8192 || ($referenceInfo[0] * $referenceInfo[1]) > 50000000) {
-            throw new RuntimeException('The reference image is too large to prepare safely.');
-        }
-        $referenceBytes = file_get_contents($referencePath);
-        if ($referenceBytes === false) {
-            throw new RuntimeException('The reference image could not be read.');
+        $source = nightlatch_reference_image($reference['backgroundAsset'], $reference['assetType']);
+        if ($assetType === 'objects') {
+            if (!isset($reference['canvas'], $reference['bounds']) || !is_array($reference['canvas']) || !is_array($reference['bounds'])) {
+                throw new RuntimeException('Choose a valid reference image area before generating the object.');
+            }
+        } else {
+            $reference['canvas'] = array('width' => $source['width'], 'height' => $source['height']);
+            $reference['bounds'] = array('x' => 0, 'y' => 0, 'width' => $source['width'], 'height' => $source['height']);
         }
         $imageOptions = nightlatch_generated_image_options();
         $referenceCrop = nightlatch_crop_object_image(
-            $referenceBytes,
+            $source['bytes'],
             $reference['canvas'],
             array('mode' => 'rectangle', 'bounds' => $reference['bounds']),
             $imageOptions['maximumWidth']
         );
         $request = nightlatch_gemini_image_edit_request(
-            nightlatch_gemini_object_reference_prompt($prompt),
+            $assetType === 'objects' ? nightlatch_gemini_object_reference_prompt($prompt) : nightlatch_gemini_room_reference_prompt($prompt),
             $referenceCrop['bytes'],
-            'image/png'
+            'image/png',
+            $assetType === 'objects' ? '1:1' : '16:9'
         );
     } else {
         $request = nightlatch_gemini_image_request($prompt, $assetType === 'objects' ? '1:1' : '16:9');

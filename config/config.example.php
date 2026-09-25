@@ -28,6 +28,8 @@
      'google_gemini' => array(
        'api_key' => 'replace-with-google-gemini-api-key',
        'model' => 'gemini-3.1-flash-image',
+       // Optional vision/text model for the room description wand; this is the default.
+       'description_model' => 'gemini-2.5-flash',
      ),
      'openai' => array(
        'api_key' => 'replace-with-openai-api-key',

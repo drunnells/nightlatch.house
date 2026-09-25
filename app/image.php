@@ -12,6 +12,26 @@ function nightlatch_generated_image_options()
     );
 }
 
+/** Load only a validated room/object raster reference through the storage boundary. */
+function nightlatch_reference_image($asset, $assetType)
+{
+    $path = nightlatch_local_content_asset_path($asset, $assetType);
+    $size = filesize($path);
+    if ($size === false || $size < 1 || $size > 30 * 1024 * 1024) {
+        throw new RuntimeException('The reference image is empty or too large.');
+    }
+    $info = @getimagesize($path);
+    if (!$info || !in_array($info[2], array(IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_WEBP), true)) {
+        throw new RuntimeException('The reference must be a PNG, JPG, or WebP image.');
+    }
+    if ($info[0] > 8192 || $info[1] > 8192 || $info[0] * $info[1] > 50000000) {
+        throw new RuntimeException('The reference image is too large to prepare safely.');
+    }
+    $bytes = file_get_contents($path);
+    if ($bytes === false) throw new RuntimeException('The reference image could not be read.');
+    return array('bytes' => $bytes, 'width' => $info[0], 'height' => $info[1], 'mimeType' => $info['mime']);
+}
+
 function nightlatch_destroy_image($image)
 {
     if (PHP_VERSION_ID < 80000 && is_resource($image)) {

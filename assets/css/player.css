@@ -466,7 +466,7 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     box-shadow: 0 -8px 30px rgba(0,0,0,.3);
     backdrop-filter: blur(18px);
 }
-.travel-actions, #gateway-return-actions { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.travel-actions { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .travel-button {
     max-width: min(360px, 100%);
     min-height: 44px;
@@ -486,7 +486,6 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
 .travel-button small, .travel-button strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .travel-button small { margin-bottom: 2px; color: #74817e; font-size: 7px; letter-spacing: .12em; text-transform: uppercase; }
 .travel-button strong { font-family: Cinzel, serif; font-size: 10px; font-weight: 600; }
-.gateway-return-button { color: #b8d8d2; border-color: rgba(91, 146, 137, .48); background: #101c1b; }
 .player-hint { margin: 0; color: #697572; font-size: 9px; letter-spacing: .03em; white-space: nowrap; }
 .hint-dot { width: 5px; height: 5px; display: inline-block; margin-right: 7px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 8px var(--teal); }
 .mobile-inventory-button { display: none; }
@@ -693,8 +692,6 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .canvas-object-close { top: 7px; right: 7px; }
     .book-control-left { left: 7px; }
     .book-control-right { right: 7px; }
-    .book-control-button { min-width: 40px; width: 40px; min-height: 38px; padding: 0; }
-    .book-control-button span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 }
 
 @media (max-width: 420px) {
@@ -787,7 +784,6 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
     .book-control-group { gap: 6px; }
     .book-control-left { left: 5px; }
     .book-control-right { right: 5px; }
-    .book-control-button { width: 36px; min-width: 36px; min-height: 34px; }
     .object-message-tray { left: auto; right: 8px; width: min(360px, calc(100% - 16px)); transform: translateX(calc(100% + 16px)); }
     .object-message-tray.has-message { transform: translateX(0); }
     .game-dialog { padding: 5px; }
@@ -800,4 +796,17 @@ button:focus-visible, [tabindex]:not(.play-region):focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+/* Compact, readable labels without spanning the book artwork. */
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 560px) and (orientation: landscape) {
+    .book-control-button { width: 82px; min-width: 82px; min-height: 44px; flex-direction: column; gap: 4px; padding: 6px; }
+    .book-control-button i { order: -1; }
+    .book-control-button span { line-height: 1.2; white-space: nowrap; }
+}
+
+@media (min-width: 761px) and (min-height: 561px), (min-width: 1001px) {
+    .player-travel-bar { grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 4px; }
+    .travel-actions { max-width: 100%; justify-content: center; }
+    .player-app.fullscreen-mode .player-travel-bar { left: 50%; max-width: calc(100% - 32px); transform: translateX(-50%); }
 }

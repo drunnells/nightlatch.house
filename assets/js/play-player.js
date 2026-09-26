@@ -464,26 +464,18 @@
     function updateBackButton() {
         var previousVisit = navigationStack.length ? navigationStack[navigationStack.length - 1] : null;
         var showBehind = !!previousVisit && previousVisit.returnMode === 'behind';
+        var destination = showBehind ? previousVisit.room : behindGatewayRoom();
         var button = byId('back-room');
-        button.hidden = !showBehind;
-        byId('back-room-label').textContent = showBehind ? 'Behind you · ' + previousVisit.room.title : 'Behind you';
+        button.hidden = !destination;
+        byId('back-room-label').textContent = destination ? 'Behind you · ' + destination.title : 'Behind you';
     }
 
-    function renderGatewayReturnActions() {
-        var container = byId('gateway-return-actions');
-        container.textContent = '';
+    function behindGatewayRoom() {
         var clusterId = clusterByRoomId[String(room.id)];
         var cluster = clusterById[clusterId];
         var assignment = cluster ? state.clusterGatewayReturns[clusterId] : null;
-        if (!cluster || String(cluster.entryRoomId) !== String(room.id) || !assignment || assignment.returnMode !== 'behind') return;
-        var gatewayRoom = roomById[String(assignment.gatewayRoomId)];
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'travel-button gateway-return-button';
-        button.innerHTML = '<i class="fa-solid fa-shuffle" aria-hidden="true"></i><span><small>Gateway</small><strong></strong></span>';
-        button.querySelector('strong').textContent = gatewayRoom ? 'Return to ' + gatewayRoom.title : 'Return through Gateway';
-        button.addEventListener('click', returnThroughGateway);
-        container.appendChild(button);
+        if (!cluster || String(cluster.entryRoomId) !== String(room.id) || !assignment || assignment.returnMode !== 'behind') return null;
+        return roomById[String(assignment.gatewayRoomId)] || null;
     }
 
     function regionAccessibleLabel(region) {
@@ -1001,7 +993,6 @@
         roomSvg.setAttribute('viewBox', '0 0 ' + room.data.canvas.width + ' ' + room.data.canvas.height);
         roomCanvas.style.aspectRatio = room.data.canvas.width + ' / ' + room.data.canvas.height;
         updateBackButton();
-        renderGatewayReturnActions();
         renderAll();
         if (runActivation !== false) {
             runActivationBehaviors('room_enter', 'room', room);
@@ -1028,7 +1019,11 @@
     }
 
     function returnToPreviousRoom() {
-        if (!navigationStack.length) return;
+        var previousVisit = navigationStack.length ? navigationStack[navigationStack.length - 1] : null;
+        if (!previousVisit || previousVisit.returnMode !== 'behind') {
+            if (behindGatewayRoom()) returnThroughGateway();
+            return;
+        }
         var departedRoom = room;
         var previous = navigationStack.pop();
         setActiveRoom(previous.room, previous.entryRegionId, true);
@@ -1317,6 +1312,18 @@
     });
     byId('toggle-object-description').addEventListener('click', function () {
         setObjectDescriptionOpen(this.getAttribute('aria-expanded') !== 'true');
+    });
+    objectCanvas.addEventListener('click', function (event) {
+        if (event.target.closest('button, .play-region:not(.passive)')) return;
+        if (activeObject && window.NLRoomRules.bookPage(activeObject.data && activeObject.data.book, activeBookPageIndex)) {
+            setObjectDescriptionOpen(true, false);
+        }
+    });
+    byId('object-player-message').addEventListener('click', function () {
+        if (this.classList.contains('description-message')) setObjectDescriptionOpen(false, false);
+    });
+    byId('player-message').addEventListener('click', function () {
+        if (this.classList.contains('description-message')) setRoomDescriptionOpen(false, null, false);
     });
     byId('close-object').addEventListener('click', function () { closeObject(true); });
     byId('object-book-controls').addEventListener('click', function (event) {

@@ -498,8 +498,6 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
 /* Debug inventory and object examination */
 .debug-actions { justify-content: flex-end; }
 .debug-actions .btn-ghost { white-space: nowrap; }
-.debug-actions #gateway-return-actions { display: flex; }
-.gateway-return-button { color: #9fc9c1 !important; border-color: #47746c !important; background: #101d1a !important; }
 #back-room { max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
 #back-room-label { max-width: 150px; display: inline-block; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 #inventory-count { min-width: 17px; height: 17px; display: inline-grid; place-items: center; color: #17150f; background: var(--gold); border-radius: 9px; font-size: 9px; }
@@ -792,4 +790,10 @@ input[readonly] { color: #8f9997; background: #111718; cursor: not-allowed; }
     .flag-references { grid-template-columns: 1fr; }
     .sound-card { grid-template-columns: 42px minmax(0, 1fr); }
     .sound-card-actions { grid-column: 2; }
+}
+
+@media (max-width: 900px) {
+    .book-control-button { width: 82px; min-width: 82px; min-height: 44px; flex-direction: column; gap: 4px; padding: 6px; }
+    .book-control-button i { order: -1; }
+    .book-control-button span { line-height: 1.2; white-space: nowrap; }
 }

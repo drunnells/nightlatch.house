@@ -121,7 +121,6 @@ try {
                 <i class="fa-solid fa-arrow-turn-up fa-rotate-270" aria-hidden="true"></i>
                 <span><small>Return</small><strong id="back-room-label">Behind you</strong></span>
             </button>
-            <div id="gateway-return-actions"></div>
         </div>
         <p class="player-hint"><span class="hint-dot"></span> Select details in the scene to investigate.</p>
         <button type="button" class="mobile-inventory-button" id="mobile-inventory" aria-label="Open inventory">

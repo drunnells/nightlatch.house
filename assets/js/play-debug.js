@@ -276,20 +276,17 @@
         var previousVisit = navigationStack.length ? navigationStack[navigationStack.length - 1] : null;
         var previous = previousVisit ? previousVisit.room : null;
         var showBehind = !!previous && previousVisit.returnMode === 'behind';
-        $('#back-room').prop('hidden', !showBehind);
-        $('#back-room-label').text(showBehind ? 'Behind you: ' + previous.title : 'Behind you');
+        var destination = showBehind ? previous : behindGatewayRoom();
+        $('#back-room').prop('hidden', !destination);
+        $('#back-room-label').text(destination ? 'Behind you: ' + destination.title : 'Behind you');
     }
 
-    function renderGatewayReturnActions() {
+    function behindGatewayRoom() {
         var clusterId = clusterByRoomId[String(room.id)];
         var cluster = clusterById[clusterId];
         var assignment = cluster ? state.clusterGatewayReturns[clusterId] : null;
-        if (!cluster || String(cluster.entryRoomId) !== String(room.id) || !assignment || assignment.returnMode !== 'behind') {
-            $('#gateway-return-actions').empty();
-            return;
-        }
-        var gatewayRoom = roomById[String(assignment.gatewayRoomId)];
-        $('#gateway-return-actions').html('<button type="button" class="btn-ghost gateway-return-button"><i class="fa-solid fa-shuffle"></i> Gateway: ' + esc(gatewayRoom ? gatewayRoom.title : 'Return') + '</button>');
+        if (!cluster || String(cluster.entryRoomId) !== String(room.id) || !assignment || assignment.returnMode !== 'behind') return null;
+        return roomById[String(assignment.gatewayRoomId)] || null;
     }
 
     function setActiveRoom(nextRoom, entryRegionId) {
@@ -310,7 +307,6 @@
         playCanvas.style.aspectRatio = room.data.canvas.width + ' / ' + room.data.canvas.height;
         populateEntryDoors(entryRegionId);
         updateBackButton();
-        renderGatewayReturnActions();
         renderAll();
         runActivationBehaviors('room_enter', 'room', room);
         renderAll();
@@ -330,7 +326,11 @@
     }
 
     function returnToPreviousRoom() {
-        if (!navigationStack.length) return;
+        var previousVisit = navigationStack.length ? navigationStack[navigationStack.length - 1] : null;
+        if (!previousVisit || previousVisit.returnMode !== 'behind') {
+            if (behindGatewayRoom()) returnThroughGateway();
+            return;
+        }
         var departedRoom = room;
         var previous = navigationStack.pop();
         setActiveRoom(previous.room, previous.entryRegionId);
@@ -814,7 +814,6 @@
     $('#show-regions').on('change', renderRegions);
     $('#reset-session').on('click', reset);
     $('#back-room').on('click', returnToPreviousRoom);
-    $('#gateway-return-actions').on('click', '.gateway-return-button', returnThroughGateway);
     $('#toggle-inventory').on('click', function () { $('#inventory-panel').hasClass('visible') ? closeInventory() : openInventory(); });
     $('#close-inventory').on('click', closeInventory);
     $('#inventory-objects').on('click', '.inventory-object', function () {
@@ -828,6 +827,14 @@
     });
     $('#toggle-room-description').on('click', function () { setDescriptionOpen('room', $(this).attr('aria-expanded') !== 'true'); });
     $('#toggle-object-description').on('click', function () { setDescriptionOpen('object', $(this).attr('aria-expanded') !== 'true'); });
+    $(objectCanvas).on('click', function (event) {
+        if ($(event.target).closest('button, .play-region:not(.passive), .player-description-card').length) return;
+        if (activeObject && window.NLRoomRules.bookPage(activeObject.data && activeObject.data.book, activeBookPageIndex)) {
+            setDescriptionOpen('object', true);
+        }
+    });
+    $('#object-description-card').on('click', function () { setDescriptionOpen('object', false); });
+    $('#room-description-card').on('click', function () { setDescriptionOpen('room', false); });
     $('[data-close-description]').on('click', function () { setDescriptionOpen($(this).attr('data-close-description'), false); });
     $(document).on('keydown', function (event) {
         resumePendingAmbientSound();

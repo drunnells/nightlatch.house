@@ -118,6 +118,7 @@ The S3 config shape currently includes:
 - Legacy `condition` / `success` / `failure` regions must be normalized into the branch format when loaded and written as version 2 data on the next save.
 - Shared evaluation behavior belongs in `assets/js/room-rules.js`; shared admin rule-builder behavior belongs in `assets/js/logic-editor.js`; server-side shape and limit validation belongs in `app/interactive-logic.php`.
 - Shared region movement and resize constraints belong in `assets/js/region-bounds.js`; room and object editors must keep edited bounds inside the content canvas.
+- The room editor Regions tab has a temporary Hide / Show regions control for unobstructed background inspection, including hiding selection handles. Regions start shown and become shown again when returning from another tab or starting to draw; visibility is not saved with content.
 - Click and automatic behaviors reuse the evaluator in `assets/js/room-rules.js`; do not create separate condition or result semantics for new trigger types.
 - Canonical room topology is stored separately from room interaction JSON. Legacy `door.targetRoom` values may be imported, and canonical topology is mirrored back into door metadata for compatibility.
 - Static door connections identify a source room/region, destination room, and return behavior. Returns may use a paired destination door, a contextual behind-you control, or an explicit one-way connection.

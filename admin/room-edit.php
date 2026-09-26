@@ -111,11 +111,12 @@ require __DIR__ . '/_header.php';
 
     <section class="editor-sidebar">
         <?php if ($error): ?><div class="nl-alert compact"><?php echo nightlatch_h($error); ?></div><?php endif; ?>
-        <div class="editor-panel active" data-panel-content="regions">
+        <div class="editor-panel regions-panel active" data-panel-content="regions">
             <div class="sidebar-heading"><div><span class="eyebrow">Interaction map</span><h2>Clickable regions</h2></div><button id="add-region" class="icon-button gold" title="Draw a region"><i class="fa-solid fa-plus"></i></button></div>
             <p class="hint">Draw a new region, or select an existing one and use its corner handles to move or resize it.</p>
             <button class="draw-callout" id="draw-region"><i class="fa-solid fa-pen-ruler"></i><span><strong>Draw region</strong><small>Drag over the image</small></span></button>
             <div class="region-list" id="region-list"></div>
+            <button type="button" class="btn-ghost btn-block" id="toggle-region-visibility" aria-controls="region-layer"><i class="fa-regular fa-eye-slash" aria-hidden="true"></i> <span>Hide regions</span></button>
         </div>
 
         <div class="editor-panel" data-panel-content="assets">

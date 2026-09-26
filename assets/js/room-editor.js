@@ -14,6 +14,7 @@
     var regions = room.data && Array.isArray(room.data.regions) ? room.data.regions : [];
     var canvas = room.data && room.data.canvas ? room.data.canvas : { width: 1600, height: 900 };
     var selectedId = null;
+    var regionsVisible = true;
     var drawing = false;
     var drawStart = null;
     var draftRect = null;
@@ -277,7 +278,7 @@
 
     function positionRegionHandles() {
         var region = selected();
-        var visible = !!region && !drawing;
+        var visible = !!region && !drawing && regionsVisible;
         $(moveHandle).prop('hidden', !visible);
         $(resizeHandle).prop('hidden', !visible);
         if (!visible) return;
@@ -395,6 +396,7 @@
     }
 
     function startDrawing() {
+        setRegionsVisible(true);
         drawing = true;
         drawStart = null;
         roomCanvas.classList.add('drawing');
@@ -415,7 +417,7 @@
 
     function beginRegionTransform(mode, event) {
         var region = selected();
-        if (!region || drawing) return;
+        if (!region || drawing || !regionsVisible) return;
         event.preventDefault();
         event.stopPropagation();
         transformGesture = {
@@ -562,8 +564,23 @@
         renderRegions(); fillInspector(); renderGatewaySettings(); markDirty();
     });
 
+    function setRegionsVisible(visible) {
+        if (!visible) {
+            if (transformGesture) finishRegionTransform(false);
+            if (drawing) stopDrawing();
+        }
+        regionsVisible = visible;
+        roomCanvas.classList.toggle('regions-hidden', !visible);
+        $('#toggle-region-visibility span').text(visible ? 'Hide regions' : 'Show regions');
+        $('#toggle-region-visibility i').attr('class', visible ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye');
+        positionRegionHandles();
+    }
+
+    $('#toggle-region-visibility').on('click', function () { setRegionsVisible(!regionsVisible); });
+
     $('.rail-tool[data-panel]').on('click', function () {
         var panel = $(this).data('panel');
+        if (panel === 'regions' && !$(this).hasClass('active')) setRegionsVisible(true);
         $('.rail-tool[data-panel]').removeClass('active');
         $(this).addClass('active');
         $('.editor-panel').removeClass('active');

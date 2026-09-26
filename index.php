@@ -24,6 +24,7 @@ try {
     <meta name="theme-color" content="#080b0c">
     <meta name="description" content="Enter Nightlatch House, a point-and-click puzzle adventure.">
     <title>Nightlatch House</title>
+    <link rel="icon" type="image/jpeg" href="<?php echo nightlatch_h(nightlatch_asset('graphics/favicon.jpg', 'assets/')); ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">

@@ -115,7 +115,9 @@ require __DIR__ . '/_header.php';
             <div class="sidebar-heading"><div><span class="eyebrow">Interaction map</span><h2>Clickable regions</h2></div><button id="add-region" class="icon-button gold" title="Draw a region"><i class="fa-solid fa-plus"></i></button></div>
             <p class="hint">Draw a new region, or select an existing one and use its corner handles to move or resize it.</p>
             <button class="draw-callout" id="draw-region"><i class="fa-solid fa-pen-ruler"></i><span><strong>Draw region</strong><small>Drag over the image</small></span></button>
+            <p class="hint">Layers run back to front: drag a region lower to bring it forward. Keyboard: focus a region and use Alt + ↑ / ↓.</p>
             <div class="region-list" id="region-list"></div>
+            <span id="region-layer-status" class="sr-only" role="status" aria-live="polite"></span>
             <button type="button" class="btn-ghost btn-block" id="toggle-region-visibility" aria-controls="region-layer"><i class="fa-regular fa-eye-slash" aria-hidden="true"></i> <span>Hide regions</span></button>
         </div>
 
@@ -184,6 +186,7 @@ require __DIR__ . '/_header.php';
             <div class="inspector-heading"><div><span class="eyebrow">Selected region</span><h2 id="inspector-title">Region</h2></div><button id="delete-region" class="icon-button danger" title="Delete region"><i class="fa-solid fa-trash"></i></button></div>
             <label for="region-name">Name</label><input id="region-name" placeholder="Locked cabinet">
             <label for="region-kind">Region type</label><select id="region-kind"><option value="interaction">Interaction</option><option value="door">Door / exit</option></select>
+            <label class="check-row map-check region-overlay-click-setting"><input id="region-click-requires-overlay" type="checkbox"><span><strong>Only clickable while its overlay is visible</strong><small>For removable covers: show this region’s overlay with a result or automatic behavior. Clearing it lets clicks reach regions underneath. Door / exit regions always stay clickable.</small></span></label>
             <div class="region-overlay-capture">
                 <div class="region-overlay-capture-heading"><span><i class="fa-solid fa-camera-retro"></i> Saved appearance</span><small id="captured-overlay-count">0 captured</small></div>
                 <p>Freeze the selected pixels before editing the background. The snapshot can later be reused by a Show / replace overlay result for this region.</p>

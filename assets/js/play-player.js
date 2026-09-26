@@ -486,7 +486,7 @@
         target.textContent = '';
         targetRegions.forEach(function (region) {
             if (!region || !region.bounds) return;
-            var acceptsPlayerClick = window.NLRoomRules.regionAcceptsPlayerClick(region);
+            var acceptsPlayerClick = window.NLRoomRules.regionAcceptsPlayerClick(region, state, target === objectSvg ? objectOverlayKey(activeObject, region) : regionStateKey('room', room, region));
             var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('x', region.bounds.x);
             rect.setAttribute('y', region.bounds.y);
@@ -1271,7 +1271,7 @@
         if (event.type === 'keydown') event.preventDefault();
         var id = target.getAttribute('data-id');
         var region = contentRegions().find(function (candidate) { return String(candidate.id) === String(id); });
-        if (region && window.NLRoomRules.regionAcceptsPlayerClick(region)) handler(region);
+        if (region && window.NLRoomRules.regionAcceptsPlayerClick(region, state, targetSvg === objectSvg ? objectOverlayKey(activeObject, region) : regionStateKey('room', room, region))) handler(region);
     }
 
     roomSvg.addEventListener('click', function (event) {

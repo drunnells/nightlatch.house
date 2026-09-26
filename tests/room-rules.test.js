@@ -158,6 +158,20 @@ assert.strictEqual(rules.regionAcceptsPlayerClick({
 }), true, 'an authored click action makes an interaction region player-clickable');
 assert.strictEqual(rules.regionAcceptsPlayerClick({ kind: 'door', logic: rules.defaultLogic() }), true, 'doors remain player-clickable without result actions');
 assert.strictEqual(rules.regionAcceptsPlayerClick({ kind: 'interaction', success: { message: 'Legacy click result' } }), true, 'legacy player-click results remain clickable');
+// Cover regions stop intercepting clicks as soon as their own overlay is cleared.
+var cover = { id: 'lid', kind: 'interaction', clickRequiresOverlay: true, success: { message: 'Lift the lid.' } };
+var coverState = freshState();
+assert.strictEqual(rules.regionAcceptsPlayerClick(cover, coverState, 'room:box:lid'), false);
+rules.applyActions([{ type: 'set_overlay', asset: 'lid.png' }], coverState, { overlayKey: 'room:box:lid' });
+assert.strictEqual(rules.regionAcceptsPlayerClick(cover, coverState, 'room:box:lid'), true);
+assert.strictEqual(rules.regionAcceptsPlayerClick(cover, coverState, 'object:box:lid'), false, 'same region id in another content item must not enable a cover');
+rules.applyActions([{ type: 'clear_overlay' }], coverState, { overlayKey: 'room:box:lid' });
+assert.strictEqual(rules.regionAcceptsPlayerClick(cover, coverState, 'room:box:lid'), false);
+rules.applyActions([{ type: 'set_overlay', asset: 'replacement.png' }], coverState, { overlayKey: 'object:box:lid' });
+assert.strictEqual(rules.regionAcceptsPlayerClick(cover, coverState, 'object:box:lid'), true, 'object covers can become clickable again');
+assert.strictEqual(rules.regionAcceptsPlayerClick(Object.assign({}, cover, { clickRequiresOverlay: false }), freshState(), 'room:box:lid'), true, 'existing interactions do not depend on overlays');
+assert.strictEqual(rules.regionAcceptsPlayerClick(Object.assign({}, cover, { kind: 'door' }), freshState(), 'room:box:lid'), true, 'doors remain clickable');
+assert.strictEqual(rules.regionAcceptsPlayerClick(Object.assign({}, automaticOnlyRegion, { id: 'lid', clickRequiresOverlay: true }), coverState, 'object:box:lid'), false, 'overlay visibility does not make automatic-only regions intercept clicks');
 var automaticState = freshState();
 automaticState.flags.generator_power = 'on';
 rules.runLogic(automaticBehaviors[0].logic, automaticState, { overlayKey: 'room:boiler:generator' });

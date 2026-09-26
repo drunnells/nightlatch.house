@@ -15,6 +15,7 @@
     var canvas = room.data && room.data.canvas ? room.data.canvas : { width: 1600, height: 900 };
     var selectedId = null;
     var regionsVisible = true;
+    var draggedRegionId = null;
     var drawing = false;
     var drawStart = null;
     var draftRect = null;
@@ -96,6 +97,7 @@
             id: uid(),
             name: 'New region',
             kind: 'interaction',
+            clickRequiresOverlay: false,
             bounds: bounds,
             logic: window.NLRoomRules.defaultLogic(),
             automaticBehaviors: [],
@@ -109,6 +111,7 @@
         fresh.id = region.id || fresh.id;
         fresh.name = region.name || fresh.name;
         fresh.kind = region.kind || fresh.kind;
+        fresh.clickRequiresOverlay = region.clickRequiresOverlay === true;
         fresh.bounds = $.extend({}, fresh.bounds, region.bounds || {});
         fresh.logic = window.NLRoomRules.normalizeLogic(region);
         fresh.automaticBehaviors = window.NLRoomRules.normalizeAutomaticBehaviors(region);
@@ -242,8 +245,8 @@
         var html = regions.length ? '' : '<div class="region-empty"><i class="fa-regular fa-square-plus"></i><p>No clickable areas yet</p></div>';
         regions.forEach(function (region, index) {
             var regionDetail = region.kind === 'door' ? 'Door / exit' : 'Interaction';
-            html += '<button class="region-item' + (region.id === selectedId ? ' active' : '') + '" data-id="' + esc(region.id) + '">' +
-                '<span class="region-number">' + (index + 1) + '</span><span><strong>' + esc(region.name) + '</strong><small><i class="fa-solid ' + (region.kind === 'door' ? 'fa-door-open' : 'fa-hand-pointer') + '"></i> ' + esc(regionDetail) + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
+            html += '<button type="button" draggable="true" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" title="' + esc(region.name + ' · ' + regionDetail + ' · Layer ' + (index + 1)) + '" class="region-item' + (region.id === selectedId ? ' active' : '') + '" data-id="' + esc(region.id) + '">' +
+                '<span class="region-number">' + (index + 1) + '</span><span><strong>' + esc(region.name) + '</strong><small><i class="fa-solid ' + (region.kind === 'door' ? 'fa-door-open' : 'fa-hand-pointer') + '"></i> ' + esc(regionDetail) + '</small></span><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></button>';
         });
         $('#region-list').html(html);
         positionRegionHandles();
@@ -333,6 +336,7 @@
         $('#inspector-title').text(region.name);
         $('#region-name').val(region.name);
         $('#region-kind').val(region.kind);
+        $('#region-click-requires-overlay').prop('checked', !!region.clickRequiresOverlay).prop('disabled', region.kind === 'door');
         $('#target-room').val(region.door.targetRoom);
         renderTargetRoomPicker(region.door.targetRoom);
         $('#door-unlocked').prop('checked', !!region.door.unlocked);
@@ -355,6 +359,8 @@
         var previousKind = region.kind;
         region.name = $('#region-name').val().trim() || 'Untitled region';
         region.kind = isObject ? 'interaction' : $('#region-kind').val();
+        region.clickRequiresOverlay = region.kind !== 'door' && $('#region-click-requires-overlay').prop('checked');
+        $('#region-click-requires-overlay').prop('checked', region.clickRequiresOverlay).prop('disabled', region.kind === 'door');
         if (previousKind === 'door' && region.kind !== 'door') {
             [region.logic].concat((region.automaticBehaviors || []).map(function (behavior) { return behavior.logic; })).forEach(function (logic) {
                 logic.branches.forEach(function (branch) {
@@ -528,7 +534,58 @@
     });
 
     $('#region-list').on('click', '.region-item', function () { selectRegion($(this).data('id')); });
-    $('#region-name, #region-kind, #target-room, #door-unlocked').on('input change', updateSelected);
+    function moveRegionLayer(regionId, targetIndex) {
+        var sourceIndex = regions.findIndex(function (region) { return String(region.id) === String(regionId); });
+        if (sourceIndex < 0) return;
+        targetIndex = Math.max(0, Math.min(regions.length - 1, targetIndex));
+        if (sourceIndex === targetIndex) return;
+        var region = regions.splice(sourceIndex, 1)[0];
+        regions.splice(targetIndex, 0, region);
+        renderRegions();
+        if (bookEditor) bookEditor.refreshRegions();
+        markDirty();
+        $('#region-layer-status').text(region.name + ' moved to layer ' + (targetIndex + 1) + ' of ' + regions.length + '. Higher numbers are in front.');
+        $('#region-list .region-item').filter(function () { return $(this).attr('data-id') === String(regionId); }).trigger('focus');
+    }
+
+    function clearLayerDrag() {
+        draggedRegionId = null;
+        $('#region-list .region-item').removeClass('layer-dragging layer-drop-before layer-drop-after');
+    }
+
+    $('#region-list').on('dragstart', '.region-item', function (event) {
+        draggedRegionId = $(this).attr('data-id');
+        event.originalEvent.dataTransfer.effectAllowed = 'move';
+        event.originalEvent.dataTransfer.setData('text/plain', draggedRegionId);
+        $(this).addClass('layer-dragging');
+    }).on('dragover', '.region-item', function (event) {
+        if (!draggedRegionId) return;
+        event.preventDefault();
+        event.originalEvent.dataTransfer.dropEffect = 'move';
+        var rect = this.getBoundingClientRect();
+        var after = event.originalEvent.clientY >= rect.top + rect.height / 2;
+        $('#region-list .region-item').removeClass('layer-drop-before layer-drop-after');
+        if ($(this).attr('data-id') !== draggedRegionId) $(this).addClass(after ? 'layer-drop-after' : 'layer-drop-before');
+    }).on('drop', '.region-item', function (event) {
+        if (!draggedRegionId) return;
+        event.preventDefault();
+        var sourceId = draggedRegionId;
+        var targetId = $(this).attr('data-id');
+        var sourceIndex = regions.findIndex(function (region) { return String(region.id) === sourceId; });
+        var targetIndex = regions.findIndex(function (region) { return String(region.id) === targetId; });
+        var rect = this.getBoundingClientRect();
+        if (event.originalEvent.clientY >= rect.top + rect.height / 2) targetIndex += 1;
+        if (sourceIndex < targetIndex) targetIndex -= 1;
+        clearLayerDrag();
+        if (sourceId !== targetId) moveRegionLayer(sourceId, targetIndex);
+    }).on('dragend', clearLayerDrag).on('keydown', '.region-item', function (event) {
+        if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+        event.preventDefault();
+        var id = $(this).attr('data-id');
+        var index = regions.findIndex(function (region) { return String(region.id) === id; });
+        moveRegionLayer(id, index + (event.key === 'ArrowDown' ? 1 : -1));
+    });
+    $('#region-name, #region-kind, #region-click-requires-overlay, #target-room, #door-unlocked').on('input change', updateSelected);
     $('#target-room-picker').on('click', '.logic-picker-toggle', function () {
         var picker = $(this).closest('.room-target-picker');
         var opening = !picker.hasClass('open');

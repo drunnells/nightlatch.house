@@ -51,6 +51,17 @@ $data = array(
 );
 
 nightlatch_validate_interactive_data($data, 'room');
+$overlayDependent = $data;
+$overlayDependent['regions'][0]['clickRequiresOverlay'] = true;
+nightlatch_validate_interactive_data($overlayDependent, 'room');
+$overlayDependent['regions'][0]['clickRequiresOverlay'] = 'true';
+try {
+    nightlatch_validate_interactive_data($overlayDependent, 'room');
+    throw new LogicException('String overlay click settings must be rejected.');
+} catch (RuntimeException $expected) {
+    if (strpos($expected->getMessage(), 'Overlay-dependent') === false) throw $expected;
+}
+
 
 $invalid = $data;
 $invalid['regions'][0]['logic']['branches'][0]['actions'][] = array('type' => 'set_description', 'targetKind' => 'painting', 'targetSlug' => 'foyer', 'text' => 'Invalid target.');

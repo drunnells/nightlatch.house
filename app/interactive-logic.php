@@ -215,6 +215,9 @@ function nightlatch_validate_interactive_data($data, $contentKind)
             throw new RuntimeException('Every interactive region must be an object.');
         }
         $regionKind = isset($region['kind']) ? $region['kind'] : 'interaction';
+        if (array_key_exists('clickRequiresOverlay', $region) && !is_bool($region['clickRequiresOverlay'])) {
+            throw new RuntimeException('Overlay-dependent clicking must be true or false.');
+        }
         if (!in_array($regionKind, array('interaction', 'door'), true) || ($contentKind === 'object' && $regionKind !== 'interaction')) {
             throw new RuntimeException('Invalid interactive region type.');
         }

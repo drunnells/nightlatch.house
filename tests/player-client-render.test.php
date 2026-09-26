@@ -74,7 +74,16 @@ $privateCatalog = array(
 );
 $useCondition = array('type' => 'condition', 'source' => 'use', 'key' => 'brass_key', 'operator' => 'exists', 'value' => '');
 $privateCatalog['objects'][0]['data']['regions'][] = array('id' => 'lock', 'logic' => array('branches' => array(array('when' => $useCondition, 'actions' => array()))));
+$privateCatalog['rooms'][0]['data']['regions'][0]['clickRequiresOverlay'] = true;
+$privateCatalog['objects'][0]['data']['regions'][0]['clickRequiresOverlay'] = true;
+$privateCatalog['rooms'][0]['data']['regions'][] = array('id' => 'front-layer', 'kind' => 'interaction');
 $publicCatalog = nightlatch_public_play_catalog($privateCatalog);
+if ($publicCatalog['rooms'][0]['data']['regions'][0]['clickRequiresOverlay'] !== true
+    || $publicCatalog['objects'][0]['data']['regions'][0]['clickRequiresOverlay'] !== true
+    || array_column($publicCatalog['rooms'][0]['data']['regions'], 'id') !== array('portrait', 'front-layer')) {
+    throw new RuntimeException('The public catalog must preserve region order and overlay click settings.');
+}
+
 if ($publicCatalog['objects'][0]['data']['regions'][0]['logic']['branches'][0]['when'] !== $useCondition) {
     throw new RuntimeException('The public catalog must preserve Use conditions.');
 }

@@ -166,9 +166,13 @@
         return expression.source === 'use' && (key === undefined || (key && expression.key === key));
     }
 
-    function regionAcceptsPlayerClick(region) {
+    function regionAcceptsPlayerClick(region, state, overlayKey) {
         region = region || {};
         if (region.kind === 'door') return true;
+        if (region.clickRequiresOverlay === true) {
+            var overlays = state && state.overlays ? state.overlays : {};
+            if (!overlays[overlayKey || region.id]) return false;
+        }
         if (region.logic && Array.isArray(region.logic.branches)) {
             return region.logic.branches.some(function (branch) {
                 return !!branch && !expressionUsesItem(branch.when) && Array.isArray(branch.actions) && branch.actions.length > 0;
